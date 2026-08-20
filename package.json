@@ -1,0 +1,15 @@
+{
+  "name": "golias",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GOLIAS — sistema de apontamento e aprovação de RDO para manutenção de infraestrutura",
+  "scripts": {
+    "dev": "pnpm --filter @golias/desktop dev",
+    "build": "pnpm -r --filter=./packages/* build",
+    "typecheck": "pnpm -r --filter=./packages/* typecheck"
+  },
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16
+    container_name: golias-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-golias}
+      POSTGRES_USER: ${POSTGRES_USER:-golias}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-golias}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - golias_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-golias} -d ${POSTGRES_DB:-golias}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Produção / VPS: "docker compose up -d --build" sobe banco + API.
+  # Em desenvolvimento local, continue usando apenas "docker compose up -d db"
+  # e "pnpm --filter @golias/server dev" (hot-reload).
+  server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    container_name: golias-server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - packages/server/.env
+    ports:
+      - "${SERVER_PORT:-3333}:3333"
+
+volumes:
+  golias_db_data:

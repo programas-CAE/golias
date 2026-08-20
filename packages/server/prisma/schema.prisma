@@ -1,0 +1,320 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum FrenteCodigo {
+  MAB
+  PBA
+  RAMAL
+}
+
+enum RdoStatus {
+  RASCUNHO
+  EM_CORRECAO
+  AGUARDANDO_APROVACAO
+  APROVADO
+  REPROVADO
+}
+
+enum UnidadeMedida {
+  M
+  M2
+  M3
+  UND
+  HH
+  M3KM
+}
+
+enum TempoClima {
+  SOL
+  CHUVA
+  NUBLADO
+}
+
+enum TipoAnexo {
+  FOTO
+  NOTA_FISCAL
+  DOCUMENTO
+}
+
+enum AprovacaoStatus {
+  PENDENTE
+  APROVADO
+  REPROVADO
+  EXPIRADO
+}
+
+enum UsuarioRole {
+  ADMIN
+  ESCRITORIO
+}
+
+enum PeriodoMedicaoStatus {
+  ABERTO
+  FECHADO
+}
+
+model AtividadeCatalogo {
+  id            String         @id @default(cuid())
+  codigo        String
+  descricao     String
+  unidade       UnidadeMedida
+  metaPus       Decimal?       @db.Decimal(10, 4)
+  usaDimensoes  Boolean        @default(false)
+  ativo         Boolean        @default(true)
+  ordem         Int            @default(0)
+  rdoAtividades RdoAtividade[]
+}
+
+model FuncaoCatalogo {
+  id            String         @id @default(cuid())
+  nome          String         @unique
+  ativo         Boolean        @default(true)
+  colaboradores Colaborador[]
+  equipeMembros EquipeMembro[]
+  maoDeObra     RdoMaoDeObra[]
+}
+
+model EquipamentoCatalogo {
+  id              String           @id @default(cuid())
+  nome            String           @unique
+  ativo           Boolean          @default(true)
+  rdoEquipamentos RdoEquipamento[]
+}
+
+model Frente {
+  id               String            @id @default(cuid())
+  codigo           FrenteCodigo      @unique
+  nome             String
+  ativo            Boolean           @default(true)
+  equipes          Equipe[]
+  ordensManutencao OrdemManutencao[]
+  rdos             Rdo[]
+}
+
+model Colaborador {
+  id            String         @id @default(cuid())
+  matricula     String         @unique
+  nome          String
+  funcaoId      String
+  funcao        FuncaoCatalogo @relation(fields: [funcaoId], references: [id])
+  ativo         Boolean        @default(true)
+  equipeMembros EquipeMembro[]
+  rdoMaoDeObra  RdoMaoDeObra[]
+}
+
+model Equipe {
+  id            String         @id @default(cuid())
+  nome          String
+  frenteId      String
+  frente        Frente         @relation(fields: [frenteId], references: [id])
+  encarregadoId String?
+  ativo         Boolean        @default(true)
+  membros       EquipeMembro[]
+  rdos          Rdo[]
+}
+
+model EquipeMembro {
+  id            String         @id @default(cuid())
+  equipeId      String
+  equipe        Equipe         @relation(fields: [equipeId], references: [id])
+  colaboradorId String
+  colaborador   Colaborador    @relation(fields: [colaboradorId], references: [id])
+  funcaoId      String
+  funcao        FuncaoCatalogo @relation(fields: [funcaoId], references: [id])
+  quantidade    Int            @default(1)
+
+  @@unique([equipeId, colaboradorId])
+}
+
+model OrdemManutencao {
+  id          String   @id @default(cuid())
+  numero      String   @unique
+  frenteId    String
+  frente      Frente   @relation(fields: [frenteId], references: [id])
+  dataEmissao DateTime
+  kmInicial   Decimal? @db.Decimal(10, 3)
+  kmFinal     Decimal? @db.Decimal(10, 3)
+  lado        String?
+  detalhes    String?
+  rdos        Rdo[]
+}
+
+model Usuario {
+  id            String                @id @default(cuid())
+  nome          String
+  email         String                @unique
+  senhaHash     String
+  role          UsuarioRole           @default(ESCRITORIO)
+  ativo         Boolean               @default(true)
+  refreshTokens SessaoRefreshToken[]
+}
+
+model SessaoRefreshToken {
+  id         String    @id @default(cuid())
+  usuarioId  String
+  usuario    Usuario   @relation(fields: [usuarioId], references: [id])
+  tokenHash  String    @unique
+  expiraEm   DateTime
+  revogadoEm DateTime?
+  criadoIp   String?
+  criadoEm   DateTime  @default(now())
+}
+
+model Rdo {
+  id                String           @id @default(cuid())
+  frenteId          String
+  frente            Frente           @relation(fields: [frenteId], references: [id])
+  equipeId          String
+  equipe            Equipe           @relation(fields: [equipeId], references: [id])
+  ordemManutencaoId String?
+  ordemManutencao   OrdemManutencao? @relation(fields: [ordemManutencaoId], references: [id])
+  data              DateTime         @db.Date
+  horarioInicial    String?
+  horarioFinal      String?
+  clima             TempoClima?
+  encarregadoId     String?
+  observacoesContratada String?      @db.Text
+  observacoesCliente    String?      @db.Text
+  status            RdoStatus        @default(RASCUNHO)
+
+  linkCampoToken    String?          @unique
+  linkCampoExpiraEm DateTime?
+
+  corrigidoPorId      String?
+  corrigidoEm         DateTime?
+  enviadoParaFiscalEm DateTime?
+
+  pdfPath String?
+  pdfHash String?
+
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  locais       RdoLocal[]
+  maoDeObra    RdoMaoDeObra[]
+  equipamentos RdoEquipamento[]
+  anexos       RdoAnexo[]
+  aprovacoes   AprovacaoFiscal[]
+  historico    RdoHistorico[]
+
+  @@index([frenteId, data])
+  @@index([status])
+}
+
+model RdoLocal {
+  id         String         @id @default(cuid())
+  rdoId      String
+  rdo        Rdo            @relation(fields: [rdoId], references: [id])
+  descricao  String
+  kmInicial  Decimal?       @db.Decimal(10, 3)
+  kmFinal    Decimal?       @db.Decimal(10, 3)
+  lado       String?
+  ordem      Int            @default(0)
+  atividades RdoAtividade[]
+}
+
+model RdoAtividade {
+  id                  String            @id @default(cuid())
+  rdoLocalId          String
+  rdoLocal            RdoLocal          @relation(fields: [rdoLocalId], references: [id])
+  atividadeCatalogoId String
+  atividadeCatalogo   AtividadeCatalogo @relation(fields: [atividadeCatalogoId], references: [id])
+  altura              Decimal?          @db.Decimal(10, 3)
+  largura             Decimal?          @db.Decimal(10, 3)
+  comprimento         Decimal?          @db.Decimal(10, 3)
+  quantidadeDireta    Decimal?          @db.Decimal(12, 3)
+  totalCalculado      Decimal           @db.Decimal(12, 3)
+  unidade             UnidadeMedida
+}
+
+model RdoMaoDeObra {
+  id                   String          @id @default(cuid())
+  rdoId                String
+  rdo                  Rdo             @relation(fields: [rdoId], references: [id])
+  funcaoId             String
+  funcao               FuncaoCatalogo  @relation(fields: [funcaoId], references: [id])
+  colaboradorId        String?
+  colaborador          Colaborador?    @relation(fields: [colaboradorId], references: [id])
+  quantidade           Int             @default(1)
+  horasImprodutivas    Decimal?        @db.Decimal(6, 2)
+  causaImprodutividade String?
+}
+
+model RdoEquipamento {
+  id                    String              @id @default(cuid())
+  rdoId                 String
+  rdo                   Rdo                 @relation(fields: [rdoId], references: [id])
+  equipamentoCatalogoId String
+  equipamentoCatalogo   EquipamentoCatalogo @relation(fields: [equipamentoCatalogoId], references: [id])
+  quantidade            Int                 @default(1)
+}
+
+model RdoAnexo {
+  id             String    @id @default(cuid())
+  rdoId          String
+  rdo            Rdo       @relation(fields: [rdoId], references: [id])
+  tipo           TipoAnexo
+  caminhoArquivo String
+  nomeOriginal   String
+  mimeType       String
+  tamanhoBytes   Int
+  descricao      String?
+  valor          Decimal?  @db.Decimal(12, 2)
+  criadoEm       DateTime  @default(now())
+}
+
+model AprovacaoFiscal {
+  id                    String          @id @default(cuid())
+  rdoId                 String
+  rdo                   Rdo             @relation(fields: [rdoId], references: [id])
+  fiscalNome            String
+  fiscalEmail           String
+  token                 String          @unique
+  tokenExpiraEm         DateTime
+  status                AprovacaoStatus @default(PENDENTE)
+  assinanteNome         String?
+  assinadoEm            DateTime?
+  assinadoIp            String?
+  documentoHash         String?
+  comentarioReprovacao  String?         @db.Text
+  criadoEm              DateTime        @default(now())
+}
+
+model RdoHistorico {
+  id         String     @id @default(cuid())
+  rdoId      String
+  rdo        Rdo        @relation(fields: [rdoId], references: [id])
+  deStatus   RdoStatus?
+  paraStatus RdoStatus
+  ator       String
+  observacao String?    @db.Text
+  criadoEm   DateTime   @default(now())
+}
+
+model PeriodoMedicao {
+  id        String                @id @default(cuid())
+  frenteId  String
+  ano       Int
+  mes       Int
+  status    PeriodoMedicaoStatus  @default(ABERTO)
+  fechadoEm DateTime?
+  itens     MedicaoItem[]
+
+  @@unique([frenteId, ano, mes])
+}
+
+model MedicaoItem {
+  id                  String         @id @default(cuid())
+  periodoMedicaoId    String
+  periodoMedicao      PeriodoMedicao @relation(fields: [periodoMedicaoId], references: [id])
+  atividadeCatalogoId String
+  quantidadeTotal     Decimal        @db.Decimal(14, 3)
+  unidade             UnidadeMedida
+
+  @@unique([periodoMedicaoId, atividadeCatalogoId])
+}

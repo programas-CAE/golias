@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dist-electron/
+release/
+.env
+*.log
+uploads/
+
+# editor / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# prisma
+packages/server/prisma/generated/
+
+# electron-builder
+packages/desktop/release/
