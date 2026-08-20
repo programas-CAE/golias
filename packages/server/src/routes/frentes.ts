@@ -4,7 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { parseBody } from "../lib/validate.js";
 
-const frenteSelect = { id: true, codigo: true, nome: true, ativo: true } as const;
+const frenteSelect = { id: true, codigo: true, nome: true, numeroSap: true, ativo: true } as const;
 
 export function registerFrentesRoutes(app: FastifyInstance): void {
   app.get("/frentes", async () => {

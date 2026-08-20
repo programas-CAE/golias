@@ -53,3 +53,246 @@ body {
   line-height: 1.5;
   color: #94a3b8;
 }
+
+/* Formulário de captura de RDO em campo — mobile-first. */
+
+.campo-page {
+  min-height: 100vh;
+  padding: 16px;
+  padding-bottom: 96px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.campo-card {
+  max-width: 480px;
+  margin: 40px auto;
+  text-align: center;
+  padding: 32px 24px;
+  border-radius: 16px;
+  background: #111c34;
+  border: 1px solid #1f2c4c;
+}
+
+.campo-card h1 {
+  margin: 0 0 8px;
+  color: #f97316;
+  letter-spacing: 0.08em;
+}
+
+.campo-card .subtitle {
+  margin: 0 0 12px;
+  font-weight: 700;
+}
+
+.campo-card .description {
+  color: #94a3b8;
+}
+
+.campo-header {
+  padding: 8px 4px 20px;
+}
+
+.campo-header h1 {
+  margin: 0 0 4px;
+  font-size: 1.3rem;
+  color: #f97316;
+}
+
+.campo-header p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+.campo-secao {
+  background: #111c34;
+  border: 1px solid #1f2c4c;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.campo-secao h2 {
+  margin: 0 0 14px;
+  font-size: 1rem;
+  color: #e2e8f0;
+}
+
+.campo-subtitulo {
+  margin: 12px 0 8px;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.campo-radios {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.campo-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.campo-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.campo-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.campo-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #23304f;
+  border-radius: 10px;
+}
+
+.campo-atividade {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin-bottom: 8px;
+  border: 1px dashed #2a3a5f;
+  border-radius: 8px;
+}
+
+.campo-checklist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #1b2740;
+  font-size: 0.9rem;
+}
+
+.campo-checklist-row:last-child {
+  border-bottom: none;
+}
+
+.campo-qtd {
+  width: 72px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.campo-anexos-lista {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+.campo-textarea {
+  min-height: 100px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.campo-acoes {
+  position: sticky;
+  bottom: 0;
+  padding: 12px 0;
+  background: linear-gradient(to top, #0f172a 60%, transparent);
+}
+
+.campo-acoes .button {
+  width: 100%;
+}
+
+/* Classes reaproveitadas do padrão visual do app desktop. */
+
+.field-label {
+  display: block;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.field-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #2a3a5f;
+  background: #0b1120;
+  color: #e2e8f0;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.field-input:focus {
+  border-color: #f97316;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 28px;
+  border-radius: 10px;
+  border: none;
+  background: #f97316;
+  color: #0b1120;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button--secondary {
+  background: transparent;
+  color: #cbd5e1;
+  border: 1px solid #2a3a5f;
+}
+
+.button--ghost {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #2a3a5f;
+}
+
+.button--small {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+}
+
+.feedback {
+  margin: 8px 0;
+  font-size: 0.85rem;
+}
+
+.feedback--ok {
+  color: #22c55e;
+}
+
+.feedback--erro {
+  color: #ef4444;
+}
+
+.loading-text {
+  color: #94a3b8;
+  text-align: center;
+  padding: 40px 0;
+}

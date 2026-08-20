@@ -27,6 +27,20 @@ describe("GET /frentes", () => {
 });
 
 describe("PATCH /frentes/:id", () => {
+  it("atualiza o número SAP", async () => {
+    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/frentes/${frente.id}`,
+      payload: { numeroSap: "5900130281" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect((response.json() as { numeroSap: string }).numeroSap).toBe("5900130281");
+  });
+
   it("atualiza nome e ativo", async () => {
     const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
 

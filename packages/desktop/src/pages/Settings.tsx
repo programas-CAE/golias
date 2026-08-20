@@ -6,6 +6,7 @@ type SalvarStatus = "idle" | "salvando" | "salvo" | "erro";
 
 export default function Settings(): ReactElement {
   const [apiUrl, setApiUrl] = useState<string>("");
+  const [webUrl, setWebUrl] = useState<string>("");
   const [carregando, setCarregando] = useState<boolean>(true);
   const [salvarStatus, setSalvarStatus] = useState<SalvarStatus>("idle");
 
@@ -15,6 +16,7 @@ export default function Settings(): ReactElement {
     void getSettings().then((settings) => {
       if (!cancelado) {
         setApiUrl(settings.apiUrl);
+        setWebUrl(settings.webUrl);
         setCarregando(false);
       }
     });
@@ -28,8 +30,9 @@ export default function Settings(): ReactElement {
     event.preventDefault();
     setSalvarStatus("salvando");
     try {
-      const atualizado = await setSettings({ apiUrl });
+      const atualizado = await setSettings({ apiUrl, webUrl });
       setApiUrl(atualizado.apiUrl);
+      setWebUrl(atualizado.webUrl);
       setSalvarStatus("salvo");
     } catch {
       setSalvarStatus("erro");
@@ -59,6 +62,21 @@ export default function Settings(): ReactElement {
                 value={apiUrl}
                 onChange={(event) => setApiUrl(event.target.value)}
                 placeholder="http://localhost:3333"
+                autoComplete="off"
+                spellCheck={false}
+              />
+
+              <label className="field-label" htmlFor="webUrl">
+                Endereço do app de campo (link enviado ao encarregado)
+              </label>
+              <input
+                id="webUrl"
+                name="webUrl"
+                type="text"
+                className="field-input"
+                value={webUrl}
+                onChange={(event) => setWebUrl(event.target.value)}
+                placeholder="http://localhost:5173"
                 autoComplete="off"
                 spellCheck={false}
               />

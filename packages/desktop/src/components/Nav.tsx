@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 
 const LINKS: Array<{ to: string; label: string }> = [
   { to: "/", label: "Início" },
+  { to: "/rdos", label: "RDOs" },
   { to: "/frentes", label: "Frentes" },
   { to: "/colaboradores", label: "Colaboradores" },
   { to: "/equipes", label: "Equipes" },

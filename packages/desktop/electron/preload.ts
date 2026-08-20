@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 
 interface GoliasSettings {
   apiUrl: string;
+  webUrl: string;
 }
 
 contextBridge.exposeInMainWorld("golias", {

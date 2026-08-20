@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-dom";
+import Campo from "./pages/Campo";
 
 function Placeholder({ titulo, descricao }: { titulo: string; descricao: string }): ReactElement {
   return (
@@ -10,16 +11,6 @@ function Placeholder({ titulo, descricao }: { titulo: string; descricao: string 
         <p className="description">{descricao}</p>
       </div>
     </div>
-  );
-}
-
-function CampoPage(): ReactElement {
-  const { token } = useParams<{ token: string }>();
-  return (
-    <Placeholder
-      titulo="Apontamento de RDO em campo"
-      descricao={`Esta página permitirá que o encarregado preencha o RDO diretamente no celular. Token: ${token ?? "—"}. Em construção — chega na Fase 3.`}
-    />
   );
 }
 
@@ -47,7 +38,7 @@ export default function App(): ReactElement {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/campo/:token" element={<CampoPage />} />
+        <Route path="/campo/:token" element={<Campo />} />
         <Route path="/fiscal/:token" element={<FiscalPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -7,6 +7,7 @@ import { z } from "zod";
  */
 export const frenteUpdateInputSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(120).optional(),
+  numeroSap: z.string().max(30).nullable().optional(),
   ativo: z.boolean().optional(),
 });
 

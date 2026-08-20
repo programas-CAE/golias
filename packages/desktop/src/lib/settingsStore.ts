@@ -8,6 +8,7 @@
 
 export interface GoliasSettings {
   apiUrl: string;
+  webUrl: string;
 }
 
 export async function getSettings(): Promise<GoliasSettings> {

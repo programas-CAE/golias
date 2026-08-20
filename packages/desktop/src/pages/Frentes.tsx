@@ -6,6 +6,7 @@ interface Frente {
   id: string;
   codigo: string;
   nome: string;
+  numeroSap: string | null;
   ativo: boolean;
 }
 
@@ -51,6 +52,7 @@ export default function Frentes(): ReactElement {
                 <tr>
                   <th>Código</th>
                   <th>Nome</th>
+                  <th>Nº SAP</th>
                   <th>Status</th>
                   <th />
                 </tr>
@@ -60,6 +62,7 @@ export default function Frentes(): ReactElement {
                   <tr key={frente.id}>
                     <td>{frente.codigo}</td>
                     <td>{frente.nome}</td>
+                    <td>{frente.numeroSap ?? "—"}</td>
                     <td>
                       <span className={`badge badge--${frente.ativo ? "ativo" : "inativo"}`}>
                         {frente.ativo ? "Ativa" : "Inativa"}
@@ -106,6 +109,7 @@ function EditarFrenteModal({
   onSalvo: (frente: Frente) => void;
 }): ReactElement {
   const [nome, setNome] = useState(frente.nome);
+  const [numeroSap, setNumeroSap] = useState(frente.numeroSap ?? "");
   const [ativo, setAtivo] = useState(frente.ativo);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -115,7 +119,11 @@ function EditarFrenteModal({
     setSalvando(true);
     setErro(null);
     try {
-      const atualizada = await api.patch<Frente>(`/frentes/${frente.id}`, { nome, ativo });
+      const atualizada = await api.patch<Frente>(`/frentes/${frente.id}`, {
+        nome,
+        numeroSap: numeroSap === "" ? null : numeroSap,
+        ativo,
+      });
       onSalvo(atualizada);
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível salvar.");
@@ -137,6 +145,18 @@ function EditarFrenteModal({
             className="field-input"
             value={nome}
             onChange={(event) => setNome(event.target.value)}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="numeroSap">
+            Número SAP
+          </label>
+          <input
+            id="numeroSap"
+            className="field-input"
+            value={numeroSap}
+            onChange={(event) => setNumeroSap(event.target.value)}
+            placeholder="Ex.: 5900130281"
             autoComplete="off"
           />
 

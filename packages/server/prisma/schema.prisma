@@ -90,6 +90,9 @@ model Frente {
   id               String            @id @default(cuid())
   codigo           FrenteCodigo      @unique
   nome             String
+  // Número do pedido/contrato SAP vinculado a esta frente (ex.: "5900130281"),
+  // impresso fixo em todo RDO da frente — não muda dia a dia.
+  numeroSap        String?
   ativo            Boolean           @default(true)
   equipes          Equipe[]
   ordensManutencao OrdemManutencao[]
@@ -132,16 +135,16 @@ model EquipeMembro {
 }
 
 model OrdemManutencao {
-  id          String   @id @default(cuid())
-  numero      String   @unique
+  id          String     @id @default(cuid())
+  numero      String     @unique
   frenteId    String
-  frente      Frente   @relation(fields: [frenteId], references: [id])
+  frente      Frente     @relation(fields: [frenteId], references: [id])
   dataEmissao DateTime
-  kmInicial   Decimal? @db.Decimal(10, 3)
-  kmFinal     Decimal? @db.Decimal(10, 3)
+  kmInicial   Decimal?   @db.Decimal(10, 3)
+  kmFinal     Decimal?   @db.Decimal(10, 3)
   lado        String?
   detalhes    String?
-  rdos        Rdo[]
+  locais      RdoLocal[]
 }
 
 model Usuario {
@@ -171,11 +174,11 @@ model Rdo {
   frente            Frente           @relation(fields: [frenteId], references: [id])
   equipeId          String
   equipe            Equipe           @relation(fields: [equipeId], references: [id])
-  ordemManutencaoId String?
-  ordemManutencao   OrdemManutencao? @relation(fields: [ordemManutencaoId], references: [id])
   data              DateTime         @db.Date
-  horarioInicial    String?
-  horarioFinal      String?
+  // Intervalo de hora extra do dia (formato HH:mm), quando houver — distinto
+  // dos horários de cada bloco de atividade (ver RdoBlocoHorario).
+  horaExtraInicio    String?
+  horaExtraFim       String?
   clima             TempoClima?
   encarregadoId     String?
   observacoesContratada String?      @db.Text
@@ -195,6 +198,7 @@ model Rdo {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
+  blocosHorario RdoBlocoHorario[]
   locais       RdoLocal[]
   maoDeObra    RdoMaoDeObra[]
   equipamentos RdoEquipamento[]
@@ -206,16 +210,34 @@ model Rdo {
   @@index([status])
 }
 
+// Linha do tempo do dia (ex.: 07:00–08:50 deslocamento, 08:50–09:10 montagem
+// de área de vivência, 09:10–12:00 execução, 12:00–13:00 almoço...), como
+// preenchido linha a linha no RDO em papel — independente de quais blocos
+// tiveram produção medida (ver RdoLocal/RdoAtividade para isso).
+model RdoBlocoHorario {
+  id             String @id @default(cuid())
+  rdoId          String
+  rdo            Rdo    @relation(fields: [rdoId], references: [id])
+  horarioInicial String
+  horarioFinal   String
+  descricao      String @db.Text
+  ordem          Int    @default(0)
+}
+
 model RdoLocal {
-  id         String         @id @default(cuid())
-  rdoId      String
-  rdo        Rdo            @relation(fields: [rdoId], references: [id])
-  descricao  String
-  kmInicial  Decimal?       @db.Decimal(10, 3)
-  kmFinal    Decimal?       @db.Decimal(10, 3)
-  lado       String?
-  ordem      Int            @default(0)
-  atividades RdoAtividade[]
+  id                String           @id @default(cuid())
+  rdoId             String
+  rdo               Rdo              @relation(fields: [rdoId], references: [id])
+  // Um mesmo RDO pode cobrir vários trechos/locais no mesmo dia, cada um
+  // vinculado a uma OM diferente — por isso a OM fica aqui, não em Rdo.
+  ordemManutencaoId String?
+  ordemManutencao   OrdemManutencao? @relation(fields: [ordemManutencaoId], references: [id])
+  descricao         String
+  kmInicial         Decimal?         @db.Decimal(10, 3)
+  kmFinal           Decimal?         @db.Decimal(10, 3)
+  lado              String?
+  ordem             Int              @default(0)
+  atividades        RdoAtividade[]
 }
 
 model RdoAtividade {

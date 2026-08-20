@@ -4,11 +4,13 @@ import Store from "electron-store";
 
 interface GoliasSettings {
   apiUrl: string;
+  webUrl: string;
 }
 
 const store = new Store<GoliasSettings>({
   defaults: {
     apiUrl: "http://localhost:3333",
+    webUrl: "http://localhost:5173",
   },
 });
 
@@ -42,7 +44,7 @@ function createWindow(): void {
 }
 
 ipcMain.handle("settings:get", (): GoliasSettings => {
-  return { apiUrl: store.get("apiUrl") };
+  return { apiUrl: store.get("apiUrl"), webUrl: store.get("webUrl") };
 });
 
 ipcMain.handle(
@@ -51,7 +53,10 @@ ipcMain.handle(
     if (typeof settings.apiUrl === "string" && settings.apiUrl.trim().length > 0) {
       store.set("apiUrl", settings.apiUrl.trim());
     }
-    return { apiUrl: store.get("apiUrl") };
+    if (typeof settings.webUrl === "string" && settings.webUrl.trim().length > 0) {
+      store.set("webUrl", settings.webUrl.trim());
+    }
+    return { apiUrl: store.get("apiUrl"), webUrl: store.get("webUrl") };
   },
 );
 

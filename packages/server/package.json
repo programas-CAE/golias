@@ -19,6 +19,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/multipart": "^9.2.0",
+    "@fastify/rate-limit": "^10.3.0",
     "@golias/shared": "workspace:*",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
