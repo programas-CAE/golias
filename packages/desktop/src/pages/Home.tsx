@@ -39,6 +39,13 @@ interface SemanaIndicador {
   eficiencia: number | null;
 }
 
+interface LinhaProducaoHistorica {
+  atividade: { id: string; codigo: string; descricao: string; ordem: number };
+  unidade: string;
+  porFrente: Record<string, number>;
+  total: number;
+}
+
 interface Indicadores {
   periodo: string;
   rdosEmitidos: number;
@@ -53,6 +60,7 @@ interface Indicadores {
   porFrente: FrenteIndicador[];
   causasImprodutividade: CausaImprodutividade[];
   evolucaoSemanal: SemanaIndicador[];
+  producaoHistorica: LinhaProducaoHistorica[] | null;
 }
 
 function mesAtual(): string {
@@ -265,6 +273,50 @@ export default function Home(): ReactElement {
                 </p>
               )}
             </section>
+
+            {dados.producaoHistorica && (
+              <section className="form-section">
+                <h2 className="form-section-title">Produção histórica (planilha importada)</h2>
+                <p className="list-subtitle" style={{ marginTop: -4, marginBottom: 12 }}>
+                  Dados brutos da planilha de produtividade para este mês — anteriores ao GOLIAS, sem RDO por trás.
+                </p>
+                {(() => {
+                  const frentesPresentes = [
+                    ...new Set(dados.producaoHistorica.flatMap((linha) => Object.keys(linha.porFrente))),
+                  ].sort();
+                  return (
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Atividade</th>
+                          <th>Unidade</th>
+                          {frentesPresentes.map((codigo) => (
+                            <th key={codigo}>{codigo}</th>
+                          ))}
+                          <th>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dados.producaoHistorica.map((linha) => (
+                          <tr key={linha.atividade.id}>
+                            <td>
+                              {linha.atividade.codigo} — {linha.atividade.descricao}
+                            </td>
+                            <td>{linha.unidade}</td>
+                            {frentesPresentes.map((codigo) => (
+                              <td key={codigo}>
+                                {(linha.porFrente[codigo] ?? 0).toLocaleString("pt-BR", { maximumFractionDigits: 3 })}
+                              </td>
+                            ))}
+                            <td>{linha.total.toLocaleString("pt-BR", { maximumFractionDigits: 3 })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </section>
+            )}
           </>
         )}
       </div>

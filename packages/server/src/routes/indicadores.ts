@@ -119,12 +119,49 @@ export function intervaloDoMes(mes: string | undefined): { periodo: string; inic
 export function registerIndicadoresRoutes(app: FastifyInstance): void {
   app.get<{ Querystring: { mes?: string } }>("/indicadores", async (request) => {
     const { periodo, inicio, fim } = intervaloDoMes(request.query.mes);
+    const ano = inicio.getUTCFullYear();
+    const mesNum = inicio.getUTCMonth() + 1;
 
-    const [rdos, ordensManutencao, frentes] = await Promise.all([
+    const [rdos, ordensManutencao, frentes, periodosMedicao, atividadesCatalogo] = await Promise.all([
       prisma.rdo.findMany({ where: { data: { gte: inicio, lt: fim } }, select: rdoIndicadorSelect }),
       prisma.ordemManutencao.count({ where: { dataEmissao: { gte: inicio, lt: fim } } }),
       prisma.frente.findMany({ where: { ativo: true }, orderBy: { codigo: "asc" }, select: { id: true, nome: true, codigo: true } }),
+      prisma.periodoMedicao.findMany({
+        where: { ano, mes: mesNum },
+        select: { frenteId: true, itens: { select: { atividadeCatalogoId: true, quantidadeTotal: true, unidade: true } } },
+      }),
+      prisma.atividadeCatalogo.findMany({ select: { id: true, codigo: true, descricao: true, ordem: true } }),
     ]);
+
+    const atividadePorId = new Map(atividadesCatalogo.map((atividade) => [atividade.id, atividade]));
+    const frentePorId = new Map(frentes.map((frente) => [frente.id, frente]));
+
+    /**
+     * Produção histórica importada das planilhas (packages/server/prisma/
+     * seed.ts) para o mês selecionado — não vem de RDO, então fica separada
+     * dos indicadores calculados a partir de RDOs reais, com a mesma
+     * unidade/atividade do catálogo pra ficar fácil de comparar.
+     */
+    const producaoHistorica =
+      periodosMedicao.length === 0
+        ? null
+        : (() => {
+            const linhasMap = new Map<string, { atividade: { id: string; codigo: string; descricao: string; ordem: number }; unidade: string; porFrente: Record<string, number>; total: number }>();
+            for (const periodoDoMes of periodosMedicao) {
+              const frente = frentePorId.get(periodoDoMes.frenteId);
+              if (!frente) continue;
+              for (const item of periodoDoMes.itens) {
+                const atividade = atividadePorId.get(item.atividadeCatalogoId);
+                if (!atividade) continue;
+                const linha = linhasMap.get(atividade.id) ?? { atividade, unidade: item.unidade, porFrente: {}, total: 0 };
+                const quantidade = Number(item.quantidadeTotal);
+                linha.porFrente[frente.codigo] = quantidade;
+                linha.total += quantidade;
+                linhasMap.set(atividade.id, linha);
+              }
+            }
+            return [...linhasMap.values()].sort((a, b) => a.atividade.ordem - b.atividade.ordem);
+          })();
 
     const geral = calcularProdutividade(rdos);
 
@@ -187,6 +224,7 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
       porFrente,
       causasImprodutividade,
       evolucaoSemanal,
+      producaoHistorica,
     };
   });
 }
