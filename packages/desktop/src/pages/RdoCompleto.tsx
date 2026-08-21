@@ -115,14 +115,20 @@ function novoLocal(atividadesCatalogo: AtividadeCatalogo[]): LocalDraft {
   };
 }
 
+function minutosDoHorario(horario: string): number {
+  const [horaStr, minutoStr] = horario.split(":");
+  return Number(horaStr) * 60 + Number(minutoStr);
+}
+
 /** Soma os blocos de horário do dia (HH:mm) para exibir o "Tempo Total". */
 function calcularTempoTotal(blocos: BlocoDraft[]): string {
   let minutos = 0;
   for (const bloco of blocos) {
-    const [hi, mi] = bloco.horarioInicial.split(":").map(Number);
-    const [hf, mf] = bloco.horarioFinal.split(":").map(Number);
-    if ([hi, mi, hf, mf].some((valor) => Number.isNaN(valor))) continue;
-    const diferenca = hf * 60 + mf - (hi * 60 + mi);
+    if (!bloco.horarioInicial || !bloco.horarioFinal) continue;
+    const inicio = minutosDoHorario(bloco.horarioInicial);
+    const fim = minutosDoHorario(bloco.horarioFinal);
+    if (Number.isNaN(inicio) || Number.isNaN(fim)) continue;
+    const diferenca = fim - inicio;
     if (diferenca > 0) minutos += diferenca;
   }
   const horas = Math.floor(minutos / 60);

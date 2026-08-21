@@ -8,6 +8,7 @@ import { registerEquipamentosRoutes } from "./routes/equipamentos.js";
 import { registerEquipesRoutes } from "./routes/equipes.js";
 import { registerFrentesRoutes } from "./routes/frentes.js";
 import { registerFuncoesRoutes } from "./routes/funcoes.js";
+import { registerIndicadoresRoutes } from "./routes/indicadores.js";
 import { registerOrdensManutencaoRoutes } from "./routes/ordensManutencao.js";
 import { registerRdosRoutes } from "./routes/rdos.js";
 
@@ -46,6 +47,7 @@ export function buildApp(): FastifyInstance {
   registerEquipesRoutes(app);
   registerEquipamentosRoutes(app);
   registerRdosRoutes(app);
+  registerIndicadoresRoutes(app);
 
   return app;
 }
