@@ -52,6 +52,71 @@ describe("POST /rdos", () => {
   });
 });
 
+describe("POST /rdos/completo", () => {
+  it("cria um RDO completo numa única chamada, com atividades, mão de obra, equipamentos e materiais", async () => {
+    const { frente, equipe, funcao, colaborador, atividade, equipamento } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        clima: "SOL",
+        totalDesvios: 2,
+        temperaturaMedia: 28.5,
+        blocosHorario: [{ horarioInicial: "07:00", horarioFinal: "08:50", descricao: "Deslocamento", ordem: 0 }],
+        locais: [
+          {
+            descricao: "Km 767+520 ao 770+480",
+            ordem: 0,
+            atividades: [{ atividadeCatalogoId: atividade.id, largura: 12, comprimento: 264, unidade: "M2" }],
+          },
+        ],
+        maoDeObra: [{ funcaoId: funcao.id, colaboradorId: colaborador.id, quantidade: 10 }],
+        equipamentos: [{ equipamentoCatalogoId: equipamento.id, quantidade: 2 }],
+        materiais: [{ nome: "Cimento", unidade: "saco", quantidade: 5 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as {
+      status: string;
+      linkCampoToken: string;
+      totalDesvios: number;
+      temperaturaMedia: string;
+      locais: Array<{ atividades: Array<{ totalCalculado: string }> }>;
+      maoDeObra: unknown[];
+      equipamentos: unknown[];
+      materiais: Array<{ nome: string; quantidade: string }>;
+    };
+    expect(body.status).toBe("RASCUNHO");
+    expect(body.linkCampoToken).toHaveLength(43);
+    expect(body.totalDesvios).toBe(2);
+    expect(Number(body.temperaturaMedia)).toBe(28.5);
+    expect(Number(body.locais[0]?.atividades[0]?.totalCalculado)).toBe(3168);
+    expect(body.maoDeObra).toHaveLength(1);
+    expect(body.equipamentos).toHaveLength(1);
+    expect(body.materiais).toHaveLength(1);
+    expect(body.materiais[0]?.nome).toBe("Cimento");
+  });
+
+  it("retorna 400 quando nenhum local é informado", async () => {
+    const { frente, equipe } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: { frenteId: frente.id, equipeId: equipe.id, data: "2026-07-21", locais: [] },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+});
+
 describe("GET /rdos/campo/:token", () => {
   it("carrega o RDO com dados de apoio pelo token", async () => {
     const { frente, equipe } = await criarCenario();

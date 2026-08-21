@@ -1,4 +1,9 @@
-import { calcularTotalAtividade, rdoCampoUpdateInputSchema, rdoDraftCreateInputSchema } from "@golias/shared";
+import {
+  calcularTotalAtividade,
+  rdoCampoUpdateInputSchema,
+  rdoCreateInputSchema,
+  rdoDraftCreateInputSchema,
+} from "@golias/shared";
 import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -46,6 +51,8 @@ const rdoCampoSelect = {
   horaExtraInicio: true,
   horaExtraFim: true,
   encarregadoId: true,
+  totalDesvios: true,
+  temperaturaMedia: true,
   observacoesContratada: true,
   observacoesCliente: true,
   linkCampoExpiraEm: true,
@@ -97,6 +104,10 @@ const rdoCampoSelect = {
       equipamentoCatalogo: { select: { id: true, nome: true } },
       quantidade: true,
     },
+  },
+  materiais: {
+    orderBy: { ordem: "asc" },
+    select: { id: true, nome: true, unidade: true, quantidade: true, ordem: true },
   },
   anexos: {
     select: {
@@ -179,6 +190,82 @@ export function registerRdosRoutes(app: FastifyInstance): void {
     }
   });
 
+  /**
+   * Cadastro completo de um RDO em uma única chamada, feito direto pelo
+   * escritório (ex.: transcrevendo um RDO em papel) — ao contrário de
+   * `POST /rdos`, que só cria o rascunho para o encarregado preencher pelo
+   * link de campo. Ainda gera `linkCampoToken` para que o encarregado possa
+   * acessar o RDO depois (ex.: anexar fotos).
+   */
+  app.post("/rdos/completo", async (request, reply) => {
+    const data = parseBody(rdoCreateInputSchema, request.body, reply);
+    if (!data) return;
+
+    const linkCampoExpiraEm = new Date();
+    linkCampoExpiraEm.setDate(linkCampoExpiraEm.getDate() + LINK_CAMPO_DIAS_VALIDADE);
+
+    try {
+      const rdoId = await prisma.$transaction(async (tx) => {
+        const rdo = await tx.rdo.create({
+          data: {
+            frenteId: data.frenteId,
+            equipeId: data.equipeId,
+            data: data.data,
+            horaExtraInicio: data.horaExtraInicio,
+            horaExtraFim: data.horaExtraFim,
+            clima: data.clima,
+            encarregadoId: data.encarregadoId,
+            totalDesvios: data.totalDesvios,
+            temperaturaMedia: data.temperaturaMedia,
+            observacoesContratada: data.observacoesContratada,
+            linkCampoToken: generateToken(),
+            linkCampoExpiraEm,
+            blocosHorario: { create: data.blocosHorario },
+            maoDeObra: { create: data.maoDeObra },
+            equipamentos: { create: data.equipamentos },
+            materiais: { create: data.materiais },
+          },
+          select: { id: true },
+        });
+
+        for (const local of data.locais) {
+          await tx.rdoLocal.create({
+            data: {
+              rdoId: rdo.id,
+              ordemManutencaoId: local.ordemManutencaoId,
+              descricao: local.descricao,
+              kmInicial: local.kmInicial,
+              kmFinal: local.kmFinal,
+              lado: local.lado,
+              ordem: local.ordem,
+              atividades: {
+                create: local.atividades.map((atividade) => ({
+                  atividadeCatalogoId: atividade.atividadeCatalogoId,
+                  altura: atividade.altura,
+                  largura: atividade.largura,
+                  comprimento: atividade.comprimento,
+                  quantidadeDireta: atividade.quantidadeDireta,
+                  unidade: atividade.unidade,
+                  totalCalculado: calcularTotalAtividade(atividade.unidade, atividade),
+                })),
+              },
+            },
+          });
+        }
+
+        return rdo.id;
+      });
+
+      const criado = await prisma.rdo.findUnique({ where: { id: rdoId }, select: rdoCampoSelect });
+      return await reply.status(201).send(criado);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+        return reply.status(400).send({ error: "Frente, equipe, encarregado, ordem de manutenção, função, colaborador ou equipamento inválido" });
+      }
+      throw error;
+    }
+  });
+
   app.get<{ Params: { token: string } }>("/rdos/campo/:token", async (request, reply) => {
     const rdo = await buscarRdoPorToken(request.params.token);
     if (!rdo) {
@@ -227,6 +314,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
           await tx.rdoLocal.deleteMany({ where: { rdoId } });
           await tx.rdoMaoDeObra.deleteMany({ where: { rdoId } });
           await tx.rdoEquipamento.deleteMany({ where: { rdoId } });
+          await tx.rdoMaterial.deleteMany({ where: { rdoId } });
 
           await tx.rdo.update({
             where: { id: rdoId },
@@ -235,10 +323,13 @@ export function registerRdosRoutes(app: FastifyInstance): void {
               horaExtraFim: data.horaExtraFim,
               clima: data.clima,
               encarregadoId: data.encarregadoId,
+              totalDesvios: data.totalDesvios,
+              temperaturaMedia: data.temperaturaMedia,
               observacoesContratada: data.observacoesContratada,
               blocosHorario: { create: data.blocosHorario },
               maoDeObra: { create: data.maoDeObra },
               equipamentos: { create: data.equipamentos },
+              materiais: { create: data.materiais },
             },
           });
 

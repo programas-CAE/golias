@@ -110,6 +110,21 @@ export const rdoEquipamentoInputSchema = z.object({
 
 export type RdoEquipamentoInput = z.infer<typeof rdoEquipamentoInputSchema>;
 
+/**
+ * Material consumido no dia (cimento, tinta, brita etc.). Lista livre por
+ * RDO — diferente de Equipamentos, não há catálogo oficial nas planilhas
+ * fonte, então `nome`/`unidade` são texto livre em vez de referenciar um
+ * catálogo.
+ */
+export const rdoMaterialInputSchema = z.object({
+  nome: z.string().min(1, "Nome do material é obrigatório").max(200),
+  unidade: z.string().max(20).nullable().optional(),
+  quantidade: z.number().positive(),
+  ordem: z.number().int().nonnegative().default(0),
+});
+
+export type RdoMaterialInput = z.infer<typeof rdoMaterialInputSchema>;
+
 export const rdoCreateInputSchema = z.object({
   frenteId: z.string().cuid(),
   equipeId: z.string().cuid(),
@@ -119,8 +134,13 @@ export const rdoCreateInputSchema = z.object({
   horaExtraFim: horarioSchema.nullable().optional(),
   clima: tempoClimaSchema.nullable().optional(),
   encarregadoId: z.string().cuid().nullable().optional(),
+  totalDesvios: z.number().int().nonnegative().nullable().optional(),
+  temperaturaMedia: z.number().nullable().optional(),
   observacoesContratada: z.string().max(4000).nullable().optional(),
   locais: z.array(rdoLocalInputSchema).min(1, "Informe ao menos um local trabalhado"),
+  maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),
+  equipamentos: z.array(rdoEquipamentoInputSchema).default([]),
+  materiais: z.array(rdoMaterialInputSchema).default([]),
 });
 
 export type RdoCreateInput = z.infer<typeof rdoCreateInputSchema>;
@@ -146,10 +166,13 @@ export const rdoCampoUpdateInputSchema = z.object({
   horaExtraFim: horarioSchema.nullable().optional(),
   clima: tempoClimaSchema.nullable().optional(),
   encarregadoId: z.string().cuid().nullable().optional(),
+  totalDesvios: z.number().int().nonnegative().nullable().optional(),
+  temperaturaMedia: z.number().nullable().optional(),
   observacoesContratada: z.string().max(4000).nullable().optional(),
   locais: z.array(rdoLocalInputSchema).default([]),
   maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),
   equipamentos: z.array(rdoEquipamentoInputSchema).default([]),
+  materiais: z.array(rdoMaterialInputSchema).default([]),
 });
 
 export type RdoCampoUpdateInput = z.infer<typeof rdoCampoUpdateInputSchema>;

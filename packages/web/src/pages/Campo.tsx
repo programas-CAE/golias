@@ -73,6 +73,12 @@ interface RdoEquipamentoSalvo {
   quantidade: number;
 }
 
+interface RdoMaterialSalvo {
+  nome: string;
+  unidade: string | null;
+  quantidade: string;
+}
+
 interface Rdo {
   id: string;
   frente: Ref;
@@ -82,11 +88,14 @@ interface Rdo {
   clima: string | null;
   horaExtraInicio: string | null;
   horaExtraFim: string | null;
+  totalDesvios: number | null;
+  temperaturaMedia: string | null;
   observacoesContratada: string | null;
   blocosHorario: RdoBlocoSalvo[];
   locais: RdoLocalSalvo[];
   maoDeObra: RdoMaoDeObraSalva[];
   equipamentos: RdoEquipamentoSalvo[];
+  materiais: RdoMaterialSalvo[];
   anexos: RdoAnexo[];
 }
 
@@ -118,6 +127,12 @@ interface BlocoDraft {
   horarioInicial: string;
   horarioFinal: string;
   descricao: string;
+}
+
+interface MaterialDraft {
+  nome: string;
+  unidade: string;
+  quantidade: string;
 }
 
 function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft {
@@ -154,8 +169,11 @@ export default function Campo(): ReactElement {
   const [clima, setClima] = useState<string>("");
   const [horaExtraInicio, setHoraExtraInicio] = useState("");
   const [horaExtraFim, setHoraExtraFim] = useState("");
+  const [totalDesvios, setTotalDesvios] = useState("");
+  const [temperaturaMedia, setTemperaturaMedia] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [blocos, setBlocos] = useState<BlocoDraft[]>([]);
+  const [materiais, setMateriais] = useState<MaterialDraft[]>([]);
   const [locais, setLocais] = useState<LocalDraft[]>([]);
   const [maoDeObra, setMaoDeObra] = useState<Record<string, string>>({});
   // Registros de mão de obra salvos que não correspondem a nenhum membro
@@ -185,7 +203,16 @@ export default function Campo(): ReactElement {
         setClima(resposta.rdo.clima ?? "");
         setHoraExtraInicio(resposta.rdo.horaExtraInicio ?? "");
         setHoraExtraFim(resposta.rdo.horaExtraFim ?? "");
+        setTotalDesvios(resposta.rdo.totalDesvios != null ? String(resposta.rdo.totalDesvios) : "");
+        setTemperaturaMedia(resposta.rdo.temperaturaMedia ?? "");
         setObservacoes(resposta.rdo.observacoesContratada ?? "");
+        setMateriais(
+          resposta.rdo.materiais.map((material) => ({
+            nome: material.nome,
+            unidade: material.unidade ?? "",
+            quantidade: material.quantidade,
+          })),
+        );
         setBlocos(
           resposta.rdo.blocosHorario.length > 0
             ? resposta.rdo.blocosHorario.map((b) => ({ ...b }))
@@ -282,6 +309,14 @@ export default function Campo(): ReactElement {
     );
   }
 
+  function adicionarMaterial(): void {
+    setMateriais((atual) => [...atual, { nome: "", unidade: "", quantidade: "1" }]);
+  }
+
+  function atualizarMaterial(indice: number, campo: keyof MaterialDraft, valor: string): void {
+    setMateriais((atual) => atual.map((material, i) => (i === indice ? { ...material, [campo]: valor } : material)));
+  }
+
   async function handleUploadFoto(event: ChangeEvent<HTMLInputElement>): Promise<void> {
     const arquivo = event.target.files?.[0];
     event.target.value = "";
@@ -307,6 +342,8 @@ export default function Campo(): ReactElement {
       clima: clima === "" ? null : clima,
       horaExtraInicio: horaExtraInicio === "" ? null : horaExtraInicio,
       horaExtraFim: horaExtraFim === "" ? null : horaExtraFim,
+      totalDesvios: totalDesvios === "" ? null : Number(totalDesvios),
+      temperaturaMedia: temperaturaMedia === "" ? null : Number(temperaturaMedia),
       observacoesContratada: observacoes === "" ? null : observacoes,
       blocosHorario: blocos
         .filter((b) => b.horarioInicial && b.horarioFinal && b.descricao)
@@ -342,6 +379,14 @@ export default function Campo(): ReactElement {
       equipamentos: equipamentosCatalogo
         .filter((equipamento) => Number(equipamentos[equipamento.id] ?? "0") > 0)
         .map((equipamento) => ({ equipamentoCatalogoId: equipamento.id, quantidade: Number(equipamentos[equipamento.id]) })),
+      materiais: materiais
+        .filter((material) => material.nome.trim() !== "" && Number(material.quantidade) > 0)
+        .map((material, ordem) => ({
+          nome: material.nome,
+          unidade: material.unidade === "" ? null : material.unidade,
+          quantidade: Number(material.quantidade),
+          ordem,
+        })),
     };
 
     try {
@@ -415,6 +460,28 @@ export default function Campo(): ReactElement {
               className="field-input"
               value={horaExtraFim}
               onChange={(event) => setHoraExtraFim(event.target.value)}
+            />
+          </div>
+        </div>
+        <div className="campo-grid-2">
+          <div>
+            <label className="field-label">Total de desvios</label>
+            <input
+              type="number"
+              min={0}
+              className="field-input"
+              value={totalDesvios}
+              onChange={(event) => setTotalDesvios(event.target.value)}
+            />
+          </div>
+          <div>
+            <label className="field-label">Temperatura média (°C)</label>
+            <input
+              type="number"
+              step="0.1"
+              className="field-input"
+              value={temperaturaMedia}
+              onChange={(event) => setTemperaturaMedia(event.target.value)}
             />
           </div>
         </div>
@@ -667,6 +734,47 @@ export default function Campo(): ReactElement {
             />
           </div>
         ))}
+      </section>
+
+      <section className="campo-secao">
+        <h2>Materiais utilizados</h2>
+        {materiais.map((material, indice) => (
+          <div className="campo-item" key={indice}>
+            <input
+              className="field-input"
+              placeholder="Nome do material"
+              value={material.nome}
+              onChange={(event) => atualizarMaterial(indice, "nome", event.target.value)}
+            />
+            <div className="campo-grid-2">
+              <input
+                className="field-input"
+                placeholder="Unidade (saco, m³, litro...)"
+                value={material.unidade}
+                onChange={(event) => atualizarMaterial(indice, "unidade", event.target.value)}
+              />
+              <input
+                type="number"
+                step="0.001"
+                min={0}
+                className="field-input"
+                placeholder="Quantidade"
+                value={material.quantidade}
+                onChange={(event) => atualizarMaterial(indice, "quantidade", event.target.value)}
+              />
+            </div>
+            <button
+              type="button"
+              className="button button--ghost button--small"
+              onClick={() => setMateriais((atual) => atual.filter((_, i) => i !== indice))}
+            >
+              Remover material
+            </button>
+          </div>
+        ))}
+        <button type="button" className="button button--secondary button--small" onClick={adicionarMaterial}>
+          + Adicionar material
+        </button>
       </section>
 
       <section className="campo-secao">

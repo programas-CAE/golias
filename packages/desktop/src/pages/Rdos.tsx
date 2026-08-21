@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
+import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
 import { getSettings } from "../lib/settingsStore";
@@ -33,6 +34,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function Rdos(): ReactElement {
+  const navigate = useNavigate();
   const [rdos, setRdos] = useState<Rdo[] | null>(null);
   const [frentes, setFrentes] = useState<Frente[]>([]);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
@@ -82,9 +84,14 @@ export default function Rdos(): ReactElement {
             <h1 className="list-title">RDOs</h1>
             <p className="list-subtitle">Crie um RDO em rascunho e compartilhe o link de campo com o encarregado</p>
           </div>
-          <button type="button" className="button" onClick={() => setCriando(true)}>
-            Novo RDO
-          </button>
+          <div style={{ display: "flex", gap: 12 }}>
+            <button type="button" className="button button--secondary" onClick={() => navigate("/rdos/completo/novo")}>
+              Cadastrar RDO completo
+            </button>
+            <button type="button" className="button" onClick={() => setCriando(true)}>
+              Novo RDO
+            </button>
+          </div>
         </div>
 
         {erro && <p className="feedback feedback--erro">{erro}</p>}

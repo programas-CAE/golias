@@ -399,3 +399,91 @@ body {
   font-size: 0.85rem;
   color: #cbd5e1;
 }
+
+.form-page {
+  max-width: 920px;
+}
+
+.form-section {
+  background: #111c34;
+  border: 1px solid #23304f;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.form-section-title {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.form-section-subtitle {
+  margin: 0 0 16px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.form-section .settings-form {
+  gap: 12px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.repeatable-item {
+  border: 1px solid #23304f;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #0e1830;
+}
+
+.repeatable-item + .button--secondary {
+  margin-top: 4px;
+}
+
+.checklist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #1b2740;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+.checklist-row:last-of-type {
+  border-bottom: none;
+}
+
+.qty-input {
+  width: 90px;
+  text-align: right;
+}
+
+.read-only-value {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #1b2740;
+  background: #0e1830;
+  color: #94a3b8;
+  font-size: 0.95rem;
+}
+
+.section-total {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 600;
+}

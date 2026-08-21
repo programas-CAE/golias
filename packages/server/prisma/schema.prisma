@@ -181,6 +181,8 @@ model Rdo {
   horaExtraFim       String?
   clima             TempoClima?
   encarregadoId     String?
+  totalDesvios      Int?
+  temperaturaMedia  Decimal?         @db.Decimal(4, 1)
   observacoesContratada String?      @db.Text
   observacoesCliente    String?      @db.Text
   status            RdoStatus        @default(RASCUNHO)
@@ -202,6 +204,7 @@ model Rdo {
   locais       RdoLocal[]
   maoDeObra    RdoMaoDeObra[]
   equipamentos RdoEquipamento[]
+  materiais    RdoMaterial[]
   anexos       RdoAnexo[]
   aprovacoes   AprovacaoFiscal[]
   historico    RdoHistorico[]
@@ -274,6 +277,19 @@ model RdoEquipamento {
   equipamentoCatalogoId String
   equipamentoCatalogo   EquipamentoCatalogo @relation(fields: [equipamentoCatalogoId], references: [id])
   quantidade            Int                 @default(1)
+}
+
+// Materiais consumidos no dia (cimento, tinta, brita etc.) — lista livre por
+// RDO, sem catálogo fixo, já que as planilhas fonte não trazem uma lista
+// oficial de materiais como trazem para atividades/equipamentos.
+model RdoMaterial {
+  id         String  @id @default(cuid())
+  rdoId      String
+  rdo        Rdo     @relation(fields: [rdoId], references: [id])
+  nome       String
+  unidade    String?
+  quantidade Decimal @db.Decimal(12, 3)
+  ordem      Int     @default(0)
 }
 
 model RdoAnexo {
