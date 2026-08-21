@@ -13,9 +13,12 @@ const prisma = new PrismaClient({ adapter });
 
 async function seedFrentes(): Promise<void> {
   for (const frente of FRENTES) {
+    const existente = await prisma.frente.findUnique({ where: { codigo: frente.codigo } });
     await prisma.frente.upsert({
       where: { codigo: frente.codigo },
-      update: { nome: frente.nome, numeroSap: frente.numeroSap },
+      // Só aplica o numeroSap do seed se ainda não foi definido — não
+      // sobrescreve um valor que o usuário já ajustou pela tela de Frentes.
+      update: { nome: frente.nome, ...(existente?.numeroSap == null ? { numeroSap: frente.numeroSap } : {}) },
       create: { codigo: frente.codigo, nome: frente.nome, numeroSap: frente.numeroSap },
     });
   }

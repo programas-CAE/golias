@@ -22,12 +22,14 @@ export interface FrenteCatalogoItem {
   readonly numeroSap: string;
 }
 
-// Número do contrato (planilha "PRODUTIVIDADE ABRIL MAIO JUNHO", célula A3:
-// "NÚMERO DO CONTRATO: 5900124486") — um único contrato cobre as 3 frentes.
+// Nº SAP impresso no cabeçalho dos RDOs reais assinados (RDO PREVENTIVA
+// MAB.pdf, 21–30/07/2026, 10 dias, todos com "Nº SAP: 5900130281") — mais
+// confiável que o "NÚMERO DO CONTRATO: 5900124486" do relatório de
+// produtividade, que pode ser uma referência administrativa diferente.
 export const FRENTES: readonly FrenteCatalogoItem[] = [
-  { codigo: "MAB", nome: "Marabá", numeroSap: "5900124486" },
-  { codigo: "PBA", nome: "Parauapebas", numeroSap: "5900124486" },
-  { codigo: "RAMAL", nome: "Ramal", numeroSap: "5900124486" },
+  { codigo: "MAB", nome: "Marabá", numeroSap: "5900130281" },
+  { codigo: "PBA", nome: "Parauapebas", numeroSap: "5900130281" },
+  { codigo: "RAMAL", nome: "Ramal", numeroSap: "5900130281" },
 ] as const;
 
 export interface ColaboradorCatalogoItem {
