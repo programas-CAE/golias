@@ -3,6 +3,8 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
 import Settings from "./pages/Settings";
 import Frentes from "./pages/Frentes";
+import FrenteDistritos from "./pages/FrenteDistritos";
+import DistritoDetalhe from "./pages/DistritoDetalhe";
 import Colaboradores from "./pages/Colaboradores";
 import OrdensManutencao from "./pages/OrdensManutencao";
 import Atividades from "./pages/Atividades";
@@ -20,6 +22,8 @@ export default function App(): ReactElement {
         <Route path="/" element={<Home />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/frentes" element={<Frentes />} />
+        <Route path="/frentes/:frenteId/distritos" element={<FrenteDistritos />} />
+        <Route path="/distritos/:distritoId" element={<DistritoDetalhe />} />
         <Route path="/colaboradores" element={<Colaboradores />} />
         <Route path="/ordens-manutencao" element={<OrdensManutencao />} />
         <Route path="/atividades" element={<Atividades />} />

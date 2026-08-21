@@ -4,6 +4,7 @@ import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAtividadesRoutes } from "./routes/atividades.js";
 import { registerColaboradoresRoutes } from "./routes/colaboradores.js";
+import { registerDistritosRoutes } from "./routes/distritos.js";
 import { registerEquipamentosRoutes } from "./routes/equipamentos.js";
 import { registerEquipesRoutes } from "./routes/equipes.js";
 import { registerFrentesRoutes } from "./routes/frentes.js";
@@ -40,6 +41,7 @@ export function buildApp(): FastifyInstance {
   });
 
   registerFrentesRoutes(app);
+  registerDistritosRoutes(app);
   registerFuncoesRoutes(app);
   registerColaboradoresRoutes(app);
   registerOrdensManutencaoRoutes(app);

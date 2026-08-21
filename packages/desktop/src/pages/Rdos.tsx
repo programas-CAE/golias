@@ -12,7 +12,7 @@ interface Frente {
 interface Equipe {
   id: string;
   nome: string;
-  frenteId: string;
+  distrito: { frenteId: string };
 }
 
 interface Rdo {
@@ -188,7 +188,7 @@ function NovoRdoModal({
   onCriado: (rdo: Rdo) => void;
 }): ReactElement {
   const [frenteId, setFrenteId] = useState(frentes[0]?.id ?? "");
-  const equipesDaFrente = equipes.filter((equipe) => equipe.frenteId === frenteId);
+  const equipesDaFrente = equipes.filter((equipe) => equipe.distrito.frenteId === frenteId);
   const [equipeId, setEquipeId] = useState(equipesDaFrente[0]?.id ?? "");
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [salvando, setSalvando] = useState(false);
@@ -196,7 +196,7 @@ function NovoRdoModal({
 
   function handleFrenteChange(novaFrenteId: string): void {
     setFrenteId(novaFrenteId);
-    const primeiraEquipe = equipes.find((equipe) => equipe.frenteId === novaFrenteId);
+    const primeiraEquipe = equipes.find((equipe) => equipe.distrito.frenteId === novaFrenteId);
     setEquipeId(primeiraEquipe?.id ?? "");
   }
 

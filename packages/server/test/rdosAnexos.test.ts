@@ -19,7 +19,8 @@ function multipartBody(filename: string, contentType: string, content: Buffer): 
 
 async function criarRdoComToken(token: string) {
   const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
-  const equipe = await prisma.equipe.create({ data: { nome: "Preventiva", frenteId: frente.id } });
+  const distrito = await prisma.distrito.create({ data: { nome: "Marabá Centro", frenteId: frente.id } });
+  const equipe = await prisma.equipe.create({ data: { nome: "Preventiva", distritoId: distrito.id } });
   return prisma.rdo.create({
     data: {
       frenteId: frente.id,

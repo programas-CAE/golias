@@ -692,3 +692,67 @@ body {
   color: #94a3b8;
   font-size: 0.8rem;
 }
+
+/* Distrito: Frente -> Distrito -> Encarregados/indicadores */
+
+.distrito-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .distrito-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.distrito-encarregados {
+  padding-bottom: 12px;
+}
+
+.encarregado-lista {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.encarregado-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.encarregado-item:hover {
+  background: #16213e;
+}
+
+.encarregado-item--ativo {
+  background: #1b2740;
+  color: #f97316;
+}
+
+.encarregado-matricula {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.distrito-conteudo {
+  min-width: 0;
+}

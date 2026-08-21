@@ -16,8 +16,8 @@ const membroSelect = {
 const equipeSelect = {
   id: true,
   nome: true,
-  frenteId: true,
-  frente: { select: { id: true, nome: true } },
+  distritoId: true,
+  distrito: { select: { id: true, nome: true, frenteId: true, frente: { select: { id: true, nome: true } } } },
   encarregadoId: true,
   ativo: true,
   membros: { select: membroSelect },
@@ -37,7 +37,7 @@ export function registerEquipesRoutes(app: FastifyInstance): void {
       return await reply.status(201).send(equipe);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
-        return reply.status(400).send({ error: "Frente informada não existe" });
+        return reply.status(400).send({ error: "Distrito informado não existe" });
       }
       throw error;
     }

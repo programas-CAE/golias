@@ -31,7 +31,7 @@ interface EquipeMembro {
 interface Equipe {
   id: string;
   nome: string;
-  frenteId: string;
+  distrito: { frenteId: string };
   membros: EquipeMembro[];
 }
 
@@ -200,7 +200,7 @@ export default function RdoCompleto(): ReactElement {
 
         const primeiraFrente = listaFrentes[0]?.id ?? "";
         setFrenteId(primeiraFrente);
-        setEquipeId(listaEquipes.find((equipe) => equipe.frenteId === primeiraFrente)?.id ?? "");
+        setEquipeId(listaEquipes.find((equipe) => equipe.distrito.frenteId === primeiraFrente)?.id ?? "");
         setLocais([novoLocal(listaAtividades)]);
       } catch (error) {
         setErroCarga(error instanceof ApiError ? error.message : "Não foi possível carregar os dados de apoio.");
@@ -213,14 +213,14 @@ export default function RdoCompleto(): ReactElement {
   }, []);
 
   const frenteSelecionada = frentes.find((frente) => frente.id === frenteId) ?? null;
-  const equipesDaFrente = equipes.filter((equipe) => equipe.frenteId === frenteId);
+  const equipesDaFrente = equipes.filter((equipe) => equipe.distrito.frenteId === frenteId);
   const equipeSelecionada = equipes.find((equipe) => equipe.id === equipeId) ?? null;
   const ordensDaFrente = ordensManutencao.filter((ordem) => ordem.frenteId === frenteId);
   const tempoTotal = useMemo(() => calcularTempoTotal(blocos), [blocos]);
 
   function handleFrenteChange(novaFrenteId: string): void {
     setFrenteId(novaFrenteId);
-    const primeiraEquipe = equipes.find((equipe) => equipe.frenteId === novaFrenteId);
+    const primeiraEquipe = equipes.find((equipe) => equipe.distrito.frenteId === novaFrenteId);
     setEquipeId(primeiraEquipe?.id ?? "");
     setMaoDeObra({});
   }

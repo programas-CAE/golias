@@ -66,4 +66,37 @@ export function registerColaboradoresRoutes(app: FastifyInstance): void {
       throw error;
     }
   });
+
+  /**
+   * "Equipe efetiva" do encarregado: mão de obra e equipamentos do RDO mais
+   * recente em que ele aparece como `Rdo.encarregadoId` — reflete quem
+   * realmente trabalhou por último, não o cadastro fixo de `EquipeMembro`.
+   */
+  app.get<{ Params: { id: string } }>("/colaboradores/:id/equipe-efetiva", async (request, reply) => {
+    const rdo = await prisma.rdo.findFirst({
+      where: { encarregadoId: request.params.id },
+      orderBy: { data: "desc" },
+      select: {
+        id: true,
+        data: true,
+        equipe: { select: { id: true, nome: true } },
+        maoDeObra: {
+          select: {
+            id: true,
+            quantidade: true,
+            funcao: { select: { id: true, nome: true } },
+            colaborador: { select: { id: true, nome: true } },
+          },
+        },
+        equipamentos: {
+          select: { id: true, quantidade: true, equipamentoCatalogo: { select: { id: true, nome: true } } },
+        },
+      },
+    });
+
+    if (!rdo) {
+      return reply.status(404).send({ error: "Este encarregado ainda não aparece em nenhum RDO." });
+    }
+    return rdo;
+  });
 }

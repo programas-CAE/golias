@@ -98,3 +98,58 @@ describe("PATCH /colaboradores/:id", () => {
     expect(response.statusCode).toBe(404);
   });
 });
+
+describe("GET /colaboradores/:id/equipe-efetiva", () => {
+  it("retorna a mão de obra e equipamentos do RDO mais recente do encarregado", async () => {
+    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
+    const distrito = await prisma.distrito.create({ data: { nome: "Marabá Centro", frenteId: frente.id } });
+    const equipe = await prisma.equipe.create({ data: { nome: "Preventiva", distritoId: distrito.id } });
+    const funcao = await criarFuncao("Encarregado");
+    const encarregado = await prisma.colaborador.create({
+      data: { matricula: "020", nome: "Zé Encarregado", funcaoId: funcao.id },
+    });
+    const equipamento = await prisma.equipamentoCatalogo.create({ data: { nome: "Roçadeira" } });
+
+    await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        encarregadoId: encarregado.id,
+        data: new Date("2026-07-01"),
+        maoDeObra: { create: [{ funcaoId: funcao.id, colaboradorId: encarregado.id, quantidade: 1 }] },
+        equipamentos: { create: [{ equipamentoCatalogoId: equipamento.id, quantidade: 1 }] },
+      },
+    });
+    const rdoMaisRecente = await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        encarregadoId: encarregado.id,
+        data: new Date("2026-07-15"),
+        maoDeObra: { create: [{ funcaoId: funcao.id, colaboradorId: encarregado.id, quantidade: 2 }] },
+        equipamentos: { create: [{ equipamentoCatalogoId: equipamento.id, quantidade: 3 }] },
+      },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: `/colaboradores/${encarregado.id}/equipe-efetiva` });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { id: string; maoDeObra: unknown[]; equipamentos: unknown[] };
+    expect(body.id).toBe(rdoMaisRecente.id);
+    expect(body.maoDeObra).toHaveLength(1);
+    expect(body.equipamentos).toHaveLength(1);
+  });
+
+  it("retorna 404 quando o encarregado nunca apareceu em um RDO", async () => {
+    const funcao = await criarFuncao("Encarregado");
+    const colaborador = await prisma.colaborador.create({
+      data: { matricula: "021", nome: "Sem RDO", funcaoId: funcao.id },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: `/colaboradores/${colaborador.id}/equipe-efetiva` });
+
+    expect(response.statusCode).toBe(404);
+  });
+});

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const equipeCreateInputSchema = z.object({
   nome: z.string().min(1, "Nome é obrigatório").max(120),
-  frenteId: z.string().cuid("Frente inválida"),
+  distritoId: z.string().cuid("Distrito inválido"),
   encarregadoId: z.string().cuid().nullable().optional(),
   ativo: z.boolean().default(true),
 });
@@ -11,7 +11,7 @@ export type EquipeCreateInput = z.infer<typeof equipeCreateInputSchema>;
 
 export const equipeUpdateInputSchema = z.object({
   nome: z.string().min(1).max(120).optional(),
-  frenteId: z.string().cuid("Frente inválida").optional(),
+  distritoId: z.string().cuid("Distrito inválido").optional(),
   encarregadoId: z.string().cuid().nullable().optional(),
   ativo: z.boolean().optional(),
 });

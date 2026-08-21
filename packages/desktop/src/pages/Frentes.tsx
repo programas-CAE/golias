@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactElement } from "react";
+import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
 
@@ -11,6 +12,7 @@ interface Frente {
 }
 
 export default function Frentes(): ReactElement {
+  const navigate = useNavigate();
   const [frentes, setFrentes] = useState<Frente[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [editando, setEditando] = useState<Frente | null>(null);
@@ -68,7 +70,14 @@ export default function Frentes(): ReactElement {
                         {frente.ativo ? "Ativa" : "Inativa"}
                       </span>
                     </td>
-                    <td>
+                    <td style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        className="button button--ghost button--small"
+                        onClick={() => navigate(`/frentes/${frente.id}/distritos`)}
+                      >
+                        Ver distritos
+                      </button>
                       <button
                         type="button"
                         className="button button--ghost button--small"

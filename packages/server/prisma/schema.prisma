@@ -94,9 +94,23 @@ model Frente {
   // impresso fixo em todo RDO da frente — não muda dia a dia.
   numeroSap        String?
   ativo            Boolean           @default(true)
-  equipes          Equipe[]
+  distritos        Distrito[]
   ordensManutencao OrdemManutencao[]
   rdos             Rdo[]
+}
+
+// Subdivisão geográfica de uma Frente (ex.: Marabá, Bom Jesus das Selvas).
+// Cada Equipe pertence a um Distrito, não direto à Frente — a frente de uma
+// equipe é alcançada via distrito.frente.
+model Distrito {
+  id       String   @id @default(cuid())
+  nome     String
+  frenteId String
+  frente   Frente   @relation(fields: [frenteId], references: [id])
+  ativo    Boolean  @default(true)
+  equipes  Equipe[]
+
+  @@unique([frenteId, nome])
 }
 
 model Colaborador {
@@ -113,8 +127,8 @@ model Colaborador {
 model Equipe {
   id            String         @id @default(cuid())
   nome          String
-  frenteId      String
-  frente        Frente         @relation(fields: [frenteId], references: [id])
+  distritoId    String
+  distrito      Distrito       @relation(fields: [distritoId], references: [id])
   encarregadoId String?
   ativo         Boolean        @default(true)
   membros       EquipeMembro[]

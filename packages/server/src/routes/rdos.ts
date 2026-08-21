@@ -55,6 +55,7 @@ const rdoCampoSelect = {
   temperaturaMedia: true,
   observacoesContratada: true,
   observacoesCliente: true,
+  linkCampoToken: true,
   linkCampoExpiraEm: true,
   blocosHorario: {
     orderBy: { ordem: "asc" },

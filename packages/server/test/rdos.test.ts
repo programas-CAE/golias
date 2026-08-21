@@ -9,7 +9,8 @@ beforeEach(async () => {
 
 async function criarCenario() {
   const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
-  const equipe = await prisma.equipe.create({ data: { nome: "Preventiva", frenteId: frente.id } });
+  const distrito = await prisma.distrito.create({ data: { nome: "Marabá Centro", frenteId: frente.id } });
+  const equipe = await prisma.equipe.create({ data: { nome: "Preventiva", distritoId: distrito.id } });
   const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "Servente de Obras" } });
   const colaborador = await prisma.colaborador.create({
     data: { matricula: "001", nome: "João", funcaoId: funcao.id },
@@ -18,7 +19,7 @@ async function criarCenario() {
     data: { codigo: "2.2.1", descricao: "Roçada", unidade: "M2", usaDimensoes: true, ordem: 1 },
   });
   const equipamento = await prisma.equipamentoCatalogo.create({ data: { nome: "Roçadeira" } });
-  return { frente, equipe, funcao, colaborador, atividade, equipamento };
+  return { frente, distrito, equipe, funcao, colaborador, atividade, equipamento };
 }
 
 describe("POST /rdos", () => {

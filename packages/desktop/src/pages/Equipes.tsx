@@ -7,6 +7,13 @@ interface Frente {
   nome: string;
 }
 
+interface Distrito {
+  id: string;
+  nome: string;
+  frenteId: string;
+  frente: Frente;
+}
+
 interface Colaborador {
   id: string;
   nome: string;
@@ -29,8 +36,8 @@ interface Membro {
 interface Equipe {
   id: string;
   nome: string;
-  frenteId: string;
-  frente: Frente;
+  distritoId: string;
+  distrito: Distrito;
   encarregadoId: string | null;
   ativo: boolean;
   membros: Membro[];
@@ -39,6 +46,7 @@ interface Equipe {
 export default function Equipes(): ReactElement {
   const [equipes, setEquipes] = useState<Equipe[] | null>(null);
   const [frentes, setFrentes] = useState<Frente[]>([]);
+  const [distritos, setDistritos] = useState<Distrito[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [funcoes, setFuncoes] = useState<Funcao[]>([]);
   const [erro, setErro] = useState<string | null>(null);
@@ -47,14 +55,16 @@ export default function Equipes(): ReactElement {
   async function carregar(): Promise<void> {
     setErro(null);
     try {
-      const [listaEquipes, listaFrentes, listaColaboradores, listaFuncoes] = await Promise.all([
+      const [listaEquipes, listaFrentes, listaDistritos, listaColaboradores, listaFuncoes] = await Promise.all([
         api.get<Equipe[]>("/equipes"),
         api.get<Frente[]>("/frentes"),
+        api.get<Distrito[]>("/distritos"),
         api.get<Colaborador[]>("/colaboradores"),
         api.get<Funcao[]>("/funcoes"),
       ]);
       setEquipes(listaEquipes);
       setFrentes(listaFrentes);
+      setDistritos(listaDistritos);
       setColaboradores(listaColaboradores);
       setFuncoes(listaFuncoes);
     } catch (error) {
@@ -82,7 +92,7 @@ export default function Equipes(): ReactElement {
         <div className="list-header">
           <div>
             <h1 className="list-title">Equipes</h1>
-            <p className="list-subtitle">Equipes de trabalho e seus membros por frente</p>
+            <p className="list-subtitle">Equipes de trabalho e seus membros por distrito</p>
           </div>
           <button type="button" className="button" onClick={() => setEditando("novo")}>
             Nova equipe
@@ -101,6 +111,7 @@ export default function Equipes(): ReactElement {
               <thead>
                 <tr>
                   <th>Nome</th>
+                  <th>Distrito</th>
                   <th>Frente</th>
                   <th>Membros</th>
                   <th>Status</th>
@@ -111,7 +122,8 @@ export default function Equipes(): ReactElement {
                 {equipes.map((equipe) => (
                   <tr key={equipe.id}>
                     <td>{equipe.nome}</td>
-                    <td>{equipe.frente.nome}</td>
+                    <td>{equipe.distrito.nome}</td>
+                    <td>{equipe.distrito.frente.nome}</td>
                     <td>{equipe.membros.length}</td>
                     <td>
                       <span className={`badge badge--${equipe.ativo ? "ativo" : "inativo"}`}>
@@ -139,6 +151,7 @@ export default function Equipes(): ReactElement {
         <EquipeModal
           equipe={editando}
           frentes={frentes}
+          distritos={distritos}
           colaboradores={colaboradores}
           funcoes={funcoes}
           onClose={() => setEditando(null)}
@@ -152,6 +165,7 @@ export default function Equipes(): ReactElement {
 function EquipeModal({
   equipe,
   frentes,
+  distritos,
   colaboradores,
   funcoes,
   onClose,
@@ -159,6 +173,7 @@ function EquipeModal({
 }: {
   equipe: Equipe | "novo";
   frentes: Frente[];
+  distritos: Distrito[];
   colaboradores: Colaborador[];
   funcoes: Funcao[];
   onClose: () => void;
@@ -166,18 +181,30 @@ function EquipeModal({
 }): ReactElement {
   const existente = equipe === "novo" ? null : equipe;
   const [nome, setNome] = useState(existente?.nome ?? "");
-  const [frenteId, setFrenteId] = useState(existente?.frenteId ?? (frentes[0]?.id ?? ""));
+  const [frenteId, setFrenteId] = useState(existente?.distrito.frenteId ?? (frentes[0]?.id ?? ""));
+  const distritosDaFrente = distritos.filter((distrito) => distrito.frenteId === frenteId);
+  const [distritoId, setDistritoId] = useState(existente?.distritoId ?? (distritosDaFrente[0]?.id ?? ""));
   const [encarregadoId, setEncarregadoId] = useState(existente?.encarregadoId ?? "");
   const [ativo, setAtivo] = useState(existente?.ativo ?? true);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  function handleFrenteChange(novaFrenteId: string): void {
+    setFrenteId(novaFrenteId);
+    const primeiroDistrito = distritos.find((distrito) => distrito.frenteId === novaFrenteId);
+    setDistritoId(primeiroDistrito?.id ?? "");
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    if (!distritoId) {
+      setErro("Cadastre ao menos um distrito para essa frente antes de criar uma equipe.");
+      return;
+    }
     setSalvando(true);
     setErro(null);
     try {
-      const payload = { nome, frenteId, encarregadoId: encarregadoId === "" ? null : encarregadoId, ativo };
+      const payload = { nome, distritoId, encarregadoId: encarregadoId === "" ? null : encarregadoId, ativo };
       const salvo = existente
         ? await api.patch<Equipe>(`/equipes/${existente.id}`, payload)
         : await api.post<Equipe>("/equipes", payload);
@@ -208,10 +235,22 @@ function EquipeModal({
           <label className="field-label" htmlFor="frenteId">
             Frente
           </label>
-          <select id="frenteId" className="field-input" value={frenteId} onChange={(event) => setFrenteId(event.target.value)}>
+          <select id="frenteId" className="field-input" value={frenteId} onChange={(event) => handleFrenteChange(event.target.value)}>
             {frentes.map((frente) => (
               <option key={frente.id} value={frente.id}>
                 {frente.nome}
+              </option>
+            ))}
+          </select>
+
+          <label className="field-label" htmlFor="distritoId">
+            Distrito
+          </label>
+          <select id="distritoId" className="field-input" value={distritoId} onChange={(event) => setDistritoId(event.target.value)}>
+            {distritosDaFrente.length === 0 && <option value="">Nenhum distrito cadastrado para esta frente</option>}
+            {distritosDaFrente.map((distrito) => (
+              <option key={distrito.id} value={distrito.id}>
+                {distrito.nome}
               </option>
             ))}
           </select>

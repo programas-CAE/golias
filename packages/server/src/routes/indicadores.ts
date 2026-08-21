@@ -10,7 +10,7 @@ import { prisma } from "../lib/prisma.js";
  */
 const JORNADA_HORAS_DIA = 7;
 
-const rdoIndicadorSelect = {
+export const rdoIndicadorSelect = {
   id: true,
   data: true,
   frenteId: true,
@@ -29,7 +29,7 @@ const rdoIndicadorSelect = {
   },
 } satisfies Prisma.RdoSelect;
 
-type RdoIndicador = Prisma.RdoGetPayload<{ select: typeof rdoIndicadorSelect }>;
+export type RdoIndicador = Prisma.RdoGetPayload<{ select: typeof rdoIndicadorSelect }>;
 
 function horasEquipe(rdo: RdoIndicador): number {
   const efetivo = rdo.maoDeObra.reduce((soma, mdo) => soma + mdo.quantidade, 0);
@@ -61,7 +61,7 @@ interface ResumoProdutividade {
  * (PUS real ÷ Meta PUS) entre as atividades que têm meta cadastrada e
  * produção no período.
  */
-function calcularProdutividade(rdos: RdoIndicador[]): ResumoProdutividade {
+export function calcularProdutividade(rdos: RdoIndicador[]): ResumoProdutividade {
   const horasTrabalhadas = rdos.reduce((soma, rdo) => soma + horasEquipe(rdo), 0);
   const horasImprodutivas = rdos.reduce(
     (soma, rdo) => soma + rdo.maoDeObra.reduce((s, mdo) => s + Number(mdo.horasImprodutivas ?? 0), 0),
@@ -105,7 +105,7 @@ function calcularProdutividade(rdos: RdoIndicador[]): ResumoProdutividade {
 }
 
 /** Intervalo [início, fim) do mês "YYYY-MM"; usa o mês atual se omitido/inválido. */
-function intervaloDoMes(mes: string | undefined): { periodo: string; inicio: Date; fim: Date } {
+export function intervaloDoMes(mes: string | undefined): { periodo: string; inicio: Date; fim: Date } {
   const valido = mes && /^\d{4}-\d{2}$/.test(mes) ? mes : new Date().toISOString().slice(0, 7);
   const ano = Number(valido.slice(0, 4));
   const mesNum = Number(valido.slice(5, 7));
