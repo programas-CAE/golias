@@ -52,6 +52,8 @@ export const COLABORADORES: readonly ColaboradorCatalogoItem[] = [
   { matricula: "3770", nome: "Gilvandro Borges dos Santos", funcao: "Encarregado" },
   { matricula: "3771", nome: "Leandro Soares Dias", funcao: "Encarregado" },
   { matricula: "3772", nome: "José Domingos Lopes", funcao: "Encarregado" },
+  // Matrícula real ainda não informada — placeholder até o usuário confirmar.
+  { matricula: "PENDENTE-RAYANE", nome: "Rayane Silva", funcao: "Técnico de Segurança do Trabalho" },
 ] as const;
 
 export interface FuncaoCatalogoItem {
@@ -103,6 +105,8 @@ export const EQUIPAMENTOS: readonly EquipamentoCatalogoItem[] = [
   { nome: "Área de Vivência" },
   { nome: "Container Escritório" },
   { nome: "Container Almoxarifado" },
+  { nome: "Tenda" },
+  { nome: "REE 105" },
 ] as const;
 
 export interface AtividadeCatalogoItem {
