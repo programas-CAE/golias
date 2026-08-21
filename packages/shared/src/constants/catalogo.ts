@@ -19,12 +19,37 @@ export type UnidadeMedida = "M" | "M2" | "M3" | "UND" | "HH" | "M3KM";
 export interface FrenteCatalogoItem {
   readonly codigo: FrenteCodigo;
   readonly nome: string;
+  readonly numeroSap: string;
 }
 
+// Número do contrato (planilha "PRODUTIVIDADE ABRIL MAIO JUNHO", célula A3:
+// "NÚMERO DO CONTRATO: 5900124486") — um único contrato cobre as 3 frentes.
 export const FRENTES: readonly FrenteCatalogoItem[] = [
-  { codigo: "MAB", nome: "Marabá" },
-  { codigo: "PBA", nome: "Parauapebas" },
-  { codigo: "RAMAL", nome: "Ramal" },
+  { codigo: "MAB", nome: "Marabá", numeroSap: "5900124486" },
+  { codigo: "PBA", nome: "Parauapebas", numeroSap: "5900124486" },
+  { codigo: "RAMAL", nome: "Ramal", numeroSap: "5900124486" },
+] as const;
+
+export interface ColaboradorCatalogoItem {
+  readonly matricula: string;
+  readonly nome: string;
+  readonly funcao: string;
+}
+
+/**
+ * Amostra real de encarregados (tela de referência do sistema legado).
+ * `matricula` é o ID exibido naquela tela.
+ */
+export const COLABORADORES: readonly ColaboradorCatalogoItem[] = [
+  { matricula: "3764", nome: "Alberto Roberto", funcao: "Encarregado" },
+  { matricula: "3765", nome: "Ronicleiton Lima", funcao: "Encarregado" },
+  { matricula: "3766", nome: "Paulo Sérgio", funcao: "Encarregado" },
+  { matricula: "3767", nome: "João Paulo", funcao: "Encarregado" },
+  { matricula: "3768", nome: "Antônio Lima", funcao: "Encarregado" },
+  { matricula: "3769", nome: "Carlos Sena", funcao: "Encarregado" },
+  { matricula: "3770", nome: "Gilvandro Borges dos Santos", funcao: "Encarregado" },
+  { matricula: "3771", nome: "Leandro Soares Dias", funcao: "Encarregado" },
+  { matricula: "3772", nome: "José Domingos Lopes", funcao: "Encarregado" },
 ] as const;
 
 export interface FuncaoCatalogoItem {

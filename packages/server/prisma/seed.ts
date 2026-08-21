@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { ATIVIDADES, EQUIPAMENTOS, FRENTES, FUNCOES } from "@golias/shared";
+import { ATIVIDADES, COLABORADORES, EQUIPAMENTOS, FRENTES, FUNCOES } from "@golias/shared";
 import { loadEnv, requireEnv } from "../src/lib/loadEnv.js";
 
 loadEnv("../.env", import.meta.url);
@@ -12,11 +12,37 @@ async function seedFrentes(): Promise<void> {
   for (const frente of FRENTES) {
     await prisma.frente.upsert({
       where: { codigo: frente.codigo },
-      update: { nome: frente.nome },
-      create: { codigo: frente.codigo, nome: frente.nome },
+      update: { nome: frente.nome, numeroSap: frente.numeroSap },
+      create: { codigo: frente.codigo, nome: frente.nome, numeroSap: frente.numeroSap },
     });
   }
   console.log(`Frentes: ${FRENTES.length} sincronizadas.`);
+}
+
+/**
+ * Colaboradores dependem das funções já existirem (funcaoId é obrigatório),
+ * por isso rodam depois de `seedFuncoes`.
+ */
+async function seedColaboradores(): Promise<void> {
+  const nomesFuncoes = [...new Set(COLABORADORES.map((colaborador) => colaborador.funcao))];
+  const funcoes = await prisma.funcaoCatalogo.findMany({ where: { nome: { in: nomesFuncoes } } });
+  const funcaoIdPorNome = new Map(funcoes.map((funcao) => [funcao.nome, funcao.id]));
+
+  let sincronizados = 0;
+  for (const colaborador of COLABORADORES) {
+    const funcaoId = funcaoIdPorNome.get(colaborador.funcao);
+    if (!funcaoId) {
+      console.warn(`Função "${colaborador.funcao}" não encontrada para o colaborador ${colaborador.nome}, pulando.`);
+      continue;
+    }
+    await prisma.colaborador.upsert({
+      where: { matricula: colaborador.matricula },
+      update: { nome: colaborador.nome, funcaoId },
+      create: { matricula: colaborador.matricula, nome: colaborador.nome, funcaoId },
+    });
+    sincronizados += 1;
+  }
+  console.log(`Colaboradores: ${sincronizados} sincronizados.`);
 }
 
 async function seedFuncoes(): Promise<void> {
@@ -88,6 +114,7 @@ async function main(): Promise<void> {
   console.log("Iniciando seed do catálogo GOLIAS...");
   await seedFrentes();
   await seedFuncoes();
+  await seedColaboradores();
   await seedEquipamentos();
   await seedAtividades();
   console.log("Seed concluído com sucesso.");
