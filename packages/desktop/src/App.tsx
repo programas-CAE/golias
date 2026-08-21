@@ -8,6 +8,7 @@ import DistritoDetalhe from "./pages/DistritoDetalhe";
 import Colaboradores from "./pages/Colaboradores";
 import OrdensManutencao from "./pages/OrdensManutencao";
 import Atividades from "./pages/Atividades";
+import MedicaoMensal from "./pages/MedicaoMensal";
 import Equipes from "./pages/Equipes";
 import Rdos from "./pages/Rdos";
 import RdoCompleto from "./pages/RdoCompleto";
@@ -27,6 +28,7 @@ export default function App(): ReactElement {
         <Route path="/colaboradores" element={<Colaboradores />} />
         <Route path="/ordens-manutencao" element={<OrdensManutencao />} />
         <Route path="/atividades" element={<Atividades />} />
+        <Route path="/medicoes" element={<MedicaoMensal />} />
         <Route path="/equipes" element={<Equipes />} />
         <Route path="/rdos" element={<Rdos />} />
         <Route path="/rdos/completo/novo" element={<RdoCompleto />} />

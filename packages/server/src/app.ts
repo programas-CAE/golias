@@ -10,6 +10,7 @@ import { registerEquipesRoutes } from "./routes/equipes.js";
 import { registerFrentesRoutes } from "./routes/frentes.js";
 import { registerFuncoesRoutes } from "./routes/funcoes.js";
 import { registerIndicadoresRoutes } from "./routes/indicadores.js";
+import { registerMedicoesRoutes } from "./routes/medicoes.js";
 import { registerOrdensManutencaoRoutes } from "./routes/ordensManutencao.js";
 import { registerRdosRoutes } from "./routes/rdos.js";
 
@@ -50,6 +51,7 @@ export function buildApp(): FastifyInstance {
   registerEquipamentosRoutes(app);
   registerRdosRoutes(app);
   registerIndicadoresRoutes(app);
+  registerMedicoesRoutes(app);
 
   return app;
 }

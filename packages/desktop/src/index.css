@@ -756,3 +756,89 @@ body {
 .distrito-conteudo {
   min-width: 0;
 }
+
+/* Croqui de dimensões (RdoCompleto) */
+
+.atividades-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .atividades-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.atividades-form {
+  min-width: 0;
+}
+
+.croqui-sidebar {
+  position: sticky;
+  top: 20px;
+}
+
+.croqui-card {
+  background: #0e1830;
+  border: 1px solid #23304f;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.croqui-titulo {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.croqui-svg {
+  width: 100%;
+  height: auto;
+}
+
+.croqui-linha {
+  stroke: #cbd5e1;
+  stroke-width: 2;
+}
+
+.croqui-forma {
+  fill: rgba(249, 115, 22, 0.08);
+  stroke: #cbd5e1;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.croqui-forma--topo {
+  fill: rgba(249, 115, 22, 0.16);
+}
+
+.croqui-forma--sombra {
+  fill: rgba(249, 115, 22, 0.24);
+}
+
+.croqui-rotulo {
+  fill: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.croqui-resultado {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.croqui-resultado strong {
+  color: #f97316;
+}
+
+.croqui-vazio {
+  color: #64748b;
+  font-size: 0.82rem;
+  text-align: center;
+}

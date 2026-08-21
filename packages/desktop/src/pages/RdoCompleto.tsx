@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
+import CroquiAtividade from "../components/CroquiAtividade";
 import { ApiError, api } from "../lib/apiClient";
 
 interface Frente {
@@ -161,6 +162,7 @@ export default function RdoCompleto(): ReactElement {
 
   const [blocos, setBlocos] = useState<BlocoDraft[]>([{ horarioInicial: "", horarioFinal: "", descricao: "" }]);
   const [locais, setLocais] = useState<LocalDraft[]>([]);
+  const [atividadeFoco, setAtividadeFoco] = useState<{ localIndice: number; atividadeIndice: number } | null>(null);
   const [maoDeObra, setMaoDeObra] = useState<Record<string, string>>({});
   const [outrasMaoDeObra, setOutrasMaoDeObra] = useState<OutraMaoDeObraDraft[]>([]);
   const [equipamentos, setEquipamentos] = useState<Record<string, string>>({});
@@ -217,6 +219,12 @@ export default function RdoCompleto(): ReactElement {
   const equipeSelecionada = equipes.find((equipe) => equipe.id === equipeId) ?? null;
   const ordensDaFrente = ordensManutencao.filter((ordem) => ordem.frenteId === frenteId);
   const tempoTotal = useMemo(() => calcularTempoTotal(blocos), [blocos]);
+
+  const foco = atividadeFoco ?? ((locais[0]?.atividades.length ?? 0) > 0 ? { localIndice: 0, atividadeIndice: 0 } : null);
+  const atividadeEmFoco = foco ? locais[foco.localIndice]?.atividades[foco.atividadeIndice] : undefined;
+  const atividadeCatalogoEmFoco = atividadeEmFoco
+    ? atividadesCatalogo.find((item) => item.id === atividadeEmFoco.atividadeCatalogoId)
+    : undefined;
 
   function handleFrenteChange(novaFrenteId: string): void {
     setFrenteId(novaFrenteId);
@@ -573,6 +581,8 @@ export default function RdoCompleto(): ReactElement {
 
         <section className="form-section">
           <h2 className="form-section-title">Atividades realizadas</h2>
+          <div className="atividades-layout">
+          <div className="atividades-form">
           {locais.map((local, localIndice) => (
             <div className="repeatable-item" key={localIndice}>
               <label className="field-label">Descrição / trecho</label>
@@ -644,6 +654,7 @@ export default function RdoCompleto(): ReactElement {
                       className="field-input"
                       value={atividade.atividadeCatalogoId}
                       onChange={(event) => selecionarAtividadeCatalogo(localIndice, atividadeIndice, event.target.value)}
+                      onFocus={() => setAtividadeFoco({ localIndice, atividadeIndice })}
                     >
                       {atividadesCatalogo.map((item) => (
                         <option key={item.id} value={item.id}>
@@ -662,6 +673,7 @@ export default function RdoCompleto(): ReactElement {
                             placeholder="Altura"
                             value={atividade.altura}
                             onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "altura", event.target.value)}
+                            onFocus={() => setAtividadeFoco({ localIndice, atividadeIndice })}
                           />
                         )}
                         {(atividade.unidade === "M2" || atividade.unidade === "M3") && (
@@ -672,6 +684,7 @@ export default function RdoCompleto(): ReactElement {
                             placeholder="Largura"
                             value={atividade.largura}
                             onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
+                            onFocus={() => setAtividadeFoco({ localIndice, atividadeIndice })}
                           />
                         )}
                         <input
@@ -681,6 +694,7 @@ export default function RdoCompleto(): ReactElement {
                           placeholder="Comprimento"
                           value={atividade.comprimento}
                           onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
+                          onFocus={() => setAtividadeFoco({ localIndice, atividadeIndice })}
                         />
                       </div>
                     ) : (
@@ -694,6 +708,7 @@ export default function RdoCompleto(): ReactElement {
                         onChange={(event) =>
                           atualizarAtividade(localIndice, atividadeIndice, "quantidadeDireta", event.target.value)
                         }
+                        onFocus={() => setAtividadeFoco({ localIndice, atividadeIndice })}
                       />
                     )}
                     <button
@@ -744,6 +759,22 @@ export default function RdoCompleto(): ReactElement {
           >
             + Adicionar local
           </button>
+          </div>
+
+          <div className="croqui-sidebar">
+            {atividadeEmFoco ? (
+              <CroquiAtividade
+                unidade={atividadeEmFoco.unidade}
+                altura={atividadeEmFoco.altura}
+                largura={atividadeEmFoco.largura}
+                comprimento={atividadeEmFoco.comprimento}
+                descricaoAtividade={atividadeCatalogoEmFoco?.descricao}
+              />
+            ) : (
+              <p className="croqui-vazio">Adicione uma atividade para ver o croqui das dimensões aqui.</p>
+            )}
+          </div>
+          </div>
         </section>
 
         <section className="form-section">

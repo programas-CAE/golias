@@ -144,7 +144,7 @@ export default function Home(): ReactElement {
               <KpiCard label="Ordens de manutenção" valor={String(dados.ordensManutencao)} vazio={dados.ordensManutencao === 0} />
               <KpiCard label="Mão de obra média" valor={dados.maoDeObraMedia.toFixed(1)} vazio={dados.rdosEmitidos === 0} />
               <KpiCard
-                label="Eficiência geral"
+                label="PUS geral"
                 valor={dados.eficienciaGeral != null ? `${dados.eficienciaGeral.toFixed(1)}%` : "—"}
                 vazio={dados.eficienciaGeral == null}
               />
@@ -171,7 +171,7 @@ export default function Home(): ReactElement {
             </div>
 
             <section className="form-section">
-              <h2 className="form-section-title">Eficiência por frente</h2>
+              <h2 className="form-section-title">PUS por frente</h2>
               <div className="dashboard-gauges">
                 {dados.porFrente.map((frente) => (
                   <GaugeChart
