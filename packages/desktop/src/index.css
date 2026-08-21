@@ -757,28 +757,20 @@ body {
   min-width: 0;
 }
 
-/* Croqui de dimensões (RdoCompleto) */
+/* Croqui de dimensões (RdoCompleto) — cada atividade com dimensões ganha
+   seu próprio croqui ao lado, não um painel único compartilhado. */
 
-.atividades-layout {
+.atividade-com-croqui {
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 20px;
+  grid-template-columns: 1fr 240px;
+  gap: 16px;
   align-items: start;
 }
 
-@media (max-width: 900px) {
-  .atividades-layout {
+@media (max-width: 760px) {
+  .atividade-com-croqui {
     grid-template-columns: 1fr;
   }
-}
-
-.atividades-form {
-  min-width: 0;
-}
-
-.croqui-sidebar {
-  position: sticky;
-  top: 20px;
 }
 
 .croqui-card {
