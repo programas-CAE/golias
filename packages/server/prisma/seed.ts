@@ -93,6 +93,10 @@ async function seedAtividades(): Promise<void> {
           unidade: atividade.unidade,
           usaDimensoes: atividade.usaDimensoes,
           ordem: atividade.ordem,
+          // Só aplica o metaPus do seed se ainda não foi definido — não
+          // sobrescreve um valor que o usuário já ajustou manualmente pela
+          // tela "Catálogo de Atividades".
+          ...(existente.metaPus == null && atividade.metaPus != null ? { metaPus: atividade.metaPus } : {}),
         },
       });
       atualizadas += 1;
@@ -102,6 +106,7 @@ async function seedAtividades(): Promise<void> {
           codigo: atividade.codigo,
           descricao: atividade.descricao,
           unidade: atividade.unidade,
+          metaPus: atividade.metaPus,
           usaDimensoes: atividade.usaDimensoes,
           ordem: atividade.ordem,
         },

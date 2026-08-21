@@ -109,35 +109,45 @@ export interface AtividadeCatalogoItem {
   readonly unidade: UnidadeMedida;
   readonly usaDimensoes: boolean;
   readonly ordem: number;
+  readonly metaPus: number | null;
 }
 
+/**
+ * `metaPus` é uma ESTIMATIVA provisória (média da produtividade real de
+ * abril e maio/2026 — planilha "PRODUTIVIDADE ABRIL MAIO JUNHO.xlsx",
+ * coluna TOTAL — ignorando meses sem produção nessa atividade), não uma
+ * meta contratual. Não há tabela de meta oficial em nenhuma das planilhas
+ * fonte. `null` = nenhum dos dois meses teve produção nessa atividade, sem
+ * base para estimar. Ajuste pela tela "Catálogo de Atividades" assim que
+ * houver o valor contratual real.
+ */
 export const ATIVIDADES: readonly AtividadeCatalogoItem[] = [
-  { codigo: "2.1.2", descricao: "Limpeza de bueiros", unidade: "M3", usaDimensoes: true, ordem: 1 },
-  { codigo: "2.1.3", descricao: "Limpeza de canaleta em corte e aterro até meia seção", unidade: "M", usaDimensoes: true, ordem: 2 },
-  { codigo: "2.1.4", descricao: "Limpeza de canaleta em corte e aterro com seção plena", unidade: "M", usaDimensoes: true, ordem: 3 },
-  { codigo: "2.1.5", descricao: "Limpeza de valeta, sarjetas e meio fios", unidade: "M", usaDimensoes: true, ordem: 4 },
-  { codigo: "2.1.6", descricao: "Rejuntamento de bueiro (estimar 20% da quantidade de bueiros)", unidade: "M3", usaDimensoes: true, ordem: 5 },
-  { codigo: "2.1.7", descricao: "Limpeza de valas de bueiros (montante e jusante)", unidade: "M3", usaDimensoes: true, ordem: 6 },
-  { codigo: "2.1.7", descricao: "Recuperação de drenagem tipo canaleta/valeta em taludes, limitando-se a 100m de extensão", unidade: "M", usaDimensoes: true, ordem: 7 },
-  { codigo: "2.1.8", descricao: "Recuperação de drenagem tipo sarjeta/meio-fio em plataforma, limitando-se a 100m de extensão", unidade: "M", usaDimensoes: true, ordem: 8 },
-  { codigo: "2.2.1", descricao: "Roçada", unidade: "M2", usaDimensoes: true, ordem: 9 },
-  { codigo: "2.2.2", descricao: "Capina", unidade: "M2", usaDimensoes: true, ordem: 10 },
-  { codigo: "2.2.3", descricao: "Capina química com equipamento costal ou aplicação similar", unidade: "M2", usaDimensoes: true, ordem: 11 },
-  { codigo: "2.2.4", descricao: "Capina química com uso de drone", unidade: "M2", usaDimensoes: true, ordem: 12 },
-  { codigo: "2.2.5", descricao: "Remoção de solo", unidade: "M3", usaDimensoes: true, ordem: 13 },
-  { codigo: "2.2.6", descricao: "Poda de árvores com auxílio de equipamentos de grande porte fornecido pela VALE", unidade: "M2", usaDimensoes: true, ordem: 14 },
-  { codigo: "2.2.7", descricao: "Poda de árvores com auxílio de equipamentos de grande porte fornecido pela CONTRATADA", unidade: "M2", usaDimensoes: true, ordem: 15 },
-  { codigo: "2.2.8", descricao: "Corte de árvores de pequeno porte, equipamento fornecido pela VALE", unidade: "UND", usaDimensoes: false, ordem: 16 },
-  { codigo: "2.2.9", descricao: "Corte de árvores de pequeno porte, equipamento fornecido pela CONTRATADA", unidade: "UND", usaDimensoes: false, ordem: 17 },
-  { codigo: "2.2.10", descricao: "Corte de árvores de grande porte, equipamento fornecido pela VALE", unidade: "UND", usaDimensoes: false, ordem: 18 },
-  { codigo: "2.2.11", descricao: "Corte de árvores de grande porte, equipamento fornecido pela CONTRATADA", unidade: "UND", usaDimensoes: false, ordem: 19 },
-  { codigo: "2.2.12", descricao: "Momento extraordinário de transporte", unidade: "M3KM", usaDimensoes: false, ordem: 20 },
-  { codigo: "2.3.1", descricao: "Fornecimento e aplicação de sinalização gráfica vertical completa", unidade: "M2", usaDimensoes: true, ordem: 21 },
-  { codigo: "2.3.2", descricao: "Aplicação de trilho para Cruz de Santo André (trilho fornecimento VALE)", unidade: "UND", usaDimensoes: false, ordem: 22 },
-  { codigo: "5.1", descricao: "Horas improdutivas — Encarregado", unidade: "HH", usaDimensoes: false, ordem: 23 },
-  { codigo: "5.2", descricao: "Horas improdutivas — Técnico de Segurança do Trabalho", unidade: "HH", usaDimensoes: false, ordem: 24 },
-  { codigo: "5.3", descricao: "Horas improdutivas — Motorista", unidade: "HH", usaDimensoes: false, ordem: 25 },
-  { codigo: "5.4", descricao: "Horas improdutivas — Oficial", unidade: "HH", usaDimensoes: false, ordem: 26 },
-  { codigo: "5.5", descricao: "Horas improdutivas — Operador de Máquina Leve", unidade: "HH", usaDimensoes: false, ordem: 27 },
-  { codigo: "5.6", descricao: "Horas improdutivas — Van", unidade: "HH", usaDimensoes: false, ordem: 28 },
+  { codigo: "2.1.2", descricao: "Limpeza de bueiros", unidade: "M3", usaDimensoes: true, ordem: 1, metaPus: 0.016 },
+  { codigo: "2.1.3", descricao: "Limpeza de canaleta em corte e aterro até meia seção", unidade: "M", usaDimensoes: true, ordem: 2, metaPus: 40.5595 },
+  { codigo: "2.1.4", descricao: "Limpeza de canaleta em corte e aterro com seção plena", unidade: "M", usaDimensoes: true, ordem: 3, metaPus: 16.2651 },
+  { codigo: "2.1.5", descricao: "Limpeza de valeta, sarjetas e meio fios", unidade: "M", usaDimensoes: true, ordem: 4, metaPus: 25.1988 },
+  { codigo: "2.1.6", descricao: "Rejuntamento de bueiro (estimar 20% da quantidade de bueiros)", unidade: "M3", usaDimensoes: true, ordem: 5, metaPus: null },
+  { codigo: "2.1.7", descricao: "Limpeza de valas de bueiros (montante e jusante)", unidade: "M3", usaDimensoes: true, ordem: 6, metaPus: null },
+  { codigo: "2.1.7", descricao: "Recuperação de drenagem tipo canaleta/valeta em taludes, limitando-se a 100m de extensão", unidade: "M", usaDimensoes: true, ordem: 7, metaPus: 1.6979 },
+  { codigo: "2.1.8", descricao: "Recuperação de drenagem tipo sarjeta/meio-fio em plataforma, limitando-se a 100m de extensão", unidade: "M", usaDimensoes: true, ordem: 8, metaPus: 0.3768 },
+  { codigo: "2.2.1", descricao: "Roçada", unidade: "M2", usaDimensoes: true, ordem: 9, metaPus: 953.9489 },
+  { codigo: "2.2.2", descricao: "Capina", unidade: "M2", usaDimensoes: true, ordem: 10, metaPus: 31.681 },
+  { codigo: "2.2.3", descricao: "Capina química com equipamento costal ou aplicação similar", unidade: "M2", usaDimensoes: true, ordem: 11, metaPus: null },
+  { codigo: "2.2.4", descricao: "Capina química com uso de drone", unidade: "M2", usaDimensoes: true, ordem: 12, metaPus: null },
+  { codigo: "2.2.5", descricao: "Remoção de solo", unidade: "M3", usaDimensoes: true, ordem: 13, metaPus: 1.0844 },
+  { codigo: "2.2.6", descricao: "Poda de árvores com auxílio de equipamentos de grande porte fornecido pela VALE", unidade: "M2", usaDimensoes: true, ordem: 14, metaPus: null },
+  { codigo: "2.2.7", descricao: "Poda de árvores com auxílio de equipamentos de grande porte fornecido pela CONTRATADA", unidade: "M2", usaDimensoes: true, ordem: 15, metaPus: null },
+  { codigo: "2.2.8", descricao: "Corte de árvores de pequeno porte, equipamento fornecido pela VALE", unidade: "UND", usaDimensoes: false, ordem: 16, metaPus: null },
+  { codigo: "2.2.9", descricao: "Corte de árvores de pequeno porte, equipamento fornecido pela CONTRATADA", unidade: "UND", usaDimensoes: false, ordem: 17, metaPus: null },
+  { codigo: "2.2.10", descricao: "Corte de árvores de grande porte, equipamento fornecido pela VALE", unidade: "UND", usaDimensoes: false, ordem: 18, metaPus: null },
+  { codigo: "2.2.11", descricao: "Corte de árvores de grande porte, equipamento fornecido pela CONTRATADA", unidade: "UND", usaDimensoes: false, ordem: 19, metaPus: null },
+  { codigo: "2.2.12", descricao: "Momento extraordinário de transporte", unidade: "M3KM", usaDimensoes: false, ordem: 20, metaPus: null },
+  { codigo: "2.3.1", descricao: "Fornecimento e aplicação de sinalização gráfica vertical completa", unidade: "M2", usaDimensoes: true, ordem: 21, metaPus: 0.0031 },
+  { codigo: "2.3.2", descricao: "Aplicação de trilho para Cruz de Santo André (trilho fornecimento VALE)", unidade: "UND", usaDimensoes: false, ordem: 22, metaPus: null },
+  { codigo: "5.1", descricao: "Horas improdutivas — Encarregado", unidade: "HH", usaDimensoes: false, ordem: 23, metaPus: null },
+  { codigo: "5.2", descricao: "Horas improdutivas — Técnico de Segurança do Trabalho", unidade: "HH", usaDimensoes: false, ordem: 24, metaPus: null },
+  { codigo: "5.3", descricao: "Horas improdutivas — Motorista", unidade: "HH", usaDimensoes: false, ordem: 25, metaPus: null },
+  { codigo: "5.4", descricao: "Horas improdutivas — Oficial", unidade: "HH", usaDimensoes: false, ordem: 26, metaPus: null },
+  { codigo: "5.5", descricao: "Horas improdutivas — Operador de Máquina Leve", unidade: "HH", usaDimensoes: false, ordem: 27, metaPus: null },
+  { codigo: "5.6", descricao: "Horas improdutivas — Van", unidade: "HH", usaDimensoes: false, ordem: 28, metaPus: null },
 ] as const;
