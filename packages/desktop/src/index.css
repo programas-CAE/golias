@@ -392,6 +392,26 @@ body {
   margin-top: 12px;
 }
 
+/* Linha de material: a descrição do catálogo pode ser bem mais longa que
+   um nome de colaborador — sem minmax(0, ...) o <select> "estoura" a
+   coluna 1fr e engole a linha inteira (grid blowout). */
+.material-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px 150px auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.material-row select {
+  min-width: 0;
+}
+
+.material-row .section-total {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;

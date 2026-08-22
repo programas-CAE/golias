@@ -942,7 +942,7 @@ export default function RdoCompleto(): ReactElement {
           {materiais.map((material, indice) => {
             const catalogoDoMaterial = materiaisCatalogo.find((item) => item.id === material.materialCatalogoId);
             return (
-              <div className="membro-add-row" key={indice}>
+              <div className="material-row" key={indice}>
                 <select
                   className="field-input"
                   value={material.materialCatalogoId}
@@ -959,10 +959,11 @@ export default function RdoCompleto(): ReactElement {
                   step="0.001"
                   min={0}
                   className="field-input"
+                  placeholder="Qtd."
                   value={material.quantidade}
                   onChange={(event) => atualizarMaterial(indice, "quantidade", event.target.value)}
                 />
-                <span className="section-total" style={{ alignSelf: "center" }}>
+                <span className="section-total">
                   {catalogoDoMaterial?.precoUnitario != null
                     ? `R$ ${(Number(catalogoDoMaterial.precoUnitario) * Number(material.quantidade || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
                     : ""}
