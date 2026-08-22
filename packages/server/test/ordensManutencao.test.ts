@@ -8,7 +8,8 @@ beforeEach(async () => {
 });
 
 async function criarFrente(): Promise<{ id: string }> {
-  return prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
+  const contrato = await prisma.contrato.create({ data: { numero: "5900000000" } });
+  return prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá", contratoId: contrato.id } });
 }
 
 describe("GET /ordens-manutencao", () => {

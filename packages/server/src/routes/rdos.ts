@@ -108,7 +108,13 @@ const rdoCampoSelect = {
   },
   materiais: {
     orderBy: { ordem: "asc" },
-    select: { id: true, nome: true, unidade: true, quantidade: true, ordem: true },
+    select: {
+      id: true,
+      materialCatalogoId: true,
+      materialCatalogo: { select: { id: true, codigo: true, descricao: true, unidade: true, precoUnitario: true } },
+      quantidade: true,
+      ordem: true,
+    },
   },
   anexos: {
     select: {
@@ -261,7 +267,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       return await reply.status(201).send(criado);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
-        return reply.status(400).send({ error: "Frente, equipe, encarregado, ordem de manutenção, função, colaborador ou equipamento inválido" });
+        return reply.status(400).send({ error: "Frente, equipe, encarregado, ordem de manutenção, função, colaborador, equipamento ou material inválido" });
       }
       throw error;
     }
@@ -361,7 +367,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         });
       } catch (error) {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
-          return reply.status(400).send({ error: "Ordem de manutenção, função, colaborador ou equipamento inválido" });
+          return reply.status(400).send({ error: "Ordem de manutenção, função, colaborador, equipamento ou material inválido" });
         }
         throw error;
       }

@@ -73,9 +73,17 @@ interface RdoEquipamentoSalvo {
   quantidade: number;
 }
 
+interface MaterialCatalogoRef {
+  id: string;
+  codigo: string;
+  descricao: string;
+  unidade: string;
+  precoUnitario: string | null;
+}
+
 interface RdoMaterialSalvo {
-  nome: string;
-  unidade: string | null;
+  materialCatalogoId: string;
+  materialCatalogo: MaterialCatalogoRef;
   quantidade: string;
 }
 
@@ -130,8 +138,7 @@ interface BlocoDraft {
 }
 
 interface MaterialDraft {
-  nome: string;
-  unidade: string;
+  materialCatalogoId: string;
   quantidade: string;
 }
 
@@ -164,6 +171,7 @@ export default function Campo(): ReactElement {
   const [erroCarga, setErroCarga] = useState<{ status: number; mensagem: string } | null>(null);
   const [dados, setDados] = useState<CampoResponse | null>(null);
   const [equipamentosCatalogo, setEquipamentosCatalogo] = useState<EquipamentoRef[]>([]);
+  const [materiaisCatalogo, setMateriaisCatalogo] = useState<MaterialCatalogoRef[]>([]);
   const [anexos, setAnexos] = useState<RdoAnexo[]>([]);
 
   const [clima, setClima] = useState<string>("");
@@ -192,12 +200,14 @@ export default function Campo(): ReactElement {
 
     async function carregar(): Promise<void> {
       try {
-        const [resposta, listaEquipamentos] = await Promise.all([
+        const [resposta, listaEquipamentos, listaMateriais] = await Promise.all([
           api.get<CampoResponse>(`/rdos/campo/${token}`),
           api.get<EquipamentoRef[]>("/equipamentos"),
+          api.get<MaterialCatalogoRef[]>("/materiais"),
         ]);
         setDados(resposta);
         setEquipamentosCatalogo(listaEquipamentos);
+        setMateriaisCatalogo(listaMateriais);
         setAnexos(resposta.rdo.anexos);
 
         setClima(resposta.rdo.clima ?? "");
@@ -208,8 +218,7 @@ export default function Campo(): ReactElement {
         setObservacoes(resposta.rdo.observacoesContratada ?? "");
         setMateriais(
           resposta.rdo.materiais.map((material) => ({
-            nome: material.nome,
-            unidade: material.unidade ?? "",
+            materialCatalogoId: material.materialCatalogoId,
             quantidade: material.quantidade,
           })),
         );
@@ -310,7 +319,7 @@ export default function Campo(): ReactElement {
   }
 
   function adicionarMaterial(): void {
-    setMateriais((atual) => [...atual, { nome: "", unidade: "", quantidade: "1" }]);
+    setMateriais((atual) => [...atual, { materialCatalogoId: materiaisCatalogo[0]?.id ?? "", quantidade: "1" }]);
   }
 
   function atualizarMaterial(indice: number, campo: keyof MaterialDraft, valor: string): void {
@@ -380,10 +389,9 @@ export default function Campo(): ReactElement {
         .filter((equipamento) => Number(equipamentos[equipamento.id] ?? "0") > 0)
         .map((equipamento) => ({ equipamentoCatalogoId: equipamento.id, quantidade: Number(equipamentos[equipamento.id]) })),
       materiais: materiais
-        .filter((material) => material.nome.trim() !== "" && Number(material.quantidade) > 0)
+        .filter((material) => material.materialCatalogoId !== "" && Number(material.quantidade) > 0)
         .map((material, ordem) => ({
-          nome: material.nome,
-          unidade: material.unidade === "" ? null : material.unidade,
+          materialCatalogoId: material.materialCatalogoId,
           quantidade: Number(material.quantidade),
           ordem,
         })),
@@ -740,29 +748,26 @@ export default function Campo(): ReactElement {
         <h2>Materiais utilizados</h2>
         {materiais.map((material, indice) => (
           <div className="campo-item" key={indice}>
-            <input
+            <select
               className="field-input"
-              placeholder="Nome do material"
-              value={material.nome}
-              onChange={(event) => atualizarMaterial(indice, "nome", event.target.value)}
+              value={material.materialCatalogoId}
+              onChange={(event) => atualizarMaterial(indice, "materialCatalogoId", event.target.value)}
+            >
+              {materiaisCatalogo.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.descricao} ({item.unidade})
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              step="0.001"
+              min={0}
+              className="field-input"
+              placeholder="Quantidade"
+              value={material.quantidade}
+              onChange={(event) => atualizarMaterial(indice, "quantidade", event.target.value)}
             />
-            <div className="campo-grid-2">
-              <input
-                className="field-input"
-                placeholder="Unidade (saco, m³, litro...)"
-                value={material.unidade}
-                onChange={(event) => atualizarMaterial(indice, "unidade", event.target.value)}
-              />
-              <input
-                type="number"
-                step="0.001"
-                min={0}
-                className="field-input"
-                placeholder="Quantidade"
-                value={material.quantidade}
-                onChange={(event) => atualizarMaterial(indice, "quantidade", event.target.value)}
-              />
-            </div>
             <button
               type="button"
               className="button button--ghost button--small"

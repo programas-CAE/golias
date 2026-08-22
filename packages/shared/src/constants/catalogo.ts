@@ -16,20 +16,34 @@ export type FrenteCodigo = "MAB" | "PBA" | "RAMAL";
 
 export type UnidadeMedida = "M" | "M2" | "M3" | "UND" | "HH" | "M3KM";
 
-export interface FrenteCatalogoItem {
-  readonly codigo: FrenteCodigo;
+export interface ContratoCatalogoItem {
+  readonly numero: string;
   readonly nome: string;
-  readonly numeroSap: string;
 }
 
 // Nº SAP impresso no cabeçalho dos RDOs reais assinados (RDO PREVENTIVA
 // MAB.pdf, 21–30/07/2026, 10 dias, todos com "Nº SAP: 5900130281") — mais
 // confiável que o "NÚMERO DO CONTRATO: 5900124486" do relatório de
 // produtividade, que pode ser uma referência administrativa diferente.
+// Todas as frentes hoje pertencem a este único contrato — quando um novo
+// contrato entrar, adicione aqui e reatribua a frente correspondente.
+export const CONTRATOS: readonly ContratoCatalogoItem[] = [
+  {
+    numero: "5900130281",
+    nome: "Contratação de Serviços de Manutenção de Infraestrutura da EFC - Trecho Regional 1, 2 e 3",
+  },
+] as const;
+
+export interface FrenteCatalogoItem {
+  readonly codigo: FrenteCodigo;
+  readonly nome: string;
+  readonly contratoNumero: string;
+}
+
 export const FRENTES: readonly FrenteCatalogoItem[] = [
-  { codigo: "MAB", nome: "Marabá", numeroSap: "5900130281" },
-  { codigo: "PBA", nome: "Parauapebas", numeroSap: "5900130281" },
-  { codigo: "RAMAL", nome: "Ramal", numeroSap: "5900130281" },
+  { codigo: "MAB", nome: "Marabá", contratoNumero: "5900130281" },
+  { codigo: "PBA", nome: "Parauapebas", contratoNumero: "5900130281" },
+  { codigo: "RAMAL", nome: "Ramal", contratoNumero: "5900130281" },
 ] as const;
 
 export interface ColaboradorCatalogoItem {

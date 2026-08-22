@@ -1,6 +1,7 @@
 export * from "./constants/catalogo.js";
 export * from "./schemas/atividadeCatalogo.schema.js";
 export * from "./schemas/colaborador.schema.js";
+export * from "./schemas/contrato.schema.js";
 export * from "./schemas/distrito.schema.js";
 export * from "./schemas/equipe.schema.js";
 export * from "./schemas/frente.schema.js";

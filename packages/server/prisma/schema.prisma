@@ -86,13 +86,25 @@ model EquipamentoCatalogo {
   rdoEquipamentos RdoEquipamento[]
 }
 
+// Contrato vigente (ex.: SAP 5900130281). Frentes e o catálogo de materiais
+// (preços da price list) são vinculados a um contrato — trocar o contrato
+// de uma frente, ou cadastrar um novo, troca os dados dependentes (preços,
+// número impresso no RDO) sem precisar editar cada registro um por um.
+model Contrato {
+  id        String             @id @default(cuid())
+  numero    String             @unique
+  nome      String?
+  ativo     Boolean            @default(true)
+  frentes   Frente[]
+  materiais MaterialCatalogo[]
+}
+
 model Frente {
   id               String            @id @default(cuid())
   codigo           FrenteCodigo      @unique
   nome             String
-  // Número do pedido/contrato SAP vinculado a esta frente (ex.: "5900130281"),
-  // impresso fixo em todo RDO da frente — não muda dia a dia.
-  numeroSap        String?
+  contratoId       String
+  contrato         Contrato          @relation(fields: [contratoId], references: [id])
   ativo            Boolean           @default(true)
   distritos        Distrito[]
   ordensManutencao OrdemManutencao[]
@@ -293,17 +305,32 @@ model RdoEquipamento {
   quantidade            Int                 @default(1)
 }
 
-// Materiais consumidos no dia (cimento, tinta, brita etc.) — lista livre por
-// RDO, sem catálogo fixo, já que as planilhas fonte não trazem uma lista
-// oficial de materiais como trazem para atividades/equipamentos.
+// Catálogo oficial de materiais/serviços com preço unitário (Price List do
+// contrato — packages/server/prisma/data/materialCatalogo.json). Vinculado
+// ao Contrato porque preços mudam de um contrato para o outro.
+model MaterialCatalogo {
+  id             String        @id @default(cuid())
+  contratoId     String
+  contrato       Contrato      @relation(fields: [contratoId], references: [id])
+  codigo         String
+  descricao      String
+  unidade        String
+  precoUnitario  Decimal?      @db.Decimal(14, 4)
+  ativo          Boolean       @default(true)
+  rdoMateriais   RdoMaterial[]
+
+  @@unique([contratoId, codigo])
+}
+
+// Materiais consumidos no dia, escolhidos do catálogo (MaterialCatalogo).
 model RdoMaterial {
-  id         String  @id @default(cuid())
-  rdoId      String
-  rdo        Rdo     @relation(fields: [rdoId], references: [id])
-  nome       String
-  unidade    String?
-  quantidade Decimal @db.Decimal(12, 3)
-  ordem      Int     @default(0)
+  id                 String           @id @default(cuid())
+  rdoId              String
+  rdo                Rdo              @relation(fields: [rdoId], references: [id])
+  materialCatalogoId String
+  materialCatalogo   MaterialCatalogo @relation(fields: [materialCatalogoId], references: [id])
+  quantidade         Decimal          @db.Decimal(12, 3)
+  ordem              Int              @default(0)
 }
 
 model RdoAnexo {

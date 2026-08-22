@@ -111,14 +111,11 @@ export const rdoEquipamentoInputSchema = z.object({
 export type RdoEquipamentoInput = z.infer<typeof rdoEquipamentoInputSchema>;
 
 /**
- * Material consumido no dia (cimento, tinta, brita etc.). Lista livre por
- * RDO — diferente de Equipamentos, não há catálogo oficial nas planilhas
- * fonte, então `nome`/`unidade` são texto livre em vez de referenciar um
- * catálogo.
+ * Material consumido no dia, escolhido do catálogo oficial (MaterialCatalogo
+ * — Price List do contrato, com preço unitário).
  */
 export const rdoMaterialInputSchema = z.object({
-  nome: z.string().min(1, "Nome do material é obrigatório").max(200),
-  unidade: z.string().max(20).nullable().optional(),
+  materialCatalogoId: z.string().cuid("Material inválido"),
   quantidade: z.number().positive(),
   ordem: z.number().int().nonnegative().default(0),
 });

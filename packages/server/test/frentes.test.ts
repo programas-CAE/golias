@@ -7,13 +7,18 @@ beforeEach(async () => {
   await resetDatabase();
 });
 
+async function criarContrato(numero = "5900000000"): Promise<{ id: string }> {
+  return prisma.contrato.create({ data: { numero } });
+}
+
 describe("GET /frentes", () => {
   it("lista as frentes ordenadas por código", async () => {
+    const contrato = await criarContrato();
     await prisma.frente.createMany({
       data: [
-        { codigo: "RAMAL", nome: "Ramal" },
-        { codigo: "MAB", nome: "Marabá" },
-        { codigo: "PBA", nome: "Parauapebas" },
+        { codigo: "RAMAL", nome: "Ramal", contratoId: contrato.id },
+        { codigo: "MAB", nome: "Marabá", contratoId: contrato.id },
+        { codigo: "PBA", nome: "Parauapebas", contratoId: contrato.id },
       ],
     });
 
@@ -27,22 +32,26 @@ describe("GET /frentes", () => {
 });
 
 describe("PATCH /frentes/:id", () => {
-  it("atualiza o número SAP", async () => {
-    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
+  it("atualiza o contrato vinculado", async () => {
+    const contrato = await criarContrato("5900130281");
+    const novoContrato = await criarContrato("5900999999");
+    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá", contratoId: contrato.id } });
 
     const app = buildApp();
     const response = await app.inject({
       method: "PATCH",
       url: `/frentes/${frente.id}`,
-      payload: { numeroSap: "5900130281" },
+      payload: { contratoId: novoContrato.id },
     });
 
     expect(response.statusCode).toBe(200);
-    expect((response.json() as { numeroSap: string }).numeroSap).toBe("5900130281");
+    const body = response.json() as { contrato: { numero: string } };
+    expect(body.contrato.numero).toBe("5900999999");
   });
 
   it("atualiza nome e ativo", async () => {
-    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
+    const contrato = await criarContrato();
+    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá", contratoId: contrato.id } });
 
     const app = buildApp();
     const response = await app.inject({
@@ -69,7 +78,8 @@ describe("PATCH /frentes/:id", () => {
   });
 
   it("retorna 400 quando o nome é vazio", async () => {
-    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
+    const contrato = await criarContrato();
+    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá", contratoId: contrato.id } });
 
     const app = buildApp();
     const response = await app.inject({

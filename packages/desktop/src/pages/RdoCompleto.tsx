@@ -8,7 +8,7 @@ interface Frente {
   id: string;
   codigo: string;
   nome: string;
-  numeroSap: string | null;
+  contrato: { numero: string };
 }
 
 interface Colaborador {
@@ -85,9 +85,16 @@ interface OutraMaoDeObraDraft {
   quantidade: string;
 }
 
-interface MaterialDraft {
-  nome: string;
+interface MaterialCatalogo {
+  id: string;
+  codigo: string;
+  descricao: string;
   unidade: string;
+  precoUnitario: string | null;
+}
+
+interface MaterialDraft {
+  materialCatalogoId: string;
   quantidade: string;
 }
 
@@ -146,6 +153,7 @@ export default function RdoCompleto(): ReactElement {
   const [funcoes, setFuncoes] = useState<Funcao[]>([]);
   const [atividadesCatalogo, setAtividadesCatalogo] = useState<AtividadeCatalogo[]>([]);
   const [equipamentosCatalogo, setEquipamentosCatalogo] = useState<EquipamentoCatalogo[]>([]);
+  const [materiaisCatalogo, setMateriaisCatalogo] = useState<MaterialCatalogo[]>([]);
   const [ordensManutencao, setOrdensManutencao] = useState<OrdemManutencao[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
@@ -181,6 +189,7 @@ export default function RdoCompleto(): ReactElement {
           listaFuncoes,
           listaAtividades,
           listaEquipamentos,
+          listaMateriais,
           listaOrdens,
         ] = await Promise.all([
           api.get<Frente[]>("/frentes"),
@@ -189,6 +198,7 @@ export default function RdoCompleto(): ReactElement {
           api.get<Funcao[]>("/funcoes"),
           api.get<AtividadeCatalogo[]>("/atividades"),
           api.get<EquipamentoCatalogo[]>("/equipamentos"),
+          api.get<MaterialCatalogo[]>("/materiais"),
           api.get<OrdemManutencao[]>("/ordens-manutencao"),
         ]);
         setFrentes(listaFrentes);
@@ -197,6 +207,7 @@ export default function RdoCompleto(): ReactElement {
         setFuncoes(listaFuncoes);
         setAtividadesCatalogo(listaAtividades);
         setEquipamentosCatalogo(listaEquipamentos);
+        setMateriaisCatalogo(listaMateriais);
         setOrdensManutencao(listaOrdens);
 
         const primeiraFrente = listaFrentes[0]?.id ?? "";
@@ -282,7 +293,7 @@ export default function RdoCompleto(): ReactElement {
   }
 
   function adicionarMaterial(): void {
-    setMateriais((atual) => [...atual, { nome: "", unidade: "", quantidade: "1" }]);
+    setMateriais((atual) => [...atual, { materialCatalogoId: materiaisCatalogo[0]?.id ?? "", quantidade: "1" }]);
   }
 
   function atualizarMaterial(indice: number, campo: keyof MaterialDraft, valor: string): void {
@@ -349,10 +360,9 @@ export default function RdoCompleto(): ReactElement {
         .filter((equipamento) => Number(equipamentos[equipamento.id] ?? "0") > 0)
         .map((equipamento) => ({ equipamentoCatalogoId: equipamento.id, quantidade: Number(equipamentos[equipamento.id]) })),
       materiais: materiais
-        .filter((material) => material.nome.trim() !== "" && Number(material.quantidade) > 0)
+        .filter((material) => material.materialCatalogoId !== "" && Number(material.quantidade) > 0)
         .map((material, ordem) => ({
-          nome: material.nome,
-          unidade: material.unidade === "" ? null : material.unidade,
+          materialCatalogoId: material.materialCatalogoId,
           quantidade: Number(material.quantidade),
           ordem,
         })),
@@ -415,7 +425,7 @@ export default function RdoCompleto(): ReactElement {
             </div>
             <div>
               <label className="field-label">Contrato (nº SAP)</label>
-              <p className="read-only-value">{frenteSelecionada?.numeroSap ?? "—"}</p>
+              <p className="read-only-value">{frenteSelecionada?.contrato.numero ?? "—"}</p>
             </div>
           </div>
 
@@ -852,37 +862,45 @@ export default function RdoCompleto(): ReactElement {
 
         <section className="form-section">
           <h2 className="form-section-title">Materiais</h2>
-          {materiais.map((material, indice) => (
-            <div className="membro-add-row" key={indice}>
-              <input
-                className="field-input"
-                placeholder="Nome do material"
-                value={material.nome}
-                onChange={(event) => atualizarMaterial(indice, "nome", event.target.value)}
-              />
-              <input
-                className="field-input"
-                placeholder="Unidade (saco, m³, litro...)"
-                value={material.unidade}
-                onChange={(event) => atualizarMaterial(indice, "unidade", event.target.value)}
-              />
-              <input
-                type="number"
-                step="0.001"
-                min={0}
-                className="field-input"
-                value={material.quantidade}
-                onChange={(event) => atualizarMaterial(indice, "quantidade", event.target.value)}
-              />
-              <button
-                type="button"
-                className="button button--ghost button--small"
-                onClick={() => setMateriais((atual) => atual.filter((_, i) => i !== indice))}
-              >
-                Remover
-              </button>
-            </div>
-          ))}
+          <p className="form-section-subtitle">Catálogo oficial do contrato (Price List), com preço unitário</p>
+          {materiais.map((material, indice) => {
+            const catalogoDoMaterial = materiaisCatalogo.find((item) => item.id === material.materialCatalogoId);
+            return (
+              <div className="membro-add-row" key={indice}>
+                <select
+                  className="field-input"
+                  value={material.materialCatalogoId}
+                  onChange={(event) => atualizarMaterial(indice, "materialCatalogoId", event.target.value)}
+                >
+                  {materiaisCatalogo.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.descricao} ({item.unidade})
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  step="0.001"
+                  min={0}
+                  className="field-input"
+                  value={material.quantidade}
+                  onChange={(event) => atualizarMaterial(indice, "quantidade", event.target.value)}
+                />
+                <span className="section-total" style={{ alignSelf: "center" }}>
+                  {catalogoDoMaterial?.precoUnitario != null
+                    ? `R$ ${(Number(catalogoDoMaterial.precoUnitario) * Number(material.quantidade || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                    : ""}
+                </span>
+                <button
+                  type="button"
+                  className="button button--ghost button--small"
+                  onClick={() => setMateriais((atual) => atual.filter((_, i) => i !== indice))}
+                >
+                  Remover
+                </button>
+              </div>
+            );
+          })}
           <button type="button" className="button button--secondary button--small" style={{ marginTop: 12 }} onClick={adicionarMaterial}>
             + Adicionar material
           </button>

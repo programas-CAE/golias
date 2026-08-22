@@ -8,7 +8,8 @@ beforeEach(async () => {
 });
 
 async function criarCenario() {
-  const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
+  const contrato = await prisma.contrato.create({ data: { numero: "5900000000" } });
+  const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá", contratoId: contrato.id } });
   const distrito = await prisma.distrito.create({ data: { nome: "Marabá Centro", frenteId: frente.id } });
   const equipe = await prisma.equipe.create({ data: { nome: "Preventiva", distritoId: distrito.id } });
   const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "Servente de Obras" } });
@@ -19,7 +20,10 @@ async function criarCenario() {
     data: { codigo: "2.2.1", descricao: "Roçada", unidade: "M2", usaDimensoes: true, ordem: 1 },
   });
   const equipamento = await prisma.equipamentoCatalogo.create({ data: { nome: "Roçadeira" } });
-  return { frente, distrito, equipe, funcao, colaborador, atividade, equipamento };
+  const material = await prisma.materialCatalogo.create({
+    data: { contratoId: contrato.id, codigo: "M001", descricao: "Cimento", unidade: "saco", precoUnitario: 30 },
+  });
+  return { frente, distrito, equipe, funcao, colaborador, atividade, equipamento, material };
 }
 
 describe("POST /rdos", () => {
@@ -55,7 +59,7 @@ describe("POST /rdos", () => {
 
 describe("POST /rdos/completo", () => {
   it("cria um RDO completo numa única chamada, com atividades, mão de obra, equipamentos e materiais", async () => {
-    const { frente, equipe, funcao, colaborador, atividade, equipamento } = await criarCenario();
+    const { frente, equipe, funcao, colaborador, atividade, equipamento, material } = await criarCenario();
 
     const app = buildApp();
     const response = await app.inject({
@@ -78,7 +82,7 @@ describe("POST /rdos/completo", () => {
         ],
         maoDeObra: [{ funcaoId: funcao.id, colaboradorId: colaborador.id, quantidade: 10 }],
         equipamentos: [{ equipamentoCatalogoId: equipamento.id, quantidade: 2 }],
-        materiais: [{ nome: "Cimento", unidade: "saco", quantidade: 5 }],
+        materiais: [{ materialCatalogoId: material.id, quantidade: 5 }],
       },
     });
 
@@ -91,7 +95,7 @@ describe("POST /rdos/completo", () => {
       locais: Array<{ atividades: Array<{ totalCalculado: string }> }>;
       maoDeObra: unknown[];
       equipamentos: unknown[];
-      materiais: Array<{ nome: string; quantidade: string }>;
+      materiais: Array<{ materialCatalogo: { descricao: string }; quantidade: string }>;
     };
     expect(body.status).toBe("RASCUNHO");
     expect(body.linkCampoToken).toHaveLength(43);
@@ -101,7 +105,7 @@ describe("POST /rdos/completo", () => {
     expect(body.maoDeObra).toHaveLength(1);
     expect(body.equipamentos).toHaveLength(1);
     expect(body.materiais).toHaveLength(1);
-    expect(body.materiais[0]?.nome).toBe("Cimento");
+    expect(body.materiais[0]?.materialCatalogo.descricao).toBe("Cimento");
   });
 
   it("retorna 400 quando nenhum local é informado", async () => {

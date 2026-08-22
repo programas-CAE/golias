@@ -3,24 +3,37 @@ import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
 
+interface Contrato {
+  id: string;
+  numero: string;
+  nome: string | null;
+}
+
 interface Frente {
   id: string;
   codigo: string;
   nome: string;
-  numeroSap: string | null;
+  contratoId: string;
+  contrato: Contrato;
   ativo: boolean;
 }
 
 export default function Frentes(): ReactElement {
   const navigate = useNavigate();
   const [frentes, setFrentes] = useState<Frente[] | null>(null);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [editando, setEditando] = useState<Frente | null>(null);
 
   async function carregar(): Promise<void> {
     setErro(null);
     try {
-      setFrentes(await api.get<Frente[]>("/frentes"));
+      const [listaFrentes, listaContratos] = await Promise.all([
+        api.get<Frente[]>("/frentes"),
+        api.get<Contrato[]>("/contratos"),
+      ]);
+      setFrentes(listaFrentes);
+      setContratos(listaContratos);
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível carregar as frentes.");
     }
@@ -54,7 +67,7 @@ export default function Frentes(): ReactElement {
                 <tr>
                   <th>Código</th>
                   <th>Nome</th>
-                  <th>Nº SAP</th>
+                  <th>Contrato (Nº SAP)</th>
                   <th>Status</th>
                   <th />
                 </tr>
@@ -64,7 +77,7 @@ export default function Frentes(): ReactElement {
                   <tr key={frente.id}>
                     <td>{frente.codigo}</td>
                     <td>{frente.nome}</td>
-                    <td>{frente.numeroSap ?? "—"}</td>
+                    <td>{frente.contrato.numero}</td>
                     <td>
                       <span className={`badge badge--${frente.ativo ? "ativo" : "inativo"}`}>
                         {frente.ativo ? "Ativa" : "Inativa"}
@@ -97,6 +110,7 @@ export default function Frentes(): ReactElement {
       {editando && (
         <EditarFrenteModal
           frente={editando}
+          contratos={contratos}
           onClose={() => setEditando(null)}
           onSalvo={(atualizada) => {
             setFrentes((atual) => atual?.map((f) => (f.id === atualizada.id ? atualizada : f)) ?? atual);
@@ -110,15 +124,17 @@ export default function Frentes(): ReactElement {
 
 function EditarFrenteModal({
   frente,
+  contratos,
   onClose,
   onSalvo,
 }: {
   frente: Frente;
+  contratos: Contrato[];
   onClose: () => void;
   onSalvo: (frente: Frente) => void;
 }): ReactElement {
   const [nome, setNome] = useState(frente.nome);
-  const [numeroSap, setNumeroSap] = useState(frente.numeroSap ?? "");
+  const [contratoId, setContratoId] = useState(frente.contratoId);
   const [ativo, setAtivo] = useState(frente.ativo);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -128,11 +144,7 @@ function EditarFrenteModal({
     setSalvando(true);
     setErro(null);
     try {
-      const atualizada = await api.patch<Frente>(`/frentes/${frente.id}`, {
-        nome,
-        numeroSap: numeroSap === "" ? null : numeroSap,
-        ativo,
-      });
+      const atualizada = await api.patch<Frente>(`/frentes/${frente.id}`, { nome, contratoId, ativo });
       onSalvo(atualizada);
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível salvar.");
@@ -157,17 +169,17 @@ function EditarFrenteModal({
             autoComplete="off"
           />
 
-          <label className="field-label" htmlFor="numeroSap">
-            Número SAP
+          <label className="field-label" htmlFor="contratoId">
+            Contrato
           </label>
-          <input
-            id="numeroSap"
-            className="field-input"
-            value={numeroSap}
-            onChange={(event) => setNumeroSap(event.target.value)}
-            placeholder="Ex.: 5900130281"
-            autoComplete="off"
-          />
+          <select id="contratoId" className="field-input" value={contratoId} onChange={(event) => setContratoId(event.target.value)}>
+            {contratos.map((contrato) => (
+              <option key={contrato.id} value={contrato.id}>
+                {contrato.numero}
+                {contrato.nome ? ` — ${contrato.nome}` : ""}
+              </option>
+            ))}
+          </select>
 
           <label className="checkbox-row">
             <input type="checkbox" checked={ativo} onChange={(event) => setAtivo(event.target.checked)} />

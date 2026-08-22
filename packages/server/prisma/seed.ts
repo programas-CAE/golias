@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { ATIVIDADES, COLABORADORES, EQUIPAMENTOS, FRENTES, FUNCOES } from "@golias/shared";
+import { ATIVIDADES, COLABORADORES, CONTRATOS, EQUIPAMENTOS, FRENTES, FUNCOES } from "@golias/shared";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,15 +11,35 @@ loadEnv("../.env", import.meta.url);
 const adapter = new PrismaPg(requireEnv("DATABASE_URL"));
 const prisma = new PrismaClient({ adapter });
 
+async function seedContratos(): Promise<void> {
+  for (const contrato of CONTRATOS) {
+    await prisma.contrato.upsert({
+      where: { numero: contrato.numero },
+      update: { nome: contrato.nome },
+      create: { numero: contrato.numero, nome: contrato.nome },
+    });
+  }
+  console.log(`Contratos: ${CONTRATOS.length} sincronizados.`);
+}
+
+/** Depende de `seedContratos` (Frente.contratoId é obrigatório). */
 async function seedFrentes(): Promise<void> {
+  const contratos = await prisma.contrato.findMany();
+  const contratoIdPorNumero = new Map(contratos.map((contrato) => [contrato.numero, contrato.id]));
+
   for (const frente of FRENTES) {
+    const contratoId = contratoIdPorNumero.get(frente.contratoNumero);
+    if (!contratoId) {
+      console.warn(`Contrato "${frente.contratoNumero}" não encontrado para a frente ${frente.nome}, pulando.`);
+      continue;
+    }
     const existente = await prisma.frente.findUnique({ where: { codigo: frente.codigo } });
     await prisma.frente.upsert({
       where: { codigo: frente.codigo },
-      // Só aplica o numeroSap do seed se ainda não foi definido — não
-      // sobrescreve um valor que o usuário já ajustou pela tela de Frentes.
-      update: { nome: frente.nome, ...(existente?.numeroSap == null ? { numeroSap: frente.numeroSap } : {}) },
-      create: { codigo: frente.codigo, nome: frente.nome, numeroSap: frente.numeroSap },
+      // Só aplica o contrato do seed se ainda não foi definido — não
+      // sobrescreve um vínculo que o usuário já ajustou pela tela de Frentes.
+      update: { nome: frente.nome, ...(existente?.contratoId == null ? { contratoId } : {}) },
+      create: { codigo: frente.codigo, nome: frente.nome, contratoId },
     });
   }
   console.log(`Frentes: ${FRENTES.length} sincronizadas.`);
@@ -121,6 +141,48 @@ async function seedAtividades(): Promise<void> {
   console.log(`Atividades: ${criadas} criadas, ${atualizadas} atualizadas (total ${ATIVIDADES.length}).`);
 }
 
+interface MaterialCatalogoRegistro {
+  codigo: string;
+  descricao: string;
+  unidade: string | null;
+  precoUnitario: number | null;
+}
+
+/**
+ * Catálogo oficial de materiais/serviços com preço unitário — Price List do
+ * contrato (planilha "09ª Medição INFRA IV_PA - Planilha de Medição Rev.04
+ * Correção.xlsx", aba "Price_List_Material", 217 itens reais). Depende de
+ * `seedContratos` (MaterialCatalogo.contratoId é obrigatório).
+ */
+async function seedMateriais(): Promise<void> {
+  const caminho = path.join(path.dirname(fileURLToPath(import.meta.url)), "data", "materialCatalogo.json");
+  const registros = JSON.parse(readFileSync(caminho, "utf-8")) as MaterialCatalogoRegistro[];
+
+  const contrato = await prisma.contrato.findUnique({ where: { numero: CONTRATOS[0].numero } });
+  if (!contrato) {
+    console.warn("Contrato não encontrado, pulando seed de materiais.");
+    return;
+  }
+
+  let sincronizados = 0;
+  for (const registro of registros) {
+    if (!registro.unidade) continue;
+    await prisma.materialCatalogo.upsert({
+      where: { contratoId_codigo: { contratoId: contrato.id, codigo: registro.codigo } },
+      update: { descricao: registro.descricao, unidade: registro.unidade, precoUnitario: registro.precoUnitario },
+      create: {
+        contratoId: contrato.id,
+        codigo: registro.codigo,
+        descricao: registro.descricao,
+        unidade: registro.unidade,
+        precoUnitario: registro.precoUnitario,
+      },
+    });
+    sincronizados += 1;
+  }
+  console.log(`Materiais: ${sincronizados} sincronizados.`);
+}
+
 interface MedicaoHistoricaRegistro {
   mes: string; // "YYYY-MM"
   frenteCodigo: "MAB" | "PBA" | "RAMAL";
@@ -204,11 +266,13 @@ async function seedMedicoesHistoricas(): Promise<void> {
 
 async function main(): Promise<void> {
   console.log("Iniciando seed do catálogo GOLIAS...");
+  await seedContratos();
   await seedFrentes();
   await seedFuncoes();
   await seedColaboradores();
   await seedEquipamentos();
   await seedAtividades();
+  await seedMateriais();
   await seedMedicoesHistoricas();
   console.log("Seed concluído com sucesso.");
 }

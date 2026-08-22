@@ -101,7 +101,8 @@ describe("PATCH /colaboradores/:id", () => {
 
 describe("GET /colaboradores/:id/equipe-efetiva", () => {
   it("retorna a mão de obra e equipamentos do RDO mais recente do encarregado", async () => {
-    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá" } });
+    const contrato = await prisma.contrato.create({ data: { numero: "5900000000" } });
+    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá", contratoId: contrato.id } });
     const distrito = await prisma.distrito.create({ data: { nome: "Marabá Centro", frenteId: frente.id } });
     const equipe = await prisma.equipe.create({ data: { nome: "Preventiva", distritoId: distrito.id } });
     const funcao = await criarFuncao("Encarregado");
