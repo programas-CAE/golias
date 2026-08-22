@@ -21,8 +21,8 @@ interface Rdo {
   status: string;
   frente: Frente;
   equipe: { id: string; nome: string };
-  linkCampoToken: string;
-  linkCampoExpiraEm: string;
+  linkCampoToken: string | null;
+  linkCampoExpiraEm: string | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -125,15 +125,19 @@ export default function Rdos(): ReactElement {
                     <td>
                       <span className="badge badge--ativo">{STATUS_LABEL[rdo.status] ?? rdo.status}</span>
                     </td>
-                    <td>{rdo.linkCampoExpiraEm.slice(0, 10)}</td>
+                    <td>{rdo.linkCampoExpiraEm ? rdo.linkCampoExpiraEm.slice(0, 10) : "—"}</td>
                     <td>
-                      <button
-                        type="button"
-                        className="button button--ghost button--small"
-                        onClick={() => void copiarLink(rdo)}
-                      >
-                        {linkGerado?.rdo.id === rdo.id && linkGerado.copiado ? "Copiado!" : "Copiar link"}
-                      </button>
+                      {rdo.linkCampoToken ? (
+                        <button
+                          type="button"
+                          className="button button--ghost button--small"
+                          onClick={() => void copiarLink(rdo)}
+                        >
+                          {linkGerado?.rdo.id === rdo.id && linkGerado.copiado ? "Copiado!" : "Copiar link"}
+                        </button>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                   </tr>
                 ))}
