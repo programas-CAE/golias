@@ -42,8 +42,9 @@ interface ProdutividadeAtividade {
   descricao: string;
   unidade: string;
   producaoTotal: number;
-  metaPus: number | null;
   pus: number;
+  meta: number | null;
+  metaOrigem: "mes_anterior" | "referencia" | null;
   percentualMeta: number | null;
 }
 
@@ -58,17 +59,27 @@ interface ResumoProdutividade {
  * PUS por atividade = produção total da atividade no período ÷ horas
  * trabalhadas pela equipe no período (mesmo denominador para todas as
  * atividades, fiel ao relatório mensal fonte). Eficiência = média de
- * (PUS real ÷ Meta PUS) entre as atividades que têm meta cadastrada e
- * produção no período.
+ * (PUS real ÷ Meta) entre as atividades que têm meta e produção no
+ * período.
+ *
+ * A Meta de cada atividade é a média REALIZADA da própria atividade no mês
+ * anterior (`metasMesAnterior`, calculado pelo chamador com este mesmo
+ * `calcularProdutividade` sobre o período anterior) — não um valor fixo.
+ * Quando não há produção da atividade no mês anterior (contrato novo,
+ * atividade ainda não executada etc.), cai no `metaPus` de referência do
+ * catálogo (`AtividadeCatalogo.metaPus`) como fallback.
  */
-export function calcularProdutividade(rdos: RdoIndicador[]): ResumoProdutividade {
+export function calcularProdutividade(rdos: RdoIndicador[], metasMesAnterior?: Map<string, number>): ResumoProdutividade {
   const horasTrabalhadas = rdos.reduce((soma, rdo) => soma + horasEquipe(rdo), 0);
   const horasImprodutivas = rdos.reduce(
     (soma, rdo) => soma + rdo.maoDeObra.reduce((s, mdo) => s + Number(mdo.horasImprodutivas ?? 0), 0),
     0,
   );
 
-  const atividadesMap = new Map<string, Omit<ProdutividadeAtividade, "pus" | "percentualMeta">>();
+  const atividadesMap = new Map<
+    string,
+    { id: string; codigo: string; descricao: string; unidade: string; producaoTotal: number; metaReferencia: number | null }
+  >();
   for (const rdo of rdos) {
     for (const local of rdo.locais) {
       for (const atividade of local.atividades) {
@@ -78,7 +89,7 @@ export function calcularProdutividade(rdos: RdoIndicador[]): ResumoProdutividade
           codigo: catalogo.codigo,
           descricao: catalogo.descricao,
           unidade: catalogo.unidade,
-          metaPus: catalogo.metaPus != null ? Number(catalogo.metaPus) : null,
+          metaReferencia: catalogo.metaPus != null ? Number(catalogo.metaPus) : null,
           producaoTotal: 0,
         };
         atual.producaoTotal += Number(atividade.totalCalculado);
@@ -90,8 +101,22 @@ export function calcularProdutividade(rdos: RdoIndicador[]): ResumoProdutividade
   const produtividadePorAtividade = [...atividadesMap.values()]
     .map((atividade) => {
       const pus = horasTrabalhadas > 0 ? atividade.producaoTotal / horasTrabalhadas : 0;
-      const percentualMeta = atividade.metaPus != null && atividade.metaPus > 0 ? (pus / atividade.metaPus) * 100 : null;
-      return { ...atividade, pus, percentualMeta };
+      const metaMesAnterior = metasMesAnterior?.get(atividade.id);
+      const meta = metaMesAnterior ?? atividade.metaReferencia;
+      const metaOrigem: ProdutividadeAtividade["metaOrigem"] =
+        metaMesAnterior != null ? "mes_anterior" : atividade.metaReferencia != null ? "referencia" : null;
+      const percentualMeta = meta != null && meta > 0 ? (pus / meta) * 100 : null;
+      return {
+        id: atividade.id,
+        codigo: atividade.codigo,
+        descricao: atividade.descricao,
+        unidade: atividade.unidade,
+        producaoTotal: atividade.producaoTotal,
+        pus,
+        meta,
+        metaOrigem,
+        percentualMeta,
+      };
     })
     .sort((a, b) => b.producaoTotal - a.producaoTotal);
 
@@ -102,6 +127,15 @@ export function calcularProdutividade(rdos: RdoIndicador[]): ResumoProdutividade
     percentuaisComMeta.length > 0 ? percentuaisComMeta.reduce((soma, valor) => soma + valor, 0) / percentuaisComMeta.length : null;
 
   return { horasTrabalhadas, horasImprodutivas, produtividadePorAtividade, eficiencia };
+}
+
+/** `{ atividadeId: pus }` do mês anterior, só para atividades com produção real (pus > 0) — usado como Meta dinâmica do mês corrente. */
+export function extrairMetasDoMesAnterior(resumoMesAnterior: ResumoProdutividade): Map<string, number> {
+  const metas = new Map<string, number>();
+  for (const atividade of resumoMesAnterior.produtividadePorAtividade) {
+    if (atividade.pus > 0) metas.set(atividade.id, atividade.pus);
+  }
+  return metas;
 }
 
 /** Intervalo [início, fim) do mês "YYYY-MM"; usa o mês atual se omitido/inválido. */
@@ -116,14 +150,24 @@ export function intervaloDoMes(mes: string | undefined): { periodo: string; inic
   };
 }
 
+/** "YYYY-MM" do mês imediatamente anterior ao informado. */
+export function periodoAnterior(periodo: string): string {
+  const ano = Number(periodo.slice(0, 4));
+  const mesNum = Number(periodo.slice(5, 7));
+  const data = new Date(Date.UTC(ano, mesNum - 2, 1));
+  return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
 export function registerIndicadoresRoutes(app: FastifyInstance): void {
   app.get<{ Querystring: { mes?: string } }>("/indicadores", async (request) => {
     const { periodo, inicio, fim } = intervaloDoMes(request.query.mes);
     const ano = inicio.getUTCFullYear();
     const mesNum = inicio.getUTCMonth() + 1;
+    const { inicio: inicioAnterior, fim: fimAnterior } = intervaloDoMes(periodoAnterior(periodo));
 
-    const [rdos, ordensManutencao, frentes, periodosMedicao, atividadesCatalogo] = await Promise.all([
+    const [rdos, rdosMesAnterior, ordensManutencao, frentes, periodosMedicao, atividadesCatalogo] = await Promise.all([
       prisma.rdo.findMany({ where: { data: { gte: inicio, lt: fim } }, select: rdoIndicadorSelect }),
+      prisma.rdo.findMany({ where: { data: { gte: inicioAnterior, lt: fimAnterior } }, select: rdoIndicadorSelect }),
       prisma.ordemManutencao.count({ where: { dataEmissao: { gte: inicio, lt: fim } } }),
       prisma.frente.findMany({ where: { ativo: true }, orderBy: { codigo: "asc" }, select: { id: true, nome: true, codigo: true } }),
       prisma.periodoMedicao.findMany({
@@ -132,6 +176,8 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
       }),
       prisma.atividadeCatalogo.findMany({ select: { id: true, codigo: true, descricao: true, ordem: true } }),
     ]);
+
+    const metasMesAnterior = extrairMetasDoMesAnterior(calcularProdutividade(rdosMesAnterior));
 
     const atividadePorId = new Map(atividadesCatalogo.map((atividade) => [atividade.id, atividade]));
     const frentePorId = new Map(frentes.map((frente) => [frente.id, frente]));
@@ -163,7 +209,7 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
             return [...linhasMap.values()].sort((a, b) => a.atividade.ordem - b.atividade.ordem);
           })();
 
-    const geral = calcularProdutividade(rdos);
+    const geral = calcularProdutividade(rdos, metasMesAnterior);
 
     const rdosEmitidos = rdos.length;
     const maoDeObraMedia =
@@ -177,7 +223,7 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
 
     const porFrente = frentes.map((frente) => {
       const rdosDaFrente = rdos.filter((rdo) => rdo.frenteId === frente.id);
-      const { eficiencia } = calcularProdutividade(rdosDaFrente);
+      const { eficiencia } = calcularProdutividade(rdosDaFrente, metasMesAnterior);
       return { id: frente.id, nome: frente.nome, codigo: frente.codigo, rdosEmitidos: rdosDaFrente.length, eficiencia };
     });
 
@@ -206,7 +252,7 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
       .map(([semana, rdosSemana]) => ({
         semana: `Semana ${semana}`,
         rdosEmitidos: rdosSemana.length,
-        eficiencia: calcularProdutividade(rdosSemana).eficiencia,
+        eficiencia: calcularProdutividade(rdosSemana, metasMesAnterior).eficiencia,
       }));
 
     return {

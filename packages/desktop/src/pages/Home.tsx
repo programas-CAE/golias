@@ -15,7 +15,8 @@ interface ProdutividadeAtividade {
   descricao: string;
   unidade: string;
   producaoTotal: number;
-  metaPus: number | null;
+  meta: number | null;
+  metaOrigem: "mes_anterior" | "referencia" | null;
   pus: number;
   percentualMeta: number | null;
 }
@@ -118,7 +119,7 @@ export default function Home(): ReactElement {
     };
   }, [mes]);
 
-  const atividadesComMeta = dados?.produtividadePorAtividade.filter((atividade) => atividade.metaPus != null) ?? [];
+  const atividadesComMeta = dados?.produtividadePorAtividade.filter((atividade) => atividade.meta != null) ?? [];
 
   return (
     <div className="app-shell">
@@ -251,7 +252,18 @@ export default function Home(): ReactElement {
                         <td>{atividade.unidade}</td>
                         <td>{atividade.producaoTotal.toFixed(2)}</td>
                         <td>{atividade.pus.toFixed(2)}</td>
-                        <td>{atividade.metaPus != null ? atividade.metaPus.toFixed(2) : "—"}</td>
+                        <td>
+                          {atividade.meta != null ? (
+                            <>
+                              {atividade.meta.toFixed(2)}{" "}
+                              <span className="list-subtitle" style={{ fontSize: "0.75em" }}>
+                                {atividade.metaOrigem === "mes_anterior" ? "(mês anterior)" : "(referência)"}
+                              </span>
+                            </>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
                         <td>{atividade.percentualMeta != null ? `${atividade.percentualMeta.toFixed(0)}%` : "—"}</td>
                         <td>
                           {atividade.percentualMeta == null ? (
@@ -269,7 +281,7 @@ export default function Home(): ReactElement {
               )}
               {atividadesComMeta.length === 0 && dados.produtividadePorAtividade.length > 0 && (
                 <p className="list-subtitle" style={{ marginTop: 12 }}>
-                  Nenhuma dessas atividades tem meta de PUS cadastrada ainda.
+                  Nenhuma dessas atividades tem meta de PUS (mês anterior ou referência) ainda.
                 </p>
               )}
             </section>

@@ -24,7 +24,8 @@ interface ProdutividadeAtividade {
   descricao: string;
   unidade: string;
   producaoTotal: number;
-  metaPus: number | null;
+  meta: number | null;
+  metaOrigem: "mes_anterior" | "referencia" | null;
   pus: number;
   percentualMeta: number | null;
 }
@@ -301,7 +302,18 @@ export default function DistritoDetalhe(): ReactElement {
                             <td>{atividade.unidade}</td>
                             <td>{atividade.producaoTotal.toFixed(2)}</td>
                             <td>{atividade.pus.toFixed(2)}</td>
-                            <td>{atividade.metaPus != null ? atividade.metaPus.toFixed(2) : "—"}</td>
+                            <td>
+                              {atividade.meta != null ? (
+                                <>
+                                  {atividade.meta.toFixed(2)}{" "}
+                                  <span className="list-subtitle" style={{ fontSize: "0.75em" }}>
+                                    {atividade.metaOrigem === "mes_anterior" ? "(mês anterior)" : "(referência)"}
+                                  </span>
+                                </>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
                             <td>{atividade.percentualMeta != null ? `${atividade.percentualMeta.toFixed(0)}%` : "—"}</td>
                           </tr>
                         ))}

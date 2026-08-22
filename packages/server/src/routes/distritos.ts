@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { parseBody } from "../lib/validate.js";
-import { calcularProdutividade, intervaloDoMes, rdoIndicadorSelect } from "./indicadores.js";
+import { calcularProdutividade, extrairMetasDoMesAnterior, intervaloDoMes, periodoAnterior, rdoIndicadorSelect } from "./indicadores.js";
 
 const distritoSelect = {
   id: true,
@@ -87,14 +87,19 @@ export function registerDistritosRoutes(app: FastifyInstance): void {
 
   app.get<{ Params: { id: string }; Querystring: { mes?: string } }>("/distritos/:id/indicadores", async (request) => {
     const { periodo, inicio, fim } = intervaloDoMes(request.query.mes);
+    const { inicio: inicioAnterior, fim: fimAnterior } = intervaloDoMes(periodoAnterior(periodo));
     const distritoId = request.params.id;
 
-    const rdos = await prisma.rdo.findMany({
-      where: { data: { gte: inicio, lt: fim }, equipe: { distritoId } },
-      select: rdoIndicadorSelect,
-    });
+    const [rdos, rdosMesAnterior] = await Promise.all([
+      prisma.rdo.findMany({ where: { data: { gte: inicio, lt: fim }, equipe: { distritoId } }, select: rdoIndicadorSelect }),
+      prisma.rdo.findMany({
+        where: { data: { gte: inicioAnterior, lt: fimAnterior }, equipe: { distritoId } },
+        select: rdoIndicadorSelect,
+      }),
+    ]);
 
-    const resumo = calcularProdutividade(rdos);
+    const metasMesAnterior = extrairMetasDoMesAnterior(calcularProdutividade(rdosMesAnterior));
+    const resumo = calcularProdutividade(rdos, metasMesAnterior);
     const rdosEmitidos = rdos.length;
     const maoDeObraMedia =
       rdosEmitidos > 0
