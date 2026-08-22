@@ -277,6 +277,7 @@ model RdoAtividade {
   atividadeCatalogo   AtividadeCatalogo @relation(fields: [atividadeCatalogoId], references: [id])
   altura              Decimal?          @db.Decimal(10, 3)
   largura             Decimal?          @db.Decimal(10, 3)
+  larguraFinal        Decimal?          @db.Decimal(10, 3)
   comprimento         Decimal?          @db.Decimal(10, 3)
   quantidadeDireta    Decimal?          @db.Decimal(12, 3)
   totalCalculado      Decimal           @db.Decimal(12, 3)

@@ -1,0 +1,2128 @@
+[
+  {
+    "rdo": "RDO285",
+    "distrito": "Marabá",
+    "data": "2026-05-14",
+    "maoObraDireta": 5,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 102
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 3840.3
+      }
+    ]
+  },
+  {
+    "rdo": "RDO286",
+    "distrito": "Marabá",
+    "data": "2026-05-22",
+    "maoObraDireta": 8,
+    "atividades": [
+      {
+        "codigo": "2.2.5",
+        "descricao": "Remoção De Solo",
+        "unidade": "M3",
+        "producao": 60
+      },
+      {
+        "codigo": "2.2.5",
+        "descricao": "Remoção De Solo",
+        "unidade": "M3",
+        "producao": 20
+      },
+      {
+        "codigo": "2.1.4",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
+        "unidade": "M",
+        "producao": 81
+      }
+    ]
+  },
+  {
+    "rdo": "RDO320",
+    "distrito": "Canaã",
+    "data": "2026-05-25",
+    "maoObraDireta": 6,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 375
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 440
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 50
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 420
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 476
+      }
+    ]
+  },
+  {
+    "rdo": "RDO307",
+    "distrito": "Marabá",
+    "data": "2026-05-25",
+    "maoObraDireta": 8,
+    "atividades": [
+      {
+        "codigo": "2.2.5",
+        "descricao": "Remoção De Solo",
+        "unidade": "M3",
+        "producao": 21.2
+      },
+      {
+        "codigo": "2.2.5",
+        "descricao": "Remoção De Solo",
+        "unidade": "M3",
+        "producao": 20
+      },
+      {
+        "codigo": "2.1.4.1",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena - Mec",
+        "unidade": "M",
+        "producao": 63
+      },
+      {
+        "codigo": "2.1.4",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
+        "unidade": "M",
+        "producao": 8
+      }
+    ]
+  },
+  {
+    "rdo": "RDO318",
+    "distrito": "Parauapebas",
+    "data": "2026-05-25",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 657.88
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 508.8
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 233.16
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1578.15
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 69.5
+      }
+    ]
+  },
+  {
+    "rdo": "RDO321",
+    "distrito": "Canaã",
+    "data": "2026-05-26",
+    "maoObraDireta": 6,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 312
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 302
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 70
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 100
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 184.5
+      }
+    ]
+  },
+  {
+    "rdo": "RDO308",
+    "distrito": "Marabá",
+    "data": "2026-05-26",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1301.85
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 16.5
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 52.9
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 392
+      }
+    ]
+  },
+  {
+    "rdo": "RDO309",
+    "distrito": "Marabá",
+    "data": "2026-05-26",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 450
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 510
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 938
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 309.7
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 115.5
+      }
+    ]
+  },
+  {
+    "rdo": "RDO291",
+    "distrito": "Parauapebas",
+    "data": "2026-05-26",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1537.24
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 700.6
+      }
+    ]
+  },
+  {
+    "rdo": "RDO322",
+    "distrito": "Canaã",
+    "data": "2026-05-27",
+    "maoObraDireta": 6,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 920
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 300
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 100
+      }
+    ]
+  },
+  {
+    "rdo": "RDO310",
+    "distrito": "Marabá",
+    "data": "2026-05-27",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 100
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 330
+      },
+      {
+        "codigo": "2.1.4.1",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena - Mec",
+        "unidade": "M",
+        "producao": 184
+      },
+      {
+        "codigo": "2.2.2",
+        "descricao": "Capina",
+        "unidade": "M2",
+        "producao": 78.4
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 461.25
+      },
+      {
+        "codigo": "2.2.1.1",
+        "descricao": "Roçada - Mec",
+        "unidade": "M2",
+        "producao": 66.5
+      },
+      {
+        "codigo": "2.2.1.1",
+        "descricao": "Roçada - Mec",
+        "unidade": "M2",
+        "producao": 17.5
+      },
+      {
+        "codigo": "2.2.1.1",
+        "descricao": "Roçada - Mec",
+        "unidade": "M2",
+        "producao": 50
+      },
+      {
+        "codigo": "2.2.1.1",
+        "descricao": "Roçada - Mec",
+        "unidade": "M2",
+        "producao": 68
+      },
+      {
+        "codigo": "2.2.1.1",
+        "descricao": "Roçada - Mec",
+        "unidade": "M2",
+        "producao": 259
+      },
+      {
+        "codigo": "2.2.1.1",
+        "descricao": "Roçada - Mec",
+        "unidade": "M2",
+        "producao": 165
+      }
+    ]
+  },
+  {
+    "rdo": "RDO312",
+    "distrito": "Marabá",
+    "data": "2026-05-27",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.2.2.1",
+        "descricao": "Capina  - Mec",
+        "unidade": "M2",
+        "producao": 698.5
+      },
+      {
+        "codigo": "2.1.7",
+        "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 30.41
+      }
+    ]
+  },
+  {
+    "rdo": "RDO319",
+    "distrito": "Parauapebas",
+    "data": "2026-05-27",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 131.5
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 193.7
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2245.11
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 3297.41
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 247.76
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 194.82
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 126.73
+      }
+    ]
+  },
+  {
+    "rdo": "RDO323",
+    "distrito": "Canaã",
+    "data": "2026-05-28",
+    "maoObraDireta": 7,
+    "atividades": [
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 170
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 210
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 238
+      }
+    ]
+  },
+  {
+    "rdo": "RDO324",
+    "distrito": "Canaã",
+    "data": "2026-05-28",
+    "maoObraDireta": 7,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 113
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 70
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 62.5
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 354
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 686.8
+      }
+    ]
+  },
+  {
+    "rdo": "RDO313",
+    "distrito": "Marabá",
+    "data": "2026-05-28",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.1.7",
+        "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 20.25
+      }
+    ]
+  },
+  {
+    "rdo": "RDO314",
+    "distrito": "Marabá",
+    "data": "2026-05-28",
+    "maoObraDireta": 5,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 57.2
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 166
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 242.5
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 150
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 192
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 750
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 180
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 164
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 300
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 175
+      }
+    ]
+  },
+  {
+    "rdo": "RDO315",
+    "distrito": "Marabá",
+    "data": "2026-05-28",
+    "maoObraDireta": 5,
+    "atividades": [
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 52
+      }
+    ]
+  },
+  {
+    "rdo": "RDO300",
+    "distrito": "Parauapebas",
+    "data": "2026-05-28",
+    "maoObraDireta": 12,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1335.9
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 299.8
+      },
+      {
+        "codigo": "2.2.2",
+        "descricao": "Capina",
+        "unidade": "M2",
+        "producao": 44.97
+      }
+    ]
+  },
+  {
+    "rdo": "RDO325",
+    "distrito": "Canaã",
+    "data": "2026-05-29",
+    "maoObraDireta": 8,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 152.5
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 94
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 382.5
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 463.5
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 76
+      }
+    ]
+  },
+  {
+    "rdo": "RDO316",
+    "distrito": "Marabá",
+    "data": "2026-05-29",
+    "maoObraDireta": 9,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1779.8
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 300
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 490.5
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 217
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 273
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1092
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 718.74
+      }
+    ]
+  },
+  {
+    "rdo": "RDO301",
+    "distrito": "Parauapebas",
+    "data": "2026-05-29",
+    "maoObraDireta": 12,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 499.32
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 62.7
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 21
+      }
+    ]
+  },
+  {
+    "rdo": "RDO311",
+    "distrito": "Marabá",
+    "data": "2026-06-01",
+    "maoObraDireta": 7,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 4100
+      }
+    ]
+  },
+  {
+    "rdo": "RDO317",
+    "distrito": "Parauapebas",
+    "data": "2026-06-01",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 933.31
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 4617.2
+      }
+    ]
+  },
+  {
+    "rdo": "RDO326",
+    "distrito": "Parauapebas",
+    "data": "2026-06-02",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 4815.8
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 4435.2
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 4171
+      }
+    ]
+  },
+  {
+    "rdo": "RDO327",
+    "distrito": "Parauapebas",
+    "data": "2026-06-03",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 917.44
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 910.16
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 39.3
+      }
+    ]
+  },
+  {
+    "rdo": "RDO329",
+    "distrito": "Parauapebas",
+    "data": "2026-06-05",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1232.27
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 196.5
+      },
+      {
+        "codigo": "2.1.4",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
+        "unidade": "M",
+        "producao": 113.4
+      }
+    ]
+  },
+  {
+    "rdo": "RDO330",
+    "distrito": "Parauapebas",
+    "data": "2026-06-08",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 7642.86
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1355.4
+      }
+    ]
+  },
+  {
+    "rdo": "RDO331",
+    "distrito": "Marabá",
+    "data": "2026-06-09",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1203.42
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 100
+      },
+      {
+        "codigo": "2.1.7",
+        "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 100
+      },
+      {
+        "codigo": "2.1.3.1",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção - Mec",
+        "unidade": "M",
+        "producao": 166.5
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 140.6
+      }
+    ]
+  },
+  {
+    "rdo": "RDO332",
+    "distrito": "Parauapebas",
+    "data": "2026-06-09",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2150
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 3000
+      }
+    ]
+  },
+  {
+    "rdo": "RDO333",
+    "distrito": "Marabá",
+    "data": "2026-06-10",
+    "maoObraDireta": 7,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1662
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 328.4
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 50
+      }
+    ]
+  },
+  {
+    "rdo": "RDO338",
+    "distrito": "Parauapebas",
+    "data": "2026-06-10",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 620.44
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 368.16
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 125.5
+      }
+    ]
+  },
+  {
+    "rdo": "RDO342",
+    "distrito": "Marabá",
+    "data": "2026-06-11",
+    "maoObraDireta": 9,
+    "atividades": [
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 95.5
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 80.8
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 50
+      }
+    ]
+  },
+  {
+    "rdo": "RDO340",
+    "distrito": "Marabá",
+    "data": "2026-06-12",
+    "maoObraDireta": 9,
+    "atividades": [
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 36
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 19.2
+      }
+    ]
+  },
+  {
+    "rdo": "RDO339",
+    "distrito": "Parauapebas",
+    "data": "2026-06-12",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 44.4
+      },
+      {
+        "codigo": "2.1.2",
+        "descricao": "Limpeza De Bueiros",
+        "unidade": "M3",
+        "producao": 4.16
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 91.74
+      },
+      {
+        "codigo": "2.1.2",
+        "descricao": "Limpeza De Bueiros",
+        "unidade": "M3",
+        "producao": 12.6
+      }
+    ]
+  },
+  {
+    "rdo": "RDO341",
+    "distrito": "Marabá",
+    "data": "2026-06-15",
+    "maoObraDireta": 9,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1210.9
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 245
+      }
+    ]
+  },
+  {
+    "rdo": "RDO343",
+    "distrito": "Parauapebas",
+    "data": "2026-06-15",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2633.71
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 106.8
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 183.04
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 301.21
+      }
+    ]
+  },
+  {
+    "rdo": "RDO354",
+    "distrito": "Marabá",
+    "data": "2026-06-16",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 70
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 380
+      }
+    ]
+  },
+  {
+    "rdo": "RDO345",
+    "distrito": "Parauapebas",
+    "data": "2026-06-16",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 87.57
+      },
+      {
+        "codigo": "2.1.2",
+        "descricao": "Limpeza De Bueiros",
+        "unidade": "M3",
+        "producao": 15.74
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 78.34
+      },
+      {
+        "codigo": "2.1.2",
+        "descricao": "Limpeza De Bueiros",
+        "unidade": "M3",
+        "producao": 12.6
+      }
+    ]
+  },
+  {
+    "rdo": "RDO355",
+    "distrito": "Marabá",
+    "data": "2026-06-17",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 100
+      }
+    ]
+  },
+  {
+    "rdo": "RDO344",
+    "distrito": "Parauapebas",
+    "data": "2026-06-17",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2889.48
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 299.5
+      }
+    ]
+  },
+  {
+    "rdo": "RDO356",
+    "distrito": "Marabá",
+    "data": "2026-06-18",
+    "maoObraDireta": 6,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2262.12
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 829.2
+      }
+    ]
+  },
+  {
+    "rdo": "RDO346",
+    "distrito": "Parauapebas",
+    "data": "2026-06-18",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2746.83
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 604.9
+      }
+    ]
+  },
+  {
+    "rdo": "RDO357",
+    "distrito": "Marabá",
+    "data": "2026-06-19",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 885
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 226
+      }
+    ]
+  },
+  {
+    "rdo": "RDO353",
+    "distrito": "Parauapebas",
+    "data": "2026-06-19",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 4525.67
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 291.3
+      }
+    ]
+  },
+  {
+    "rdo": "RDO359",
+    "distrito": "Marabá",
+    "data": "2026-06-22",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2220
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 100
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 27
+      }
+    ]
+  },
+  {
+    "rdo": "RDO360",
+    "distrito": "Marabá",
+    "data": "2026-06-23",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 68
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 47
+      }
+    ]
+  },
+  {
+    "rdo": "RDO358",
+    "distrito": "Parauapebas",
+    "data": "2026-06-23",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 3323.2
+      }
+    ]
+  },
+  {
+    "rdo": "RDO376",
+    "distrito": "Marabá",
+    "data": "2026-06-24",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 5
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 53
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 70
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 500
+      }
+    ]
+  },
+  {
+    "rdo": "RDO363",
+    "distrito": "Parauapebas",
+    "data": "2026-06-24",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 4174.5
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 3347.22
+      }
+    ]
+  },
+  {
+    "rdo": "RDO379",
+    "distrito": "Marabá",
+    "data": "2026-06-25",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2925
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 1096
+      }
+    ]
+  },
+  {
+    "rdo": "RDO362",
+    "distrito": "Parauapebas",
+    "data": "2026-06-25",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 188
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 4815.8
+      }
+    ]
+  },
+  {
+    "rdo": "RDO380",
+    "distrito": "Marabá",
+    "data": "2026-06-26",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 100
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 511.44
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 174.2
+      }
+    ]
+  },
+  {
+    "rdo": "RDO361",
+    "distrito": "Parauapebas",
+    "data": "2026-06-26",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2923.61
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 667.1
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 121.4
+      }
+    ]
+  },
+  {
+    "rdo": "RDO381",
+    "distrito": "Marabá",
+    "data": "2026-06-29",
+    "maoObraDireta": 9,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1579.06
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 181.5
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 286.6
+      }
+    ]
+  },
+  {
+    "rdo": "RDO364",
+    "distrito": "Parauapebas",
+    "data": "2026-06-29",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 597.31
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 203.1
+      }
+    ]
+  },
+  {
+    "rdo": "RDO382",
+    "distrito": "Marabá",
+    "data": "2026-06-30",
+    "maoObraDireta": 10,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 426
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 213
+      },
+      {
+        "codigo": "2.1.7",
+        "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 6.7
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 386
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 330
+      }
+    ]
+  },
+  {
+    "rdo": "RDO394",
+    "distrito": "Parauapebas",
+    "data": "2026-06-30",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2800.12
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 432.5
+      }
+    ]
+  },
+  {
+    "rdo": "RDO387",
+    "distrito": "Marabá",
+    "data": "2026-07-01",
+    "maoObraDireta": 12,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1486.8
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 243
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 460
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 950
+      }
+    ]
+  },
+  {
+    "rdo": "RDO367",
+    "distrito": "Parauapebas",
+    "data": "2026-07-01",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 301
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1820
+      }
+    ]
+  },
+  {
+    "rdo": "RDO386",
+    "distrito": "Marabá",
+    "data": "2026-07-02",
+    "maoObraDireta": 12,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 300
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 30
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 300
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 190.4
+      }
+    ]
+  },
+  {
+    "rdo": "RDO368",
+    "distrito": "Parauapebas",
+    "data": "2026-07-02",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 547.26
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 253.1
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 34.22
+      }
+    ]
+  },
+  {
+    "rdo": "RDO385",
+    "distrito": "Marabá",
+    "data": "2026-07-03",
+    "maoObraDireta": 12,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 85.4
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 113.44
+      },
+      {
+        "codigo": "2.1.2",
+        "descricao": "Limpeza De Bueiros",
+        "unidade": "M3",
+        "producao": 5.4
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 70.25
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 88.3
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 11.5
+      },
+      {
+        "codigo": "2.1.4",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
+        "unidade": "M",
+        "producao": 1.5
+      },
+      {
+        "codigo": "2.1.2",
+        "descricao": "Limpeza De Bueiros",
+        "unidade": "M3",
+        "producao": 3.38
+      }
+    ]
+  },
+  {
+    "rdo": "RDO395",
+    "distrito": "Parauapebas",
+    "data": "2026-07-03",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 480
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 468
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 225
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 476
+      }
+    ]
+  },
+  {
+    "rdo": "RDO383",
+    "distrito": "Parauapebas",
+    "data": "2026-07-06",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 480
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 468
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 225
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 466
+      }
+    ]
+  },
+  {
+    "rdo": "RDO396",
+    "distrito": "Parauapebas",
+    "data": "2026-07-13",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 205.8
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 200
+      }
+    ]
+  },
+  {
+    "rdo": "RDO438",
+    "distrito": "Canaã",
+    "data": "2026-07-21",
+    "maoObraDireta": 1,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1
+      }
+    ]
+  },
+  {
+    "rdo": "RDO439",
+    "distrito": "Canaã",
+    "data": "2026-07-21",
+    "maoObraDireta": 1,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1
+      },
+      {
+        "codigo": "2.2.2",
+        "descricao": "Capina",
+        "unidade": "M2",
+        "producao": 54
+      }
+    ]
+  },
+  {
+    "rdo": "RDO460",
+    "distrito": "Canaã",
+    "data": "2026-07-21",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1600
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 200
+      },
+      {
+        "codigo": "2.1.4",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
+        "unidade": "M",
+        "producao": 550
+      }
+    ]
+  },
+  {
+    "rdo": "RDO456",
+    "distrito": "Marabá",
+    "data": "2026-07-21",
+    "maoObraDireta": 12,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 684
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 3168
+      }
+    ]
+  },
+  {
+    "rdo": "RDO450",
+    "distrito": "Parauapebas",
+    "data": "2026-07-21",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.2",
+        "descricao": "Capina",
+        "unidade": "M2",
+        "producao": 104.87
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 419.5
+      }
+    ]
+  },
+  {
+    "rdo": "RDO462",
+    "distrito": "Canaã",
+    "data": "2026-07-22",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 12.5
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 12.5
+      }
+    ]
+  },
+  {
+    "rdo": "RDO457",
+    "distrito": "Marabá",
+    "data": "2026-07-22",
+    "maoObraDireta": 12,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 900
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2220
+      }
+    ]
+  },
+  {
+    "rdo": "RDO451",
+    "distrito": "Parauapebas",
+    "data": "2026-07-22",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.2",
+        "descricao": "Capina",
+        "unidade": "M2",
+        "producao": 101.2
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 404.8
+      }
+    ]
+  },
+  {
+    "rdo": "RDO463",
+    "distrito": "Canaã",
+    "data": "2026-07-23",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.1.7",
+        "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 30
+      },
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 80
+      },
+      {
+        "codigo": "2.1.2",
+        "descricao": "Limpeza De Bueiros",
+        "unidade": "M3",
+        "producao": 11.7
+      }
+    ]
+  },
+  {
+    "rdo": "RDO458",
+    "distrito": "Marabá",
+    "data": "2026-07-23",
+    "maoObraDireta": 12,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 3309
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 91
+      }
+    ]
+  },
+  {
+    "rdo": "RDO452",
+    "distrito": "Parauapebas",
+    "data": "2026-07-23",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 50
+      },
+      {
+        "codigo": "2.1.8",
+        "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
+        "unidade": "M",
+        "producao": 65.1
+      }
+    ]
+  },
+  {
+    "rdo": "RDO464",
+    "distrito": "Canaã",
+    "data": "2026-07-24",
+    "maoObraDireta": 11,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 1462
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 676
+      },
+      {
+        "codigo": "2.1.5",
+        "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
+        "unidade": "M",
+        "producao": 25
+      },
+      {
+        "codigo": "2.1.4",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
+        "unidade": "M",
+        "producao": 101
+      }
+    ]
+  },
+  {
+    "rdo": "RDO459",
+    "distrito": "Marabá",
+    "data": "2026-07-24",
+    "maoObraDireta": 7,
+    "atividades": [
+      {
+        "codigo": "2.2.1",
+        "descricao": "Roçada",
+        "unidade": "M2",
+        "producao": 2333
+      },
+      {
+        "codigo": "2.1.3",
+        "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
+        "unidade": "M",
+        "producao": 579.5
+      }
+    ]
+  }
+]

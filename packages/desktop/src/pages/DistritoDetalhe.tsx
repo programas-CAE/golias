@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 import { Link, useParams } from "react-router-dom";
 import Nav from "../components/Nav";
 import KpiCard from "../components/KpiCard";
@@ -12,10 +12,36 @@ interface Distrito {
   frente: { id: string; nome: string };
 }
 
-interface Encarregado {
+interface Colaborador {
   id: string;
   matricula: string;
   nome: string;
+  ativo: boolean;
+  funcaoId: string;
+  funcao: { id: string; nome: string };
+}
+
+interface Funcao {
+  id: string;
+  nome: string;
+}
+
+interface Membro {
+  id: string;
+  colaboradorId: string;
+  colaborador: { id: string; nome: string };
+  funcaoId: string;
+  funcao: { id: string; nome: string };
+  quantidade: number;
+}
+
+interface Equipe {
+  id: string;
+  nome: string;
+  distritoId: string;
+  encarregadoId: string | null;
+  ativo: boolean;
+  membros: Membro[];
 }
 
 interface ProdutividadeAtividade {
@@ -68,41 +94,43 @@ function mesAtual(): string {
 export default function DistritoDetalhe(): ReactElement {
   const { distritoId } = useParams<{ distritoId: string }>();
   const [distrito, setDistrito] = useState<Distrito | null>(null);
-  const [encarregados, setEncarregados] = useState<Encarregado[] | null>(null);
+  const [equipes, setEquipes] = useState<Equipe[] | null>(null);
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [funcoes, setFuncoes] = useState<Funcao[]>([]);
   const [mes, setMes] = useState(mesAtual());
   const [indicadores, setIndicadores] = useState<IndicadoresDistrito | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
-  const [encarregadoSelecionado, setEncarregadoSelecionado] = useState<Encarregado | null>(null);
+  const [equipeSelecionada, setEquipeSelecionada] = useState<Equipe | null>(null);
   const [equipeEfetiva, setEquipeEfetiva] = useState<EquipeEfetiva | null>(null);
   const [equipeEfetivaErro, setEquipeEfetivaErro] = useState<string | null>(null);
   const [carregandoEquipeEfetiva, setCarregandoEquipeEfetiva] = useState(false);
 
-  useEffect(() => {
+  const [editandoEquipe, setEditandoEquipe] = useState<Equipe | "novo" | null>(null);
+  const [editandoColaborador, setEditandoColaborador] = useState(false);
+
+  async function carregar(): Promise<void> {
     if (!distritoId) return;
-    let cancelado = false;
-
-    async function carregar(): Promise<void> {
-      setErro(null);
-      try {
-        const [distritoResp, encarregadosResp] = await Promise.all([
-          api.get<Distrito>(`/distritos/${distritoId}`),
-          api.get<Encarregado[]>(`/distritos/${distritoId}/encarregados`),
-        ]);
-        if (cancelado) return;
-        setDistrito(distritoResp);
-        setEncarregados(encarregadosResp);
-      } catch (error) {
-        if (!cancelado) {
-          setErro(error instanceof ApiError ? error.message : "Não foi possível carregar o distrito.");
-        }
-      }
+    setErro(null);
+    try {
+      const [distritoResp, equipesResp, colaboradoresResp, funcoesResp] = await Promise.all([
+        api.get<Distrito>(`/distritos/${distritoId}`),
+        api.get<Equipe[]>("/equipes"),
+        api.get<Colaborador[]>("/colaboradores"),
+        api.get<Funcao[]>("/funcoes"),
+      ]);
+      setDistrito(distritoResp);
+      setEquipes(equipesResp.filter((equipe) => equipe.distritoId === distritoId));
+      setColaboradores(colaboradoresResp);
+      setFuncoes(funcoesResp);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível carregar o distrito.");
     }
+  }
 
+  useEffect(() => {
     void carregar();
-    return () => {
-      cancelado = true;
-    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [distritoId]);
 
   useEffect(() => {
@@ -126,23 +154,44 @@ export default function DistritoDetalhe(): ReactElement {
     };
   }, [distritoId, mes]);
 
-  async function selecionarEncarregado(encarregado: Encarregado): Promise<void> {
-    setEncarregadoSelecionado(encarregado);
+  async function selecionarEquipe(equipe: Equipe): Promise<void> {
+    setEquipeSelecionada(equipe);
     setEquipeEfetiva(null);
     setEquipeEfetivaErro(null);
+
+    if (!equipe.encarregadoId) {
+      setEquipeEfetivaErro("Esta equipe ainda não tem um encarregado definido — edite a equipe para vincular um.");
+      return;
+    }
+
     setCarregandoEquipeEfetiva(true);
     try {
-      const resposta = await api.get<EquipeEfetiva>(`/colaboradores/${encarregado.id}/equipe-efetiva`);
+      const resposta = await api.get<EquipeEfetiva>(`/colaboradores/${equipe.encarregadoId}/equipe-efetiva`);
       setEquipeEfetiva(resposta);
     } catch (error) {
       setEquipeEfetivaErro(
         error instanceof ApiError && error.status === 404
-          ? "Este encarregado ainda não aparece em nenhum RDO."
+          ? "O encarregado desta equipe ainda não aparece em nenhum RDO."
           : "Não foi possível carregar a equipe efetiva.",
       );
     } finally {
       setCarregandoEquipeEfetiva(false);
     }
+  }
+
+  function handleEquipeSalva(equipe: Equipe): void {
+    setEquipes((atual) => {
+      if (!atual) return atual;
+      const existe = atual.some((e) => e.id === equipe.id);
+      return existe ? atual.map((e) => (e.id === equipe.id ? equipe : e)) : [...atual, equipe];
+    });
+    setEditandoEquipe(equipe);
+    if (equipeSelecionada?.id === equipe.id) void selecionarEquipe(equipe);
+  }
+
+  function nomeColaborador(id: string | null): string {
+    if (!id) return "Sem encarregado";
+    return colaboradores.find((c) => c.id === id)?.nome ?? "—";
   }
 
   return (
@@ -158,31 +207,48 @@ export default function DistritoDetalhe(): ReactElement {
             )}
             <h1 className="list-title">{distrito?.nome ?? "Distrito"}</h1>
           </div>
-          <input type="month" className="field-input" value={mes} onChange={(event) => setMes(event.target.value)} />
+          <div style={{ display: "flex", gap: 12 }}>
+            <button type="button" className="button button--secondary" onClick={() => setEditandoColaborador(true)}>
+              + Novo colaborador
+            </button>
+            <input type="month" className="field-input" value={mes} onChange={(event) => setMes(event.target.value)} />
+          </div>
         </div>
 
         {erro && <p className="feedback feedback--erro">{erro}</p>}
 
         <div className="distrito-layout">
           <div className="panel distrito-encarregados">
-            <h2 className="form-section-title" style={{ padding: "16px 16px 0" }}>
-              Encarregados
-            </h2>
-            {encarregados === null ? (
+            <div className="list-header" style={{ padding: "16px 16px 0" }}>
+              <h2 className="form-section-title">Equipes</h2>
+              <button type="button" className="button button--small" onClick={() => setEditandoEquipe("novo")}>
+                + Nova equipe
+              </button>
+            </div>
+            {equipes === null ? (
               <p className="table-empty">Carregando…</p>
-            ) : encarregados.length === 0 ? (
-              <p className="table-empty">Nenhum encarregado neste distrito ainda.</p>
+            ) : equipes.length === 0 ? (
+              <p className="table-empty">Nenhuma equipe neste distrito ainda.</p>
             ) : (
               <ul className="encarregado-lista">
-                {encarregados.map((encarregado) => (
-                  <li key={encarregado.id}>
+                {equipes.map((equipe) => (
+                  <li key={equipe.id}>
                     <button
                       type="button"
-                      className={`encarregado-item${encarregadoSelecionado?.id === encarregado.id ? " encarregado-item--ativo" : ""}`}
-                      onClick={() => void selecionarEncarregado(encarregado)}
+                      className={`encarregado-item${equipeSelecionada?.id === equipe.id ? " encarregado-item--ativo" : ""}`}
+                      onClick={() => void selecionarEquipe(equipe)}
                     >
-                      {encarregado.nome}
-                      <span className="encarregado-matricula">{encarregado.matricula}</span>
+                      <span>
+                        {equipe.nome}
+                        {!equipe.ativo && (
+                          <span className="badge badge--inativo" style={{ marginLeft: 8 }}>
+                            Inativa
+                          </span>
+                        )}
+                      </span>
+                      <span className="encarregado-matricula">
+                        {nomeColaborador(equipe.encarregadoId)} · {equipe.membros.length} membro(s)
+                      </span>
                     </button>
                   </li>
                 ))}
@@ -191,14 +257,31 @@ export default function DistritoDetalhe(): ReactElement {
           </div>
 
           <div className="distrito-conteudo">
-            {encarregadoSelecionado ? (
+            {equipeSelecionada ? (
               <section className="form-section">
                 <div className="list-header">
-                  <h2 className="form-section-title">Equipe efetiva — {encarregadoSelecionado.nome}</h2>
-                  <button type="button" className="button button--ghost button--small" onClick={() => setEncarregadoSelecionado(null)}>
-                    Voltar para o distrito
-                  </button>
+                  <h2 className="form-section-title">Equipe efetiva — {equipeSelecionada.nome}</h2>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      onClick={() => setEditandoEquipe(equipeSelecionada)}
+                    >
+                      Editar equipe
+                    </button>
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      onClick={() => setEquipeSelecionada(null)}
+                    >
+                      Voltar para o distrito
+                    </button>
+                  </div>
                 </div>
+                <p className="form-section-subtitle">
+                  A equipe efetiva é a mão de obra e os equipamentos do RDO mais recente lançado pelo encarregado desta
+                  equipe — pode ser diferente do cadastro fixo abaixo, que é só a escala prevista.
+                </p>
                 {carregandoEquipeEfetiva ? (
                   <p className="table-empty">Carregando…</p>
                 ) : equipeEfetivaErro ? (
@@ -325,6 +408,333 @@ export default function DistritoDetalhe(): ReactElement {
             )}
           </div>
         </div>
+      </div>
+
+      {editandoEquipe && distritoId && (
+        <EquipeModal
+          equipe={editandoEquipe}
+          distritoId={distritoId}
+          colaboradores={colaboradores}
+          funcoes={funcoes}
+          onClose={() => setEditandoEquipe(null)}
+          onSalvo={handleEquipeSalva}
+        />
+      )}
+
+      {editandoColaborador && (
+        <ColaboradorModal
+          funcoes={funcoes}
+          onClose={() => setEditandoColaborador(false)}
+          onSalvo={(colaborador) => {
+            setColaboradores((atual) => [...atual, colaborador]);
+            setEditandoColaborador(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EquipeModal({
+  equipe,
+  distritoId,
+  colaboradores,
+  funcoes,
+  onClose,
+  onSalvo,
+}: {
+  equipe: Equipe | "novo";
+  distritoId: string;
+  colaboradores: Colaborador[];
+  funcoes: Funcao[];
+  onClose: () => void;
+  onSalvo: (equipe: Equipe) => void;
+}): ReactElement {
+  const existente = equipe === "novo" ? null : equipe;
+  const [nome, setNome] = useState(existente?.nome ?? "");
+  const [encarregadoId, setEncarregadoId] = useState(existente?.encarregadoId ?? "");
+  const [ativo, setAtivo] = useState(existente?.ativo ?? true);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [equipeAtual, setEquipeAtual] = useState(existente);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const payload = { nome, distritoId, encarregadoId: encarregadoId === "" ? null : encarregadoId, ativo };
+      const salvo = existente
+        ? await api.patch<Equipe>(`/equipes/${existente.id}`, payload)
+        : await api.post<Equipe>("/equipes", payload);
+      setEquipeAtual(salvo);
+      onSalvo(salvo);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card modal-card--wide" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">{existente ? "Editar equipe" : "Nova equipe"}</h2>
+        <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="field-label" htmlFor="nome">
+            Nome
+          </label>
+          <input
+            id="nome"
+            className="field-input"
+            value={nome}
+            onChange={(event) => setNome(event.target.value)}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="encarregadoId">
+            Encarregado
+          </label>
+          <select
+            id="encarregadoId"
+            className="field-input"
+            value={encarregadoId}
+            onChange={(event) => setEncarregadoId(event.target.value)}
+          >
+            <option value="">Nenhum</option>
+            {colaboradores.map((colaborador) => (
+              <option key={colaborador.id} value={colaborador.id}>
+                {colaborador.nome}
+              </option>
+            ))}
+          </select>
+
+          <label className="checkbox-row">
+            <input type="checkbox" checked={ativo} onChange={(event) => setAtivo(event.target.checked)} />
+            Equipe ativa
+          </label>
+
+          {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+          <div className="form-actions">
+            <button type="submit" className="button" disabled={salvando}>
+              {salvando ? "Salvando…" : existente ? "Salvar" : "Criar equipe"}
+            </button>
+            <button type="button" className="button button--secondary" onClick={onClose}>
+              Fechar
+            </button>
+          </div>
+        </form>
+
+        {equipeAtual && (
+          <MembrosSection
+            equipe={equipeAtual}
+            colaboradores={colaboradores}
+            funcoes={funcoes}
+            onAtualizado={(atualizada) => {
+              setEquipeAtual(atualizada);
+              onSalvo(atualizada);
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MembrosSection({
+  equipe,
+  colaboradores,
+  funcoes,
+  onAtualizado,
+}: {
+  equipe: Equipe;
+  colaboradores: Colaborador[];
+  funcoes: Funcao[];
+  onAtualizado: (equipe: Equipe) => void;
+}): ReactElement {
+  const [colaboradorId, setColaboradorId] = useState(colaboradores[0]?.id ?? "");
+  const [funcaoId, setFuncaoId] = useState(funcoes[0]?.id ?? "");
+  const [quantidade, setQuantidade] = useState("1");
+  const [erro, setErro] = useState<string | null>(null);
+  const [processando, setProcessando] = useState(false);
+
+  async function handleAdicionar(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!colaboradorId || !funcaoId) return;
+    setProcessando(true);
+    setErro(null);
+    try {
+      const membro = await api.post<Membro>(`/equipes/${equipe.id}/membros`, {
+        colaboradorId,
+        funcaoId,
+        quantidade: Number(quantidade) || 1,
+      });
+      onAtualizado({ ...equipe, membros: [...equipe.membros, membro] });
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível adicionar o membro.");
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  async function handleRemover(membroId: string): Promise<void> {
+    setProcessando(true);
+    setErro(null);
+    try {
+      await api.delete(`/equipes/${equipe.id}/membros/${membroId}`);
+      onAtualizado({ ...equipe, membros: equipe.membros.filter((m) => m.id !== membroId) });
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível remover o membro.");
+    } finally {
+      setProcessando(false);
+    }
+  }
+
+  return (
+    <div className="membros-section">
+      <h3 className="membros-title">Membros ({equipe.membros.length})</h3>
+
+      {equipe.membros.length === 0 ? (
+        <p className="table-empty">Nenhum membro adicionado ainda.</p>
+      ) : (
+        equipe.membros.map((membro) => (
+          <div className="membro-row" key={membro.id}>
+            <span>
+              {membro.colaborador.nome} — {membro.funcao.nome} ({membro.quantidade}x)
+            </span>
+            <button
+              type="button"
+              className="button button--ghost button--small"
+              disabled={processando}
+              onClick={() => void handleRemover(membro.id)}
+            >
+              Remover
+            </button>
+          </div>
+        ))
+      )}
+
+      {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+      <form className="membro-add-row" onSubmit={(event) => void handleAdicionar(event)}>
+        <select className="field-input" value={colaboradorId} onChange={(event) => setColaboradorId(event.target.value)}>
+          {colaboradores.map((colaborador) => (
+            <option key={colaborador.id} value={colaborador.id}>
+              {colaborador.nome}
+            </option>
+          ))}
+        </select>
+        <select className="field-input" value={funcaoId} onChange={(event) => setFuncaoId(event.target.value)}>
+          {funcoes.map((funcao) => (
+            <option key={funcao.id} value={funcao.id}>
+              {funcao.nome}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          min={1}
+          className="field-input"
+          value={quantidade}
+          onChange={(event) => setQuantidade(event.target.value)}
+        />
+        <button type="submit" className="button button--small" disabled={processando}>
+          Adicionar
+        </button>
+      </form>
+    </div>
+  );
+}
+
+type ColaboradorForm = { matricula: string; nome: string; funcaoId: string; ativo: boolean };
+
+function ColaboradorModal({
+  funcoes,
+  onClose,
+  onSalvo,
+}: {
+  funcoes: Funcao[];
+  onClose: () => void;
+  onSalvo: (colaborador: Colaborador) => void;
+}): ReactElement {
+  const [form, setForm] = useState<ColaboradorForm>({
+    matricula: "",
+    nome: "",
+    funcaoId: funcoes[0]?.id ?? "",
+    ativo: true,
+  });
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const salvo = await api.post<Colaborador>("/colaboradores", form);
+      onSalvo(salvo);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">Novo colaborador</h2>
+        <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="field-label" htmlFor="matricula">
+            Matrícula
+          </label>
+          <input
+            id="matricula"
+            className="field-input"
+            value={form.matricula}
+            onChange={(event) => setForm((f) => ({ ...f, matricula: event.target.value }))}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="colaboradorNome">
+            Nome
+          </label>
+          <input
+            id="colaboradorNome"
+            className="field-input"
+            value={form.nome}
+            onChange={(event) => setForm((f) => ({ ...f, nome: event.target.value }))}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="funcaoId">
+            Função
+          </label>
+          <select
+            id="funcaoId"
+            className="field-input"
+            value={form.funcaoId}
+            onChange={(event) => setForm((f) => ({ ...f, funcaoId: event.target.value }))}
+          >
+            {funcoes.map((funcao) => (
+              <option key={funcao.id} value={funcao.id}>
+                {funcao.nome}
+              </option>
+            ))}
+          </select>
+
+          {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+          <div className="form-actions">
+            <button type="submit" className="button" disabled={salvando}>
+              {salvando ? "Salvando…" : "Criar colaborador"}
+            </button>
+            <button type="button" className="button button--secondary" onClick={onClose}>
+              Cancelar
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

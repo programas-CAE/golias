@@ -158,7 +158,8 @@ async function seedMateriais(): Promise<void> {
   const caminho = path.join(path.dirname(fileURLToPath(import.meta.url)), "data", "materialCatalogo.json");
   const registros = JSON.parse(readFileSync(caminho, "utf-8")) as MaterialCatalogoRegistro[];
 
-  const contrato = await prisma.contrato.findUnique({ where: { numero: CONTRATOS[0].numero } });
+  const contratoPrincipal = CONTRATOS[0];
+  const contrato = contratoPrincipal ? await prisma.contrato.findUnique({ where: { numero: contratoPrincipal.numero } }) : null;
   if (!contrato) {
     console.warn("Contrato não encontrado, pulando seed de materiais.");
     return;
@@ -264,6 +265,139 @@ async function seedMedicoesHistoricas(): Promise<void> {
   console.log(`Medições históricas: ${itensSincronizados} itens sincronizados em ${periodosCache.size} períodos.`);
 }
 
+interface RdoHistoricoAtividadeRegistro {
+  codigo: string;
+  descricao: string;
+  unidade: string;
+  producao: number;
+}
+
+interface RdoHistoricoRegistro {
+  rdo: string;
+  distrito: string;
+  data: string; // "YYYY-MM-DD", data real de execução (abril–junho/2026)
+  maoObraDireta: number;
+  atividades: RdoHistoricoAtividadeRegistro[];
+}
+
+const MARCADOR_RDO_HISTORICO = "[Importado — Base_Produtividade_Equipes_Preventivas]";
+
+/**
+ * RDOs reais de equipes preventivas (79 RDOs, 249 lançamentos de atividade),
+ * extraídos da aba Fato_RDO_Detalhe de
+ * "Base_Produtividade_Equipes_Preventivas.xlsx" (packages/server/prisma/
+ * data/rdosHistoricos.json) — o mesmo Excel que já alimenta o BI de
+ * referência do cliente (ver Memorial_Calculo, item 2).
+ *
+ * A pedido do usuário, a data de execução original (abril–junho/2026) é
+ * substituída pelo mês corrente no dia de import: sem isso os indicadores
+ * do painel inicial (que olham só o mês selecionado) ficavam vazios por
+ * padrão, já que o GOLIAS ainda tem poucos RDOs lançados de fato. O dia do
+ * mês original é preservado, só o ano/mês mudam.
+ *
+ * Depende de seedContratos/seedFrentes (Distrito), seedColaboradores
+ * (encarregado das equipes) e seedAtividades (AtividadeCatalogo) já terem
+ * rodado. Idempotente: se já existe algum Rdo com o marcador, pula o
+ * import inteiro (evita duplicar a cada novo `seed`).
+ */
+async function seedRdosHistoricos(): Promise<void> {
+  const jaImportado = await prisma.rdo.findFirst({
+    where: { observacoesContratada: { startsWith: MARCADOR_RDO_HISTORICO } },
+    select: { id: true },
+  });
+  if (jaImportado) {
+    console.log("RDOs históricos: já importados anteriormente, pulando.");
+    return;
+  }
+
+  const caminho = path.join(path.dirname(fileURLToPath(import.meta.url)), "data", "rdosHistoricos.json");
+  const registros = JSON.parse(readFileSync(caminho, "utf-8")) as RdoHistoricoRegistro[];
+
+  const distritos = await prisma.distrito.findMany();
+  const distritoPorNome = new Map(distritos.map((distrito) => [distrito.nome, distrito]));
+  const equipes = await prisma.equipe.findMany();
+  const atividades = await prisma.atividadeCatalogo.findMany();
+  const funcaoServente = await prisma.funcaoCatalogo.findUnique({ where: { nome: "Servente de Obras" } });
+
+  if (!funcaoServente) {
+    console.warn("Função 'Servente de Obras' não encontrada, pulando seed de RDOs históricos.");
+    return;
+  }
+
+  function resolverAtividade(codigo: string, unidade: string) {
+    return atividades.find((atividade) => atividade.codigo === codigo && atividade.unidade === unidade);
+  }
+
+  const hoje = new Date();
+  const anoAlvo = hoje.getUTCFullYear();
+  const mesAlvo = hoje.getUTCMonth(); // 0-indexado, vira o mês corrente na criação do Rdo
+
+  let rdosCriados = 0;
+  let rdosIgnorados = 0;
+  let atividadesIgnoradas = 0;
+
+  for (const registro of registros) {
+    const distrito = distritoPorNome.get(registro.distrito);
+    const equipe = equipes.find((e) => e.distritoId === distrito?.id && e.nome === "Preventiva");
+    if (!distrito || !equipe) {
+      rdosIgnorados += 1;
+      continue;
+    }
+
+    const atividadesResolvidas = registro.atividades
+      .map((atividade) => ({ atividade, catalogo: resolverAtividade(atividade.codigo, atividade.unidade) }))
+      .filter((item): item is { atividade: RdoHistoricoAtividadeRegistro; catalogo: NonNullable<typeof item.catalogo> } => {
+        if (!item.catalogo) atividadesIgnoradas += 1;
+        return item.catalogo != null;
+      });
+    if (atividadesResolvidas.length === 0) {
+      rdosIgnorados += 1;
+      continue;
+    }
+
+    const dia = Number(registro.data.slice(8, 10));
+    const data = new Date(Date.UTC(anoAlvo, mesAlvo, dia));
+
+    await prisma.rdo.create({
+      data: {
+        frenteId: distrito.frenteId,
+        equipeId: equipe.id,
+        data,
+        encarregadoId: equipe.encarregadoId,
+        status: "APROVADO",
+        observacoesContratada: `${MARCADOR_RDO_HISTORICO} ${registro.rdo} — produção real de ${registro.data}, importada com data ajustada para o mês corrente.`,
+        maoDeObra: {
+          create: [{ funcaoId: funcaoServente.id, quantidade: Math.max(1, Math.round(registro.maoObraDireta)) }],
+        },
+        locais: {
+          create: [
+            {
+              descricao: `Produção importada — ${registro.rdo}`,
+              ordem: 0,
+              atividades: {
+                create: atividadesResolvidas.map(({ atividade, catalogo }) => ({
+                  atividadeCatalogoId: catalogo.id,
+                  unidade: catalogo.unidade,
+                  totalCalculado: atividade.producao,
+                })),
+              },
+            },
+          ],
+        },
+      },
+    });
+    rdosCriados += 1;
+  }
+
+  if (rdosIgnorados > 0) {
+    console.warn(`RDOs históricos: ${rdosIgnorados} RDO(s) ignorado(s) (distrito/equipe não encontrados).`);
+  }
+  if (atividadesIgnoradas > 0) {
+    console.warn(`RDOs históricos: ${atividadesIgnoradas} atividade(s) ignorada(s) (código/unidade não encontrados no catálogo).`);
+  }
+  console.log(`RDOs históricos: ${rdosCriados} RDOs importados.`);
+}
+
 async function main(): Promise<void> {
   console.log("Iniciando seed do catálogo GOLIAS...");
   await seedContratos();
@@ -274,6 +408,7 @@ async function main(): Promise<void> {
   await seedAtividades();
   await seedMateriais();
   await seedMedicoesHistoricas();
+  await seedRdosHistoricos();
   console.log("Seed concluído com sucesso.");
 }
 

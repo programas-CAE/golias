@@ -5,8 +5,6 @@ const LINKS: Array<{ to: string; label: string }> = [
   { to: "/", label: "Início" },
   { to: "/rdos", label: "RDOs" },
   { to: "/frentes", label: "Frentes" },
-  { to: "/colaboradores", label: "Colaboradores" },
-  { to: "/equipes", label: "Equipes" },
   { to: "/ordens-manutencao", label: "Ordens de Manutenção" },
   { to: "/atividades", label: "Catálogo de Atividades" },
   { to: "/medicoes", label: "Medição Mensal" },

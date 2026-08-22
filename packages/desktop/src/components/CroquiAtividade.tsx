@@ -4,6 +4,7 @@ interface CroquiAtividadeProps {
   unidade: string;
   altura: string;
   largura: string;
+  larguraFinal: string;
   comprimento: string;
   descricaoAtividade?: string;
 }
@@ -35,16 +36,45 @@ function CroquiLinha({ comprimento }: { comprimento: string }): ReactElement {
   );
 }
 
-function CroquiRetangulo({ largura, comprimento }: { largura: string; comprimento: string }): ReactElement {
+/**
+ * Desenha um retângulo, ou, quando `larguraFinal` é informada e diferente
+ * da largura inicial, um trapézio (faixa que afunila/alarga ao longo do
+ * comprimento — ex.: roçada em trecho irregular). As alturas dos lados são
+ * proporcionais entre si, não em escala real, só para dar a noção do
+ * formato.
+ */
+function CroquiRetangulo({ largura, larguraFinal, comprimento }: { largura: string; larguraFinal: string; comprimento: string }): ReactElement {
+  const lIni = numero(largura) ?? 0;
+  const lFim = numero(larguraFinal) ?? lIni;
+  const maior = Math.max(lIni, lFim, 0.001);
+  const alturaMax = 86;
+  const alturaMin = 20;
+  const alturaDe = (valor: number): number => (valor <= 0 ? 0 : Math.max((valor / maior) * alturaMax, alturaMin));
+  const hIni = alturaDe(lIni);
+  const hFim = alturaDe(lFim);
+  const centroY = 67;
+  const pontos = [
+    { x: 50, y: centroY - hIni / 2 },
+    { x: 200, y: centroY - hFim / 2 },
+    { x: 200, y: centroY + hFim / 2 },
+    { x: 50, y: centroY + hIni / 2 },
+  ];
+  const caminho = `M ${pontos.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`;
+
   return (
     <svg viewBox="0 0 240 150" className="croqui-svg">
-      <rect x="50" y="24" width="150" height="86" className="croqui-forma" />
+      <path d={caminho} className="croqui-forma" />
       <text x="125" y="16" textAnchor="middle" className="croqui-rotulo">
         {rotulo(comprimento)}
       </text>
-      <text x="26" y="70" textAnchor="middle" className="croqui-rotulo" transform="rotate(-90 26 70)">
+      <text x="26" y={centroY + 4} textAnchor="middle" className="croqui-rotulo" transform={`rotate(-90 26 ${centroY})`}>
         {rotulo(largura)}
       </text>
+      {larguraFinal !== "" && (
+        <text x="224" y={centroY + 4} textAnchor="middle" className="croqui-rotulo" transform={`rotate(-90 224 ${centroY})`}>
+          {rotulo(larguraFinal)}
+        </text>
+      )}
     </svg>
   );
 }
@@ -82,16 +112,26 @@ function CroquiCaixa({ altura, largura, comprimento }: { altura: string; largura
   );
 }
 
-export default function CroquiAtividade({ unidade, altura, largura, comprimento, descricaoAtividade }: CroquiAtividadeProps): ReactElement {
+export default function CroquiAtividade({ unidade, altura, largura, larguraFinal, comprimento, descricaoAtividade }: CroquiAtividadeProps): ReactElement {
   const a = numero(altura);
   const l = numero(largura);
+  const lFim = numero(larguraFinal);
   const c = numero(comprimento);
 
   let resultado: { formula: string; valor: number; unidadeResultado: string } | null = null;
   if (unidade === "M3" && a != null && l != null && c != null) {
     resultado = { formula: `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)}`, valor: c * l * a, unidadeResultado: "m³" };
   } else if (unidade === "M2" && l != null && c != null) {
-    resultado = { formula: `${formatarNumero(c)} × ${formatarNumero(l)}`, valor: c * l, unidadeResultado: "m²" };
+    if (lFim != null && lFim !== l) {
+      const media = (l + lFim) / 2;
+      resultado = {
+        formula: `média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)}`,
+        valor: media * c,
+        unidadeResultado: "m²",
+      };
+    } else {
+      resultado = { formula: `${formatarNumero(c)} × ${formatarNumero(l)}`, valor: c * l, unidadeResultado: "m²" };
+    }
   } else if (unidade === "M" && c != null) {
     resultado = { formula: `${formatarNumero(c)}`, valor: c, unidadeResultado: "m" };
   }
@@ -102,7 +142,7 @@ export default function CroquiAtividade({ unidade, altura, largura, comprimento,
       {unidade === "M3" ? (
         <CroquiCaixa altura={altura} largura={largura} comprimento={comprimento} />
       ) : unidade === "M2" ? (
-        <CroquiRetangulo largura={largura} comprimento={comprimento} />
+        <CroquiRetangulo largura={largura} larguraFinal={larguraFinal} comprimento={comprimento} />
       ) : unidade === "M" ? (
         <CroquiLinha comprimento={comprimento} />
       ) : (

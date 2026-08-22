@@ -3,6 +3,7 @@ import type { UnidadeMedida } from "../constants/catalogo.js";
 export interface CalcularTotalAtividadeInput {
   altura?: number | null;
   largura?: number | null;
+  larguraFinal?: number | null;
   comprimento?: number | null;
   quantidadeDireta?: number | null;
 }
@@ -15,8 +16,10 @@ export interface CalcularTotalAtividadeInput {
  *  - M3: altura × largura × comprimento
  *      ex.: 1.20 × 2.10 × 3.30 = 8.316 (armazenado com 3 casas decimais,
  *      conforme RdoAtividade.totalCalculado @db.Decimal(12,3))
- *  - M2: largura × comprimento
- *      ex.: 20.00 × 2.00 = 40.00
+ *  - M2: largura × comprimento — ou, quando `larguraFinal` é informada (o
+ *      trecho afunila/alarga, ex. roçada em faixa irregular), a área do
+ *      trapézio: média(largura inicial, largura final) × comprimento.
+ *      ex.: largura 20, larguraFinal 12, comprimento 10 → (20+12)/2 × 10 = 160
  *  - M: comprimento
  *  - UND, HH, M3KM: quantidade informada diretamente
  *
@@ -30,8 +33,11 @@ export function calcularTotalAtividade(
   switch (unidade) {
     case "M3":
       return (input.altura ?? 0) * (input.largura ?? 0) * (input.comprimento ?? 0);
-    case "M2":
-      return (input.largura ?? 0) * (input.comprimento ?? 0);
+    case "M2": {
+      const larguraInicial = input.largura ?? 0;
+      const larguraFinal = input.larguraFinal ?? larguraInicial;
+      return ((larguraInicial + larguraFinal) / 2) * (input.comprimento ?? 0);
+    }
     case "M":
       return input.comprimento ?? 0;
     case "UND":

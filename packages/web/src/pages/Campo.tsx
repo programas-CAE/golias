@@ -42,6 +42,7 @@ interface RdoAtividadeSalva {
   atividadeCatalogoId: string;
   altura: string | null;
   largura: string | null;
+  larguraFinal: string | null;
   comprimento: string | null;
   quantidadeDireta: string | null;
   unidade: string;
@@ -118,6 +119,7 @@ interface AtividadeDraft {
   unidade: string;
   altura: string;
   largura: string;
+  larguraFinal: string;
   comprimento: string;
   quantidadeDireta: string;
 }
@@ -149,6 +151,7 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     unidade: primeira?.unidade ?? "UND",
     altura: "",
     largura: "",
+    larguraFinal: "",
     comprimento: "",
     quantidadeDireta: "",
   };
@@ -240,6 +243,7 @@ export default function Campo(): ReactElement {
                   unidade: atividade.unidade,
                   altura: atividade.altura ?? "",
                   largura: atividade.largura ?? "",
+                  larguraFinal: atividade.larguraFinal ?? "",
                   comprimento: atividade.comprimento ?? "",
                   quantidadeDireta: atividade.quantidadeDireta ?? "",
                 })),
@@ -371,6 +375,7 @@ export default function Campo(): ReactElement {
             unidade: atividade.unidade,
             altura: atividade.altura === "" ? null : Number(atividade.altura),
             largura: atividade.largura === "" ? null : Number(atividade.largura),
+            larguraFinal: atividade.larguraFinal === "" ? null : Number(atividade.larguraFinal),
             comprimento: atividade.comprimento === "" ? null : Number(atividade.comprimento),
             quantidadeDireta: atividade.quantidadeDireta === "" ? null : Number(atividade.quantidadeDireta),
           })),
@@ -612,28 +617,24 @@ export default function Campo(): ReactElement {
                     ))}
                   </select>
 
-                  {usaDimensoes ? (
+                  {atividade.unidade === "M3" && (
                     <div className="campo-grid-3">
-                      {atividade.unidade === "M3" && (
-                        <input
-                          type="number"
-                          step="0.001"
-                          className="field-input"
-                          placeholder="Altura"
-                          value={atividade.altura}
-                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "altura", event.target.value)}
-                        />
-                      )}
-                      {(atividade.unidade === "M2" || atividade.unidade === "M3") && (
-                        <input
-                          type="number"
-                          step="0.001"
-                          className="field-input"
-                          placeholder="Largura"
-                          value={atividade.largura}
-                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
-                        />
-                      )}
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="field-input"
+                        placeholder="Altura"
+                        value={atividade.altura}
+                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "altura", event.target.value)}
+                      />
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="field-input"
+                        placeholder="Largura"
+                        value={atividade.largura}
+                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
+                      />
                       <input
                         type="number"
                         step="0.001"
@@ -643,7 +644,46 @@ export default function Campo(): ReactElement {
                         onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
                       />
                     </div>
-                  ) : (
+                  )}
+                  {atividade.unidade === "M2" && (
+                    <div className="campo-grid-3">
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="field-input"
+                        placeholder="Largura inicial"
+                        value={atividade.largura}
+                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
+                      />
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="field-input"
+                        placeholder="Largura final (se afunilar)"
+                        value={atividade.larguraFinal}
+                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "larguraFinal", event.target.value)}
+                      />
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="field-input"
+                        placeholder="Comprimento"
+                        value={atividade.comprimento}
+                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
+                      />
+                    </div>
+                  )}
+                  {atividade.unidade === "M" && (
+                    <input
+                      type="number"
+                      step="0.001"
+                      className="field-input"
+                      placeholder="Comprimento"
+                      value={atividade.comprimento}
+                      onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
+                    />
+                  )}
+                  {!usaDimensoes && (
                     <input
                       type="number"
                       step="0.001"

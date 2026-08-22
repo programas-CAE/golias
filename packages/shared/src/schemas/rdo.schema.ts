@@ -39,6 +39,7 @@ export const rdoAtividadeInputSchema = z
     atividadeCatalogoId: z.string().cuid(),
     altura: z.number().positive().nullable().optional(),
     largura: z.number().positive().nullable().optional(),
+    larguraFinal: z.number().positive().nullable().optional(),
     comprimento: z.number().positive().nullable().optional(),
     quantidadeDireta: z.number().positive().nullable().optional(),
     unidade: unidadeMedidaSchema,

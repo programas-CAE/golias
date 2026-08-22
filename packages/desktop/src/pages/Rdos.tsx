@@ -82,14 +82,17 @@ export default function Rdos(): ReactElement {
         <div className="list-header">
           <div>
             <h1 className="list-title">RDOs</h1>
-            <p className="list-subtitle">Crie um RDO em rascunho e compartilhe o link de campo com o encarregado</p>
+            <p className="list-subtitle">
+              Gere um link de campo para o encarregado preencher, cadastre o RDO completo direto aqui, ou acompanhe os RDOs
+              recebidos do campo abaixo
+            </p>
           </div>
           <div style={{ display: "flex", gap: 12 }}>
             <button type="button" className="button button--secondary" onClick={() => navigate("/rdos/completo/novo")}>
               Cadastrar RDO completo
             </button>
             <button type="button" className="button" onClick={() => setCriando(true)}>
-              Novo RDO
+              Gerar RDO
             </button>
           </div>
         </div>
@@ -221,7 +224,7 @@ function NovoRdoModal({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-        <h2 className="modal-title">Novo RDO</h2>
+        <h2 className="modal-title">Gerar RDO</h2>
         <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
           <label className="field-label" htmlFor="frenteId">
             Frente

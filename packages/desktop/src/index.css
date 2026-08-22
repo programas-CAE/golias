@@ -449,6 +449,25 @@ body {
   background: #0e1830;
 }
 
+.repeatable-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1b2740;
+}
+
+.repeatable-item-titulo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
 .repeatable-item + .button--secondary {
   margin-top: 4px;
 }
@@ -774,8 +793,9 @@ body {
 }
 
 .croqui-card {
-  background: #0e1830;
+  background: #101b38;
   border: 1px solid #23304f;
+  border-left: 3px solid rgba(249, 115, 22, 0.45);
   border-radius: 12px;
   padding: 16px;
 }

@@ -60,6 +60,7 @@ interface AtividadeDraft {
   unidade: string;
   altura: string;
   largura: string;
+  larguraFinal: string;
   comprimento: string;
   quantidadeDireta: string;
 }
@@ -107,6 +108,7 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     unidade: primeira?.unidade ?? "UND",
     altura: "",
     largura: "",
+    larguraFinal: "",
     comprimento: "",
     quantidadeDireta: "",
   };
@@ -336,6 +338,7 @@ export default function RdoCompleto(): ReactElement {
             unidade: atividade.unidade,
             altura: atividade.altura === "" ? null : Number(atividade.altura),
             largura: atividade.largura === "" ? null : Number(atividade.largura),
+            larguraFinal: atividade.larguraFinal === "" ? null : Number(atividade.larguraFinal),
             comprimento: atividade.comprimento === "" ? null : Number(atividade.comprimento),
             quantidadeDireta: atividade.quantidadeDireta === "" ? null : Number(atividade.quantidadeDireta),
           })),
@@ -650,70 +653,17 @@ export default function RdoCompleto(): ReactElement {
               {local.atividades.map((atividade, atividadeIndice) => {
                 const usaDimensoes = ["M", "M2", "M3"].includes(atividade.unidade);
                 const catalogoDaAtividade = atividadesCatalogo.find((item) => item.id === atividade.atividadeCatalogoId);
+                const idSelect = `atividade-${localIndice}-${atividadeIndice}`;
                 return (
                   <div className="repeatable-item" key={atividadeIndice}>
-                  <div className={usaDimensoes ? "atividade-com-croqui" : undefined}>
-                  <div>
-                    <select
-                      className="field-input"
-                      value={atividade.atividadeCatalogoId}
-                      onChange={(event) => selecionarAtividadeCatalogo(localIndice, atividadeIndice, event.target.value)}
-                    >
-                      {atividadesCatalogo.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.codigo} — {item.descricao}
-                        </option>
-                      ))}
-                    </select>
-
-                    {usaDimensoes ? (
-                      <div className="grid-3" style={{ marginTop: 8 }}>
-                        {atividade.unidade === "M3" && (
-                          <input
-                            type="number"
-                            step="0.001"
-                            className="field-input"
-                            placeholder="Altura"
-                            value={atividade.altura}
-                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "altura", event.target.value)}
-                          />
-                        )}
-                        {(atividade.unidade === "M2" || atividade.unidade === "M3") && (
-                          <input
-                            type="number"
-                            step="0.001"
-                            className="field-input"
-                            placeholder="Largura"
-                            value={atividade.largura}
-                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
-                          />
-                        )}
-                        <input
-                          type="number"
-                          step="0.001"
-                          className="field-input"
-                          placeholder="Comprimento"
-                          value={atividade.comprimento}
-                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
-                        />
-                      </div>
-                    ) : (
-                      <input
-                        type="number"
-                        step="0.001"
-                        className="field-input"
-                        placeholder="Quantidade"
-                        style={{ marginTop: 8 }}
-                        value={atividade.quantidadeDireta}
-                        onChange={(event) =>
-                          atualizarAtividade(localIndice, atividadeIndice, "quantidadeDireta", event.target.value)
-                        }
-                      />
-                    )}
+                  <div className="repeatable-item-header">
+                    <span className="repeatable-item-titulo">
+                      Atividade {atividadeIndice + 1}
+                      {atividade.unidade && <span className="badge badge--inativo">{atividade.unidade}</span>}
+                    </span>
                     <button
                       type="button"
                       className="button button--ghost button--small"
-                      style={{ marginTop: 8 }}
                       onClick={() =>
                         setLocais((atual) =>
                           atual.map((l, i) =>
@@ -728,11 +678,137 @@ export default function RdoCompleto(): ReactElement {
                     </button>
                   </div>
 
+                  <div className={usaDimensoes ? "atividade-com-croqui" : undefined}>
+                  <div>
+                    <label className="field-label" htmlFor={idSelect}>
+                      Atividade
+                    </label>
+                    <select
+                      id={idSelect}
+                      className="field-input"
+                      value={atividade.atividadeCatalogoId}
+                      onChange={(event) => selecionarAtividadeCatalogo(localIndice, atividadeIndice, event.target.value)}
+                    >
+                      {atividadesCatalogo.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.codigo} — {item.descricao}
+                        </option>
+                      ))}
+                    </select>
+
+                    {atividade.unidade === "M3" && (
+                      <div className="grid-3" style={{ marginTop: 12 }}>
+                        <div>
+                          <label className="field-label">Altura (m)</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="0,00"
+                            value={atividade.altura}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "altura", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Largura (m)</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="0,00"
+                            value={atividade.largura}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Comprimento (m)</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="0,00"
+                            value={atividade.comprimento}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {atividade.unidade === "M2" && (
+                      <div className="grid-3" style={{ marginTop: 12 }}>
+                        <div>
+                          <label className="field-label">Largura inicial (m)</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="0,00"
+                            value={atividade.largura}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Largura final (m) — opcional</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="se afunilar/alargar"
+                            value={atividade.larguraFinal}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "larguraFinal", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Comprimento (m)</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="0,00"
+                            value={atividade.comprimento}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {atividade.unidade === "M" && (
+                      <div style={{ marginTop: 12 }}>
+                        <label className="field-label">Comprimento (m)</label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder="0,00"
+                          value={atividade.comprimento}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {!usaDimensoes && (
+                      <div style={{ marginTop: 12 }}>
+                        <label className="field-label">Quantidade</label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder="0,00"
+                          value={atividade.quantidadeDireta}
+                          onChange={(event) =>
+                            atualizarAtividade(localIndice, atividadeIndice, "quantidadeDireta", event.target.value)
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   {usaDimensoes && (
                     <CroquiAtividade
                       unidade={atividade.unidade}
                       altura={atividade.altura}
                       largura={atividade.largura}
+                      larguraFinal={atividade.larguraFinal}
                       comprimento={atividade.comprimento}
                       descricaoAtividade={catalogoDaAtividade?.descricao}
                     />
