@@ -63,6 +63,8 @@ interface AtividadeDraft {
   larguraFinal: string;
   comprimento: string;
   quantidadeDireta: string;
+  horasTrabalhadas: string;
+  maoObraDireta: string;
 }
 
 interface LocalDraft {
@@ -111,6 +113,8 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     larguraFinal: "",
     comprimento: "",
     quantidadeDireta: "",
+    horasTrabalhadas: "",
+    maoObraDireta: "",
   };
 }
 
@@ -341,6 +345,8 @@ export default function RdoCompleto(): ReactElement {
             larguraFinal: atividade.larguraFinal === "" ? null : Number(atividade.larguraFinal),
             comprimento: atividade.comprimento === "" ? null : Number(atividade.comprimento),
             quantidadeDireta: atividade.quantidadeDireta === "" ? null : Number(atividade.quantidadeDireta),
+            horasTrabalhadas: atividade.horasTrabalhadas === "" ? null : Number(atividade.horasTrabalhadas),
+            maoObraDireta: atividade.maoObraDireta === "" ? null : Number(atividade.maoObraDireta),
           })),
         })),
       maoDeObra: [
@@ -801,6 +807,37 @@ export default function RdoCompleto(): ReactElement {
                         />
                       </div>
                     )}
+
+                    <div className="grid-2" style={{ marginTop: 12 }}>
+                      <div>
+                        <label className="field-label">Mão de obra nesta atividade</label>
+                        <input
+                          type="number"
+                          step="1"
+                          min={0}
+                          className="field-input"
+                          placeholder="efetivo do RDO, se vazio"
+                          value={atividade.maoObraDireta}
+                          onChange={(event) =>
+                            atualizarAtividade(localIndice, atividadeIndice, "maoObraDireta", event.target.value)
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="field-label">Horas trabalhadas nesta atividade</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          min={0}
+                          className="field-input"
+                          placeholder="jornada dividida, se vazio"
+                          value={atividade.horasTrabalhadas}
+                          onChange={(event) =>
+                            atualizarAtividade(localIndice, atividadeIndice, "horasTrabalhadas", event.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {usaDimensoes && (

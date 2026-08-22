@@ -22,6 +22,8 @@ export const rdoIndicadorSelect = {
       atividades: {
         select: {
           totalCalculado: true,
+          horasTrabalhadas: true,
+          maoObraDireta: true,
           atividadeCatalogo: { select: { id: true, codigo: true, descricao: true, unidade: true, metaPus: true } },
         },
       },
@@ -56,11 +58,22 @@ interface ResumoProdutividade {
 }
 
 /**
- * PUS por atividade = produção total da atividade no período ÷ horas
- * trabalhadas pela equipe no período (mesmo denominador para todas as
- * atividades, fiel ao relatório mensal fonte). Eficiência = média de
- * (PUS real ÷ Meta) entre as atividades que têm meta e produção no
- * período.
+ * PUS por atividade = produção total da atividade no período ÷ Homens-Hora
+ * gastos NESSA atividade (mão de obra direta × horas trabalhadas, somado
+ * de todos os lançamentos dela no período) — a mesma fórmula da ENGECOM
+ * (Memorial_Calculo, item 1: "PUS = Produção do dia ÷ (Mão de Obra Direta
+ * × Horas Trabalhadas no dia)"), aplicada por atividade em vez de por RDO
+ * inteiro.
+ *
+ * Quando um lançamento não informa `maoObraDireta`/`horasTrabalhadas` (RDO
+ * antigo, ou formulário preenchido sem esses campos), cada um é estimado
+ * separadamente a partir do RDO inteiro: mão de obra cai no efetivo total
+ * do RDO (`RdoMaoDeObra`), horas cai na jornada padrão dividida
+ * igualmente entre as atividades lançadas nele — mantém o número
+ * plausível sem precisar dos dois campos novos em todo RDO histórico.
+ *
+ * Eficiência = média de (PUS real ÷ Meta) entre as atividades que têm meta
+ * e produção no período.
  *
  * A Meta de cada atividade é a média REALIZADA da própria atividade no mês
  * anterior (`metasMesAnterior`, calculado pelo chamador com este mesmo
@@ -78,9 +91,13 @@ export function calcularProdutividade(rdos: RdoIndicador[], metasMesAnterior?: M
 
   const atividadesMap = new Map<
     string,
-    { id: string; codigo: string; descricao: string; unidade: string; producaoTotal: number; metaReferencia: number | null }
+    { id: string; codigo: string; descricao: string; unidade: string; producaoTotal: number; homensHora: number; metaReferencia: number | null }
   >();
   for (const rdo of rdos) {
+    const efetivoDoRdo = rdo.maoDeObra.reduce((soma, mdo) => soma + mdo.quantidade, 0);
+    const totalAtividadesNoRdo = rdo.locais.reduce((soma, local) => soma + local.atividades.length, 0);
+    const horasFallbackPorAtividade = totalAtividadesNoRdo > 0 ? JORNADA_HORAS_DIA / totalAtividadesNoRdo : 0;
+
     for (const local of rdo.locais) {
       for (const atividade of local.atividades) {
         const catalogo = atividade.atividadeCatalogo;
@@ -91,40 +108,67 @@ export function calcularProdutividade(rdos: RdoIndicador[], metasMesAnterior?: M
           unidade: catalogo.unidade,
           metaReferencia: catalogo.metaPus != null ? Number(catalogo.metaPus) : null,
           producaoTotal: 0,
+          homensHora: 0,
         };
+        const maoObra = atividade.maoObraDireta ?? efetivoDoRdo;
+        const horas = atividade.horasTrabalhadas != null ? Number(atividade.horasTrabalhadas) : horasFallbackPorAtividade;
         atual.producaoTotal += Number(atividade.totalCalculado);
+        atual.homensHora += maoObra * horas;
         atividadesMap.set(catalogo.id, atual);
       }
     }
   }
 
-  const produtividadePorAtividade = [...atividadesMap.values()]
-    .map((atividade) => {
-      const pus = horasTrabalhadas > 0 ? atividade.producaoTotal / horasTrabalhadas : 0;
-      const metaMesAnterior = metasMesAnterior?.get(atividade.id);
-      const meta = metaMesAnterior ?? atividade.metaReferencia;
-      const metaOrigem: ProdutividadeAtividade["metaOrigem"] =
-        metaMesAnterior != null ? "mes_anterior" : atividade.metaReferencia != null ? "referencia" : null;
-      const percentualMeta = meta != null && meta > 0 ? (pus / meta) * 100 : null;
-      return {
-        id: atividade.id,
-        codigo: atividade.codigo,
-        descricao: atividade.descricao,
-        unidade: atividade.unidade,
-        producaoTotal: atividade.producaoTotal,
-        pus,
-        meta,
-        metaOrigem,
-        percentualMeta,
-      };
-    })
+  const calculadas = [...atividadesMap.values()].map((atividade) => {
+    const pus = atividade.homensHora > 0 ? atividade.producaoTotal / atividade.homensHora : 0;
+    const metaMesAnterior = metasMesAnterior?.get(atividade.id);
+    const meta = metaMesAnterior ?? atividade.metaReferencia;
+    const metaOrigem: ProdutividadeAtividade["metaOrigem"] =
+      metaMesAnterior != null ? "mes_anterior" : atividade.metaReferencia != null ? "referencia" : null;
+    const percentualMeta = meta != null && meta > 0 ? (pus / meta) * 100 : null;
+    return {
+      id: atividade.id,
+      codigo: atividade.codigo,
+      descricao: atividade.descricao,
+      unidade: atividade.unidade,
+      producaoTotal: atividade.producaoTotal,
+      homensHora: atividade.homensHora,
+      pus,
+      meta,
+      metaOrigem,
+      percentualMeta,
+    };
+  });
+
+  const produtividadePorAtividade = calculadas
+    .map((atividade) => ({
+      id: atividade.id,
+      codigo: atividade.codigo,
+      descricao: atividade.descricao,
+      unidade: atividade.unidade,
+      producaoTotal: atividade.producaoTotal,
+      pus: atividade.pus,
+      meta: atividade.meta,
+      metaOrigem: atividade.metaOrigem,
+      percentualMeta: atividade.percentualMeta,
+    }))
     .sort((a, b) => b.producaoTotal - a.producaoTotal);
 
-  const percentuaisComMeta = produtividadePorAtividade
-    .map((atividade) => atividade.percentualMeta)
-    .filter((valor): valor is number => valor != null);
+  /**
+   * Eficiência = média do % da meta PONDERADA pelas Homens-Hora de cada
+   * atividade (mesma lógica de "Calc_PUS_Colaborador"/"Calc_PUS_Distrito"
+   * na planilha de referência, ver Memorial_Calculo item 3) — não uma
+   * média simples. Sem o peso, uma atividade com pouquíssimas Homens-Hora
+   * mas meta de referência muito baixa (ex.: uma atividade mecanizada nova,
+   * ainda sem meta calibrada) pode disparar um % gigantesco e distorcer
+   * sozinha a eficiência geral.
+   */
+  const comMetaEHoras = calculadas.filter((atividade) => atividade.percentualMeta != null && atividade.homensHora > 0);
+  const homensHoraTotal = comMetaEHoras.reduce((soma, atividade) => soma + atividade.homensHora, 0);
   const eficiencia =
-    percentuaisComMeta.length > 0 ? percentuaisComMeta.reduce((soma, valor) => soma + valor, 0) / percentuaisComMeta.length : null;
+    homensHoraTotal > 0
+      ? comMetaEHoras.reduce((soma, atividade) => soma + (atividade.percentualMeta ?? 0) * atividade.homensHora, 0) / homensHoraTotal
+      : null;
 
   return { horasTrabalhadas, horasImprodutivas, produtividadePorAtividade, eficiencia };
 }

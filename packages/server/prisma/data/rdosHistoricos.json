@@ -9,13 +9,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 102
+        "producao": 102,
+        "maoObraDireta": 2,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 3840.3
+        "producao": 3840.3,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 3.333333333333333
       }
     ]
   },
@@ -29,19 +33,25 @@
         "codigo": "2.2.5",
         "descricao": "Remoção De Solo",
         "unidade": "M3",
-        "producao": 60
+        "producao": 60,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 1.3333333333333333
       },
       {
         "codigo": "2.2.5",
         "descricao": "Remoção De Solo",
         "unidade": "M3",
-        "producao": 20
+        "producao": 20,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 2.5
       },
       {
         "codigo": "2.1.4",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
         "unidade": "M",
-        "producao": 81
+        "producao": 81,
+        "maoObraDireta": 8,
+        "horasTrabalhadas": 2.83333333333333
       }
     ]
   },
@@ -55,31 +65,41 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 375
+        "producao": 375,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 3.3333333333333335
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 440
+        "producao": 440,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 3.3333333333333335
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 50
+        "producao": 50,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 3.3333333333333335
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 420
+        "producao": 420,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 476
+        "producao": 476,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 4.000000000000007
       }
     ]
   },
@@ -93,25 +113,33 @@
         "codigo": "2.2.5",
         "descricao": "Remoção De Solo",
         "unidade": "M3",
-        "producao": 21.2
+        "producao": 21.2,
+        "maoObraDireta": 8,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.5",
         "descricao": "Remoção De Solo",
         "unidade": "M3",
-        "producao": 20
+        "producao": 20,
+        "maoObraDireta": 8,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.1.4.1",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena - Mec",
         "unidade": "M",
-        "producao": 63
+        "producao": 63,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.1.4",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
         "unidade": "M",
-        "producao": 8
+        "producao": 8,
+        "maoObraDireta": 8,
+        "horasTrabalhadas": 4
       }
     ]
   },
@@ -125,31 +153,41 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 657.88
+        "producao": 657.88,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 2
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 508.8
+        "producao": 508.8,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 233.16
+        "producao": 233.16,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1578.15
+        "producao": 1578.15,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 3.0000000000000004
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 69.5
+        "producao": 69.5,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       }
     ]
   },
@@ -163,31 +201,41 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 312
+        "producao": 312,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 2.8333333333333313
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 302
+        "producao": 302,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 2.83333333333334
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 70
+        "producao": 70,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 2.8333333333333326
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 100
+        "producao": 100,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 3.9999999999999973
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 184.5
+        "producao": 184.5,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 4
       }
     ]
   },
@@ -201,25 +249,33 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1301.85
+        "producao": 1301.85,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 2.9999999999999996
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 16.5
+        "producao": 16.5,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 0.41666666666666663
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 52.9
+        "producao": 52.9,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 1.4999999999999984
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 392
+        "producao": 392,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 2.9999999999999925
       }
     ]
   },
@@ -233,31 +289,41 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 450
+        "producao": 450,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 510
+        "producao": 510,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 938
+        "producao": 938,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 309.7
+        "producao": 309.7,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 115.5
+        "producao": 115.5,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 4
       }
     ]
   },
@@ -271,13 +337,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1537.24
+        "producao": 1537.24,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 4.166666666666669
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 700.6
+        "producao": 700.6,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.4999999999999996
       }
     ]
   },
@@ -291,19 +361,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 920
+        "producao": 920,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 3.8333333333333335
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 300
+        "producao": 300,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 3.833333333333323
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 100
+        "producao": 100,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 3.9999999999999973
       }
     ]
   },
@@ -317,67 +393,89 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 100
+        "producao": 100,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 3.000000000000003
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 330
+        "producao": 330,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 3
       },
       {
         "codigo": "2.1.4.1",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena - Mec",
         "unidade": "M",
-        "producao": 184
+        "producao": 184,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 5.999999999999994
       },
       {
         "codigo": "2.2.2",
         "descricao": "Capina",
         "unidade": "M2",
-        "producao": 78.4
+        "producao": 78.4,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 2
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 461.25
+        "producao": 461.25,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 3
       },
       {
         "codigo": "2.2.1.1",
         "descricao": "Roçada - Mec",
         "unidade": "M2",
-        "producao": 66.5
+        "producao": 66.5,
+        "maoObraDireta": 3,
+        "horasTrabalhadas": 3.9999999999999982
       },
       {
         "codigo": "2.2.1.1",
         "descricao": "Roçada - Mec",
         "unidade": "M2",
-        "producao": 17.5
+        "producao": 17.5,
+        "maoObraDireta": 3,
+        "horasTrabalhadas": 4.00000000000001
       },
       {
         "codigo": "2.2.1.1",
         "descricao": "Roçada - Mec",
         "unidade": "M2",
-        "producao": 50
+        "producao": 50,
+        "maoObraDireta": 3,
+        "horasTrabalhadas": 3.9999999999999973
       },
       {
         "codigo": "2.2.1.1",
         "descricao": "Roçada - Mec",
         "unidade": "M2",
-        "producao": 68
+        "producao": 68,
+        "maoObraDireta": 3,
+        "horasTrabalhadas": 3.9999999999999982
       },
       {
         "codigo": "2.2.1.1",
         "descricao": "Roçada - Mec",
         "unidade": "M2",
-        "producao": 259
+        "producao": 259,
+        "maoObraDireta": 3,
+        "horasTrabalhadas": 4.000000000000006
       },
       {
         "codigo": "2.2.1.1",
         "descricao": "Roçada - Mec",
         "unidade": "M2",
-        "producao": 165
+        "producao": 165,
+        "maoObraDireta": 3,
+        "horasTrabalhadas": 4
       }
     ]
   },
@@ -391,13 +489,17 @@
         "codigo": "2.2.2.1",
         "descricao": "Capina  - Mec",
         "unidade": "M2",
-        "producao": 698.5
+        "producao": 698.5,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.1.7",
         "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 30.41
+        "producao": 30.41,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 2.9999999999999902
       }
     ]
   },
@@ -411,43 +513,57 @@
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 131.5
+        "producao": 131.5,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 193.7
+        "producao": 193.7,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1.5000000000000036
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2245.11
+        "producao": 2245.11,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 3297.41
+        "producao": 3297.41,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 247.76
+        "producao": 247.76,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 194.82
+        "producao": 194.82,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 126.73
+        "producao": 126.73,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       }
     ]
   },
@@ -461,19 +577,25 @@
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 170
+        "producao": 170,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 3.5000000000000013
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 210
+        "producao": 210,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 3.833333333333333
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 238
+        "producao": 238,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 3.8333333333333353
       }
     ]
   },
@@ -487,31 +609,41 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 113
+        "producao": 113,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 3.999999999999996
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 70
+        "producao": 70,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 62.5
+        "producao": 62.5,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 3.999999999999995
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 354
+        "producao": 354,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 4.000000000000013
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 686.8
+        "producao": 686.8,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 4.000000000000004
       }
     ]
   },
@@ -525,7 +657,9 @@
         "codigo": "2.1.7",
         "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 20.25
+        "producao": 20.25,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 3
       }
     ]
   },
@@ -539,61 +673,81 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 57.2
+        "producao": 57.2,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 4.000000000000001
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 166
+        "producao": 166,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 242.5
+        "producao": 242.5,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 150
+        "producao": 150,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 192
+        "producao": 192,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 4
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 750
+        "producao": 750,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 3
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 180
+        "producao": 180,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 3
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 164
+        "producao": 164,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 3.000000000000009
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 300
+        "producao": 300,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 3
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 175
+        "producao": 175,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 2.9999999999999916
       }
     ]
   },
@@ -607,7 +761,9 @@
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 52
+        "producao": 52,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 2.9999999999999973
       }
     ]
   },
@@ -621,19 +777,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1335.9
+        "producao": 1335.9,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 3.499999999999996
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 299.8
+        "producao": 299.8,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 2.500000000000001
       },
       {
         "codigo": "2.2.2",
         "descricao": "Capina",
         "unidade": "M2",
-        "producao": 44.97
+        "producao": 44.97,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1
       }
     ]
   },
@@ -647,31 +809,41 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 152.5
+        "producao": 152.5,
+        "maoObraDireta": 8,
+        "horasTrabalhadas": 3.500000000000001
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 94
+        "producao": 94,
+        "maoObraDireta": 8,
+        "horasTrabalhadas": 3.4999999999999973
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 382.5
+        "producao": 382.5,
+        "maoObraDireta": 8,
+        "horasTrabalhadas": 3.499999999999996
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 463.5
+        "producao": 463.5,
+        "maoObraDireta": 8,
+        "horasTrabalhadas": 3
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 76
+        "producao": 76,
+        "maoObraDireta": 8,
+        "horasTrabalhadas": 2.999999999999997
       }
     ]
   },
@@ -685,43 +857,57 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1779.8
+        "producao": 1779.8,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 4.333333333333337
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 300
+        "producao": 300,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 4.333333333333335
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 490.5
+        "producao": 490.5,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 4.333333333333326
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 217
+        "producao": 217,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 4.333333333333336
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 273
+        "producao": 273,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 3.000000000000003
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1092
+        "producao": 1092,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 3.000000000000003
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 718.74
+        "producao": 718.74,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 3
       }
     ]
   },
@@ -735,19 +921,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 499.32
+        "producao": 499.32,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 3.500000000000008
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 62.7
+        "producao": 62.7,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1.0000000000000002
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 21
+        "producao": 21,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1.3333333333333333
       }
     ]
   },
@@ -761,7 +953,9 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 4100
+        "producao": 4100,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 7.7500000000000036
       }
     ]
   },
@@ -775,13 +969,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 933.31
+        "producao": 933.31,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.4999999999999973
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 4617.2
+        "producao": 4617.2,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.499999999999992
       }
     ]
   },
@@ -795,19 +993,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 4815.8
+        "producao": 4815.8,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 4435.2
+        "producao": 4435.2,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.4999999999999998
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 4171
+        "producao": 4171,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.0000000000000004
       }
     ]
   },
@@ -821,19 +1025,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 917.44
+        "producao": 917.44,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.5000000000000036
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 910.16
+        "producao": 910.16,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.499999999999998
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 39.3
+        "producao": 39.3,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 0.5000000000000003
       }
     ]
   },
@@ -847,19 +1057,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1232.27
+        "producao": 1232.27,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.4999999999999987
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 196.5
+        "producao": 196.5,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 0.999999999999998
       },
       {
         "codigo": "2.1.4",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
         "unidade": "M",
-        "producao": 113.4
+        "producao": 113.4,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.5000000000000004
       }
     ]
   },
@@ -873,13 +1089,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 7642.86
+        "producao": 7642.86,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.5000000000000027
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1355.4
+        "producao": 1355.4,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.5000000000000004
       }
     ]
   },
@@ -893,31 +1113,41 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1203.42
+        "producao": 1203.42,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1.5000000000000002
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 100
+        "producao": 100,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 2
       },
       {
         "codigo": "2.1.7",
         "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 100
+        "producao": 100,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 3.7499999999999956
       },
       {
         "codigo": "2.1.3.1",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção - Mec",
         "unidade": "M",
-        "producao": 166.5
+        "producao": 166.5,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 2
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 140.6
+        "producao": 140.6,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 2
       }
     ]
   },
@@ -931,13 +1161,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2150
+        "producao": 2150,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.0000000000000004
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 3000
+        "producao": 3000,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.500000000000001
       }
     ]
   },
@@ -951,19 +1185,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1662
+        "producao": 1662,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 3.7500000000000004
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 328.4
+        "producao": 328.4,
+        "maoObraDireta": 4,
+        "horasTrabalhadas": 2
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 50
+        "producao": 50,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 3.7499999999999956
       }
     ]
   },
@@ -977,19 +1217,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 620.44
+        "producao": 620.44,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.5000000000000053
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 368.16
+        "producao": 368.16,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.4999999999999982
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 125.5
+        "producao": 125.5,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.4999999999999996
       }
     ]
   },
@@ -1003,19 +1249,25 @@
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 95.5
+        "producao": 95.5,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 3.7499999999999996
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 80.8
+        "producao": 80.8,
+        "maoObraDireta": 4,
+        "horasTrabalhadas": 3.500000000000001
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 50
+        "producao": 50,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 3.000000000000003
       }
     ]
   },
@@ -1029,13 +1281,17 @@
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 36
+        "producao": 36,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 3.7499999999999885
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 19.2
+        "producao": 19.2,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 2.5000000000000004
       }
     ]
   },
@@ -1049,25 +1305,33 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 44.4
+        "producao": 44.4,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 0.9999999999999992
       },
       {
         "codigo": "2.1.2",
         "descricao": "Limpeza De Bueiros",
         "unidade": "M3",
-        "producao": 4.16
+        "producao": 4.16,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.0000000000000004
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 91.74
+        "producao": 91.74,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.5
       },
       {
         "codigo": "2.1.2",
         "descricao": "Limpeza De Bueiros",
         "unidade": "M3",
-        "producao": 12.6
+        "producao": 12.6,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 0.999999999999996
       }
     ]
   },
@@ -1081,13 +1345,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1210.9
+        "producao": 1210.9,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 4.333333333333327
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 245
+        "producao": 245,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 3.7499999999999996
       }
     ]
   },
@@ -1101,25 +1369,33 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2633.71
+        "producao": 2633.71,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 2.5
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 106.8
+        "producao": 106.8,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 183.04
+        "producao": 183.04,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1.4999999999999958
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 301.21
+        "producao": 301.21,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 2
       }
     ]
   },
@@ -1133,13 +1409,17 @@
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 70
+        "producao": 70,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 8.999999999999996
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 380
+        "producao": 380,
+        "maoObraDireta": 3,
+        "horasTrabalhadas": 9.08333333333331
       }
     ]
   },
@@ -1153,25 +1433,33 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 87.57
+        "producao": 87.57,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.1.2",
         "descricao": "Limpeza De Bueiros",
         "unidade": "M3",
-        "producao": 15.74
+        "producao": 15.74,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.0000000000000007
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 78.34
+        "producao": 78.34,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.0000000000000004
       },
       {
         "codigo": "2.1.2",
         "descricao": "Limpeza De Bueiros",
         "unidade": "M3",
-        "producao": 12.6
+        "producao": 12.6,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.4999999999999993
       }
     ]
   },
@@ -1185,7 +1473,9 @@
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 100
+        "producao": 100,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 9.083333333333371
       }
     ]
   },
@@ -1199,13 +1489,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2889.48
+        "producao": 2889.48,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.4999999999999987
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 299.5
+        "producao": 299.5,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 4.000000000000002
       }
     ]
   },
@@ -1219,13 +1513,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2262.12
+        "producao": 2262.12,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 5.9999999999999964
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 829.2
+        "producao": 829.2,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 6.999999999999992
       }
     ]
   },
@@ -1239,13 +1537,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2746.83
+        "producao": 2746.83,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.000000000000001
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 604.9
+        "producao": 604.9,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.9999999999999916
       }
     ]
   },
@@ -1259,13 +1561,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 885
+        "producao": 885,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.666666666666671
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 226
+        "producao": 226,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.4999999999999996
       }
     ]
   },
@@ -1279,13 +1585,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 4525.67
+        "producao": 4525.67,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.5000000000000027
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 291.3
+        "producao": 291.3,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.4999999999999933
       }
     ]
   },
@@ -1299,19 +1609,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2220
+        "producao": 2220,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.833333333333332
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 100
+        "producao": 100,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.9999999999999978
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 27
+        "producao": 27,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 1.9999999999999987
       }
     ]
   },
@@ -1325,13 +1641,17 @@
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 68
+        "producao": 68,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.5000000000000027
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 47
+        "producao": 47,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.9999999999999933
       }
     ]
   },
@@ -1345,7 +1665,9 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 3323.2
+        "producao": 3323.2,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.5000000000000075
       }
     ]
   },
@@ -1359,25 +1681,33 @@
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 5
+        "producao": 5,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 0.9999999999999991
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 53
+        "producao": 53,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.5000000000000009
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 70
+        "producao": 70,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.0000000000000007
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 500
+        "producao": 500,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.750000000000002
       }
     ]
   },
@@ -1391,13 +1721,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 4174.5
+        "producao": 4174.5,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 3347.22
+        "producao": 3347.22,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.5000000000000004
       }
     ]
   },
@@ -1411,13 +1745,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2925
+        "producao": 2925,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 4.25
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 1096
+        "producao": 1096,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.499999999999996
       }
     ]
   },
@@ -1431,13 +1769,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 188
+        "producao": 188,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.500000000000002
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 4815.8
+        "producao": 4815.8,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.500000000000008
       }
     ]
   },
@@ -1451,19 +1793,25 @@
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 100
+        "producao": 100,
+        "maoObraDireta": 4,
+        "horasTrabalhadas": 4.25
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 511.44
+        "producao": 511.44,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 4.2499999999999885
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 174.2
+        "producao": 174.2,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.9999999999999993
       }
     ]
   },
@@ -1477,19 +1825,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2923.61
+        "producao": 2923.61,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.4999999999999996
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 667.1
+        "producao": 667.1,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.500000000000001
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 121.4
+        "producao": 121.4,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.0000000000000033
       }
     ]
   },
@@ -1503,19 +1857,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1579.06
+        "producao": 1579.06,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 1.999999999999999
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 181.5
+        "producao": 181.5,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 0.7499999999999997
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 286.6
+        "producao": 286.6,
+        "maoObraDireta": 9,
+        "horasTrabalhadas": 0.7499999999999994
       }
     ]
   },
@@ -1529,13 +1889,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 597.31
+        "producao": 597.31,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.4999999999999982
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 203.1
+        "producao": 203.1,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.500000000000001
       }
     ]
   },
@@ -1549,31 +1913,41 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 426
+        "producao": 426,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 0.75
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 213
+        "producao": 213,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 1.749999999999996
       },
       {
         "codigo": "2.1.7",
         "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 6.7
+        "producao": 6.7,
+        "maoObraDireta": 2,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 386
+        "producao": 386,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 2
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 330
+        "producao": 330,
+        "maoObraDireta": 10,
+        "horasTrabalhadas": 2
       }
     ]
   },
@@ -1587,13 +1961,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2800.12
+        "producao": 2800.12,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.500000000000001
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 432.5
+        "producao": 432.5,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.5000000000000107
       }
     ]
   },
@@ -1607,25 +1985,33 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1486.8
+        "producao": 1486.8,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 1.9999999999999998
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 243
+        "producao": 243,
+        "maoObraDireta": 6,
+        "horasTrabalhadas": 1.5
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 460
+        "producao": 460,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1.9999999999999964
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 950
+        "producao": 950,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 2.0000000000000018
       }
     ]
   },
@@ -1639,13 +2025,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 301
+        "producao": 301,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 4.000000000000001
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1820
+        "producao": 1820,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.499999999999998
       }
     ]
   },
@@ -1659,25 +2049,33 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 300
+        "producao": 300,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1.3333333333333333
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 30
+        "producao": 30,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 0.5
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 300
+        "producao": 300,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 190.4
+        "producao": 190.4,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 3.999999999999997
       }
     ]
   },
@@ -1691,19 +2089,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 547.26
+        "producao": 547.26,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 0.9999999999999998
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 253.1
+        "producao": 253.1,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.9999999999999922
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 34.22
+        "producao": 34.22,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.499999999999999
       }
     ]
   },
@@ -1717,49 +2121,65 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 85.4
+        "producao": 85.4,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1.2500000000000007
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 113.44
+        "producao": 113.44,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1.5000000000000007
       },
       {
         "codigo": "2.1.2",
         "descricao": "Limpeza De Bueiros",
         "unidade": "M3",
-        "producao": 5.4
+        "producao": 5.4,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1.5000000000000002
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 70.25
+        "producao": 70.25,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 0.9999999999999996
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 88.3
+        "producao": 88.3,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1.0000000000000004
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 11.5
+        "producao": 11.5,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 0.49999999999999906
       },
       {
         "codigo": "2.1.4",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
         "unidade": "M",
-        "producao": 1.5
+        "producao": 1.5,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 0.3333333333333333
       },
       {
         "codigo": "2.1.2",
         "descricao": "Limpeza De Bueiros",
         "unidade": "M3",
-        "producao": 3.38
+        "producao": 3.38,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 1.1666666666666687
       }
     ]
   },
@@ -1773,25 +2193,33 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 480
+        "producao": 480,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.0000000000000018
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 468
+        "producao": 468,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.000000000000001
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 225
+        "producao": 225,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 0.9999999999999979
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 476
+        "producao": 476,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.5000000000000024
       }
     ]
   },
@@ -1805,25 +2233,33 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 480
+        "producao": 480,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.0000000000000009
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 468
+        "producao": 468,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.499999999999998
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 225
+        "producao": 225,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.0000000000000053
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 466
+        "producao": 466,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 1.5000000000000024
       }
     ]
   },
@@ -1837,13 +2273,17 @@
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 205.8
+        "producao": 205.8,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.5000000000000013
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 200
+        "producao": 200,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.5000000000000027
       }
     ]
   },
@@ -1857,7 +2297,9 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1
+        "producao": 1,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 0.9833333333333362
       }
     ]
   },
@@ -1871,13 +2313,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1
+        "producao": 1,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 0.3333333333333333
       },
       {
         "codigo": "2.2.2",
         "descricao": "Capina",
         "unidade": "M2",
-        "producao": 54
+        "producao": 54,
+        "maoObraDireta": 1,
+        "horasTrabalhadas": 1.5
       }
     ]
   },
@@ -1891,19 +2337,25 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1600
+        "producao": 1600,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.7499999999999982
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 200
+        "producao": 200,
+        "maoObraDireta": 4,
+        "horasTrabalhadas": 3.4999999999999964
       },
       {
         "codigo": "2.1.4",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
         "unidade": "M",
-        "producao": 550
+        "producao": 550,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 3.5000000000000053
       }
     ]
   },
@@ -1917,13 +2369,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 684
+        "producao": 684,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 2.8333333333333375
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 3168
+        "producao": 3168,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 3.7499999999999996
       }
     ]
   },
@@ -1937,13 +2393,17 @@
         "codigo": "2.2.2",
         "descricao": "Capina",
         "unidade": "M2",
-        "producao": 104.87
+        "producao": 104.87,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.999999999999998
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 419.5
+        "producao": 419.5,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.4999999999999987
       }
     ]
   },
@@ -1957,13 +2417,17 @@
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 12.5
+        "producao": 12.5,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.4999999999999964
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 12.5
+        "producao": 12.5,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.4999999999999964
       }
     ]
   },
@@ -1977,13 +2441,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 900
+        "producao": 900,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 2.3333333333333366
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2220
+        "producao": 2220,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 3.7500000000000027
       }
     ]
   },
@@ -1997,13 +2465,17 @@
         "codigo": "2.2.2",
         "descricao": "Capina",
         "unidade": "M2",
-        "producao": 101.2
+        "producao": 101.2,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.999999999999997
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 404.8
+        "producao": 404.8,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.500000000000005
       }
     ]
   },
@@ -2017,19 +2489,25 @@
         "codigo": "2.1.7",
         "descricao": "Recuperação De Drenagem Tipo Canaleta/Valeta Em Taludes, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 30
+        "producao": 30,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 3.0000000000000004
       },
       {
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 80
+        "producao": 80,
+        "maoObraDireta": 4,
+        "horasTrabalhadas": 1
       },
       {
         "codigo": "2.1.2",
         "descricao": "Limpeza De Bueiros",
         "unidade": "M3",
-        "producao": 11.7
+        "producao": 11.7,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 3.5000000000000018
       }
     ]
   },
@@ -2043,13 +2521,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 3309
+        "producao": 3309,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 2.3333333333333415
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 91
+        "producao": 91,
+        "maoObraDireta": 12,
+        "horasTrabalhadas": 3.4999999999999942
       }
     ]
   },
@@ -2063,13 +2545,17 @@
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 50
+        "producao": 50,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.9999999999999902
       },
       {
         "codigo": "2.1.8",
         "descricao": "Recuperação De Drenagem Tipop Sarjeta/Meio-Fio Em Plataforma, Limitando-Se A 100M De Extensão",
         "unidade": "M",
-        "producao": 65.1
+        "producao": 65.1,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 4.500000000000017
       }
     ]
   },
@@ -2083,25 +2569,33 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 1462
+        "producao": 1462,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 4.166666666666669
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 676
+        "producao": 676,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 0.9999999999999991
       },
       {
         "codigo": "2.1.5",
         "descricao": "Limpeza De Valeta, Sarjetas E Meio Fio",
         "unidade": "M",
-        "producao": 25
+        "producao": 25,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 0.49999999999999944
       },
       {
         "codigo": "2.1.4",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Com Seção Plena",
         "unidade": "M",
-        "producao": 101
+        "producao": 101,
+        "maoObraDireta": 11,
+        "horasTrabalhadas": 2.0000000000000004
       }
     ]
   },
@@ -2115,13 +2609,17 @@
         "codigo": "2.2.1",
         "descricao": "Roçada",
         "unidade": "M2",
-        "producao": 2333
+        "producao": 2333,
+        "maoObraDireta": 7,
+        "horasTrabalhadas": 6.166666666666672
       },
       {
         "codigo": "2.1.3",
         "descricao": "Limpeza De Canaleta Em Corte E Aterro Ate Meia Seção",
         "unidade": "M",
-        "producao": 579.5
+        "producao": 579.5,
+        "maoObraDireta": 5,
+        "horasTrabalhadas": 6.166666666666665
       }
     ]
   }

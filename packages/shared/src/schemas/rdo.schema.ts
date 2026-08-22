@@ -42,6 +42,8 @@ export const rdoAtividadeInputSchema = z
     larguraFinal: z.number().positive().nullable().optional(),
     comprimento: z.number().positive().nullable().optional(),
     quantidadeDireta: z.number().positive().nullable().optional(),
+    horasTrabalhadas: z.number().positive().nullable().optional(),
+    maoObraDireta: z.number().int().positive().nullable().optional(),
     unidade: unidadeMedidaSchema,
   })
   .superRefine((data, ctx) => {

@@ -281,6 +281,15 @@ model RdoAtividade {
   comprimento         Decimal?          @db.Decimal(10, 3)
   quantidadeDireta    Decimal?          @db.Decimal(12, 3)
   totalCalculado      Decimal           @db.Decimal(12, 3)
+  // Horas efetivamente dedicadas a ESTA atividade nesse dia, e quantas
+  // pessoas trabalharam nela — juntas formam os Homens-Hora usados como
+  // denominador do PUS por atividade (PUS = produção ÷ (mão de obra ×
+  // horas), fórmula da ENGECOM — ver calcularProdutividade em
+  // packages/server/src/routes/indicadores.ts). Ambas opcionais: quando
+  // não informadas, o cálculo estima a partir do RDO inteiro (mão de obra
+  // = efetivo do RDO; horas = horas do dia divididas entre as atividades).
+  horasTrabalhadas    Decimal?          @db.Decimal(6, 3)
+  maoObraDireta       Int?
   unidade             UnidadeMedida
 }
 

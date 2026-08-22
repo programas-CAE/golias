@@ -270,6 +270,8 @@ interface RdoHistoricoAtividadeRegistro {
   descricao: string;
   unidade: string;
   producao: number;
+  horasTrabalhadas: number;
+  maoObraDireta: number;
 }
 
 interface RdoHistoricoRegistro {
@@ -379,6 +381,8 @@ async function seedRdosHistoricos(): Promise<void> {
                   atividadeCatalogoId: catalogo.id,
                   unidade: catalogo.unidade,
                   totalCalculado: atividade.producao,
+                  horasTrabalhadas: atividade.horasTrabalhadas,
+                  maoObraDireta: Math.round(atividade.maoObraDireta),
                 })),
               },
             },
