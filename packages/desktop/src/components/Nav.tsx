@@ -8,7 +8,6 @@ const LINKS: Array<{ to: string; label: string }> = [
   { to: "/ordens-manutencao", label: "Ordens de Manutenção" },
   { to: "/atividades", label: "Catálogo de Atividades" },
   { to: "/medicoes", label: "Medição Mensal" },
-  { to: "/settings", label: "Configurações" },
 ];
 
 export default function Nav(): ReactElement {

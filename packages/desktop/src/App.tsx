@@ -1,7 +1,6 @@
 import type { ReactElement } from "react";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
-import Settings from "./pages/Settings";
 import Frentes from "./pages/Frentes";
 import FrenteDistritos from "./pages/FrenteDistritos";
 import DistritoDetalhe from "./pages/DistritoDetalhe";
@@ -19,7 +18,6 @@ export default function App(): ReactElement {
     <HashRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/settings" element={<Settings />} />
         <Route path="/frentes" element={<Frentes />} />
         <Route path="/frentes/:frenteId/distritos" element={<FrenteDistritos />} />
         <Route path="/distritos/:distritoId" element={<DistritoDetalhe />} />

@@ -63,25 +63,18 @@ pnpm --filter @golias/server run seed
 
 `packages/server/Dockerfile` gera uma imagem de produção autocontida (usa
 `pnpm deploy` para extrair só o que `@golias/server` precisa, incluindo a
-dependência de workspace `@golias/shared`). Passos num VPS com Docker e
-Docker Compose instalados:
+dependência de workspace `@golias/shared`), e `packages/web/Dockerfile` gera
+um build estático do app público servido por Nginx. `docker compose up -d
+--build` sobe os três: `db` (Postgres), `server` (API) e `web` (campo/fiscal)
+— todos publicados só em `127.0.0.1` no host, nunca direto na internet.
 
-```bash
-git clone <repo> golias && cd golias
-cp packages/server/.env.example packages/server/.env
-# edite packages/server/.env com valores reais:
-#  - DATABASE_URL com host "db" (não "localhost")
-#  - JWT_ACCESS_SECRET / JWT_REFRESH_SECRET gerados com:
-#      node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
-#  - SMTP_* e PUBLIC_*_URL de produção
-
-docker compose up -d --build
-```
-
-Isso sobe o Postgres (`db`) e a API (`server`, porta 3333) na mesma rede
-Docker; o container do servidor roda `prisma migrate deploy` automaticamente
-antes de iniciar. Para atualizar após um `git pull`:
-`docker compose up -d --build`.
+Isso é o desenho pensado para um VPS **compartilhado com outra aplicação**:
+o GOLIAS não abre portas públicas próprias, quem termina TLS e roteia por
+subdomínio é o reverse proxy (Nginx) que já roda no VPS. Já está implantado
+assim em produção (`engecomengenharia.online`) — estado atual, vhosts,
+segredos, como atualizar (não usa `git pull`, o código vai pro servidor via
+`tar`/`ssh`) e backup dos volumes estão documentados em
+[`deploy/README.md`](deploy/README.md).
 
 ## Como gerar o instalador do desktop
 
@@ -126,16 +119,15 @@ demorar alguns minutos.
 
 ## Pendências que dependem de você
 
-- **Instalar Docker Desktop OU um PostgreSQL local** — o ambiente em que
-  este projeto foi criado não tem nenhum dos dois, então as migrações do
-  Prisma (`prisma migrate dev`) ainda não foram executadas nem
-  versionadas. Assim que houver um banco acessível, rode o comando indicado
-  na seção "Banco de dados" acima para gerar a migração inicial.
-- **Contratar um VPS** para hospedar `@golias/server` e o Postgres de
-  produção.
 - **Configurar SMTP real** (host, porta, usuário e senha) para o envio dos
   e-mails de aprovação de RDO ao fiscal — hoje `packages/server/.env.example`
-  só documenta as variáveis, sem credenciais.
+  só documenta as variáveis, sem credenciais, e o envio em si (Fase 4) ainda
+  não foi implementado no código.
+- **Repositório git remoto** — o projeto ainda não tem um (`git init` nunca
+  rodou nesta pasta); o deploy em produção hoje sincroniza arquivos direto
+  por SSH (ver [`deploy/README.md`](deploy/README.md)) em vez de `git pull`.
+  Sem histórico versionado em lugar nenhum, então não há rollback fácil nem
+  backup do código fora desta máquina e do servidor.
 
 ## Notas técnicas
 

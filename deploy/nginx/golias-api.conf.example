@@ -1,0 +1,30 @@
+# Vhost do Nginx do HOST (fora do Docker) para a API do GOLIAS.
+#
+# Troque "api.golias.engecomengenharia.online" pelo subdomínio real e copie este
+# arquivo para /etc/nginx/sites-available/, depois:
+#   sudo ln -s /etc/nginx/sites-available/golias-api.conf /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#   sudo certbot --nginx -d api.golias.engecomengenharia.online
+#
+# O certbot reescreve este arquivo sozinho para adicionar o bloco HTTPS
+# (listen 443 ssl) — não precisa escrever certificado nenhum aqui antes.
+# Isso não mexe em nenhum outro server_name já configurado no Nginx.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.golias.engecomengenharia.online;
+
+    # Uploads de RDO (fotos/notas fiscais) vão até 15MB (ver
+    # packages/server/src/app.ts) — a margem evita 413 antes de chegar na API.
+    client_max_body_size 20m;
+
+    location / {
+        proxy_pass http://127.0.0.1:3333;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

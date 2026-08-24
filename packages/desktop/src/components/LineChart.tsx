@@ -16,7 +16,7 @@ const WIDTH = 560;
 const HEIGHT = 200;
 const PADDING = 32;
 
-export default function LineChart({ titulo, pontos, formatValue, cor = "#f97316" }: LineChartProps): ReactElement {
+export default function LineChart({ titulo, pontos, formatValue, cor = "#16a34a" }: LineChartProps): ReactElement {
   const valores = pontos.map((ponto) => ponto.valor).filter((valor): valor is number => valor != null);
   const temDados = valores.length > 0;
   const max = temDados ? Math.max(...valores, 0) : 1;
@@ -45,7 +45,7 @@ export default function LineChart({ titulo, pontos, formatValue, cor = "#f97316"
         <p className="chart-empty">Sem dados no período</p>
       ) : (
         <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`}>
-          <line x1={PADDING} y1={HEIGHT - PADDING} x2={WIDTH - PADDING} y2={HEIGHT - PADDING} stroke="#23304f" />
+          <line x1={PADDING} y1={HEIGHT - PADDING} x2={WIDTH - PADDING} y2={HEIGHT - PADDING} stroke="#dbe8de" />
           <path d={linhaPath} fill="none" stroke={cor} strokeWidth={2.5} />
           {coordenadas.map((coordenada) =>
             coordenada.y != null ? (

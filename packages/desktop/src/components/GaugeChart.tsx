@@ -31,12 +31,12 @@ export default function GaugeChart({ value, max, meta, label, formatValue }: Gau
   const clamped = value != null ? Math.max(0, Math.min(value, max)) : 0;
   const fracao = max > 0 ? clamped / max : 0;
   const anguloValor = -90 + 180 * fracao;
-  const corValor = value == null ? "#64748b" : meta != null && value >= meta ? "#22c55e" : "#f97316";
+  const corValor = value == null ? "#8a9c90" : meta != null && value >= meta ? "#16a34a" : "#d97706";
 
   return (
     <div className="gauge-chart">
       <svg viewBox={`0 0 ${SIZE} ${SIZE / 2 + 30}`}>
-        <path d={describeArc(CX, CY, RADIUS, -90, 90)} fill="none" stroke="#1b2740" strokeWidth={STROKE} strokeLinecap="round" />
+        <path d={describeArc(CX, CY, RADIUS, -90, 90)} fill="none" stroke="#e3ece5" strokeWidth={STROKE} strokeLinecap="round" />
         {value != null && (
           <path d={describeArc(CX, CY, RADIUS, -90, anguloValor)} fill="none" stroke={corValor} strokeWidth={STROKE} strokeLinecap="round" />
         )}
@@ -45,7 +45,7 @@ export default function GaugeChart({ value, max, meta, label, formatValue }: Gau
               const anguloMeta = -90 + 180 * Math.max(0, Math.min(meta / max, 1));
               const p1 = polarToCartesian(CX, CY, RADIUS - STROKE / 2 - 3, anguloMeta);
               const p2 = polarToCartesian(CX, CY, RADIUS + STROKE / 2 + 3, anguloMeta);
-              return <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#e2e8f0" strokeWidth={2} />;
+              return <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#16281c" strokeWidth={2} />;
             })()
           : null}
         <text x={CX} y={CY - 8} textAnchor="middle" className="gauge-value">

@@ -1,6 +1,6 @@
 /**
- * Wrapper de acesso às configurações persistidas do aplicativo (via
- * electron-store no processo principal). O acesso real acontece através da
+ * Wrapper de acesso ao endereço do servidor GOLIAS (fixo no processo
+ * principal — ver electron/main.ts). O acesso real acontece através da
  * ponte exposta pelo preload script (electron/preload.ts) em
  * `window.golias`; este módulo apenas oferece uma API tipada e um pouco
  * mais amigável para os componentes React consumirem.
@@ -13,10 +13,6 @@ export interface GoliasSettings {
 
 export async function getSettings(): Promise<GoliasSettings> {
   return window.golias.getSettings();
-}
-
-export async function setSettings(settings: GoliasSettings): Promise<GoliasSettings> {
-  return window.golias.setSettings(settings);
 }
 
 export function getAppVersion(): string {

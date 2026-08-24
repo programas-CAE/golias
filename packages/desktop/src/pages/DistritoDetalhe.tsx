@@ -207,7 +207,7 @@ export default function DistritoDetalhe(): ReactElement {
             )}
             <h1 className="list-title">{distrito?.nome ?? "Distrito"}</h1>
           </div>
-          <div style={{ display: "flex", gap: 12 }}>
+          <div className="dashboard-header-actions">
             <button type="button" className="button button--secondary" onClick={() => setEditandoColaborador(true)}>
               + Novo colaborador
             </button>

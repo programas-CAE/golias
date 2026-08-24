@@ -7,8 +7,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-golias}
       POSTGRES_USER: ${POSTGRES_USER:-golias}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-golias}
+    # Só em localhost: em produção (VPS compartilhado) o Postgres não precisa
+    # ficar acessível pela rede externa — o "server" já resolve "db" pela
+    # rede interna do Compose. Em dev local isso continua funcionando igual
+    # (localhost:5432), só deixa de responder a outras máquinas da rede.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - golias_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -31,8 +35,34 @@ services:
         condition: service_healthy
     env_file:
       - packages/server/.env
+    # Só em localhost: em produção o Nginx (ou outro reverse proxy) do VPS é
+    # quem fica exposto nas portas 80/443 e faz proxy_pass para
+    # 127.0.0.1:3333 — a API não fica acessível direto da internet, e a
+    # porta não conflita com outra aplicação já publicada no host.
     ports:
-      - "${SERVER_PORT:-3333}:3333"
+      - "127.0.0.1:${SERVER_PORT:-3333}:3333"
+    # UPLOADS_ROOT (packages/server/.env) é "./uploads", relativo ao working
+    # dir do container ("/app") — sem volume nomeado aqui, todo anexo de RDO
+    # (fotos, notas fiscais) seria perdido no próximo "docker compose up
+    # --build" (rebuild troca o container, filesystem dele não persiste).
+    volumes:
+      - golias_uploads_data:/app/uploads
+
+  # App público (Vite build estático + Nginx interno) usado nos links de
+  # campo (/campo/:token) e aprovação do fiscal (/fiscal/:token) gerados
+  # pelo server. Só existe em produção — em dev local continue usando
+  # "pnpm --filter @golias/web dev".
+  web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3333}
+    container_name: golias-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
 
 volumes:
   golias_db_data:
+  golias_uploads_data:

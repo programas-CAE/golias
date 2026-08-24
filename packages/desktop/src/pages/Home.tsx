@@ -5,9 +5,6 @@ import GaugeChart from "../components/GaugeChart";
 import LineChart from "../components/LineChart";
 import DonutChart from "../components/DonutChart";
 import { ApiError, api } from "../lib/apiClient";
-import { getSettings } from "../lib/settingsStore";
-
-type ConexaoStatus = "verificando" | "conectado" | "desconectado";
 
 interface ProdutividadeAtividade {
   id: string;
@@ -69,36 +66,9 @@ function mesAtual(): string {
 }
 
 export default function Home(): ReactElement {
-  const [apiUrl, setApiUrl] = useState<string>("");
-  const [status, setStatus] = useState<ConexaoStatus>("verificando");
   const [mes, setMes] = useState(mesAtual());
   const [dados, setDados] = useState<Indicadores | null>(null);
   const [erro, setErro] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelado = false;
-
-    async function verificarConexao(): Promise<void> {
-      setStatus("verificando");
-      const settings = await getSettings();
-      if (cancelado) return;
-      setApiUrl(settings.apiUrl);
-
-      try {
-        const resposta = await fetch(`${settings.apiUrl.replace(/\/$/, "")}/health`, {
-          signal: AbortSignal.timeout(4000),
-        });
-        if (!cancelado) setStatus(resposta.ok ? "conectado" : "desconectado");
-      } catch {
-        if (!cancelado) setStatus("desconectado");
-      }
-    }
-
-    void verificarConexao();
-    return () => {
-      cancelado = true;
-    };
-  }, []);
 
   useEffect(() => {
     let cancelado = false;
@@ -132,16 +102,9 @@ export default function Home(): ReactElement {
           </div>
           <div className="dashboard-header-actions">
             <input type="month" className="field-input" value={mes} onChange={(event) => setMes(event.target.value)} />
-            <span className={`status-pill status-pill--${status} status-pill--compact`}>
-              <span className="status-dot" />
-              {status === "verificando" && "Verificando…"}
-              {status === "conectado" && "Conectado"}
-              {status === "desconectado" && "Não conectado"}
-            </span>
           </div>
         </div>
 
-        {apiUrl && status === "desconectado" && <p className="status-url">{apiUrl}</p>}
         {erro && <p className="feedback feedback--erro">{erro}</p>}
 
         {!dados ? (
@@ -170,12 +133,12 @@ export default function Home(): ReactElement {
                 titulo="Evolução da eficiência (%)"
                 pontos={dados.evolucaoSemanal.map((semana) => ({ rotulo: semana.semana, valor: semana.eficiencia }))}
                 formatValue={(valor) => `${valor.toFixed(0)}%`}
-                cor="#22c55e"
+                cor="#16a34a"
               />
               <LineChart
                 titulo="RDOs emitidos por semana"
                 pontos={dados.evolucaoSemanal.map((semana) => ({ rotulo: semana.semana, valor: semana.rdosEmitidos }))}
-                cor="#f97316"
+                cor="#15803d"
               />
             </div>
 
@@ -199,8 +162,8 @@ export default function Home(): ReactElement {
               <DonutChart
                 titulo="Distribuição das horas"
                 fatias={[
-                  { rotulo: "Produtivas", valor: dados.horasProdutivas, cor: "#f97316" },
-                  { rotulo: "Improdutivas", valor: dados.horasImprodutivas, cor: "#64748b" },
+                  { rotulo: "Produtivas", valor: dados.horasProdutivas, cor: "#16a34a" },
+                  { rotulo: "Improdutivas", valor: dados.horasImprodutivas, cor: "#8a9c90" },
                 ]}
               />
 

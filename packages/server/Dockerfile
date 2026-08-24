@@ -18,8 +18,20 @@ RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
 COPY . .
+# prisma.config.ts exige DATABASE_URL resolvível só para carregar a config
+# (mesmo "generate", que não conecta no banco, só lê o schema). O .env real
+# não existe nesta etapa de build (fica de fora da imagem por segurança —
+# ver .dockerignore), então um valor fictício aqui é só pra passar dessa
+# checagem; em runtime o env_file do Compose sobrescreve com o valor real.
+ENV DATABASE_URL="postgresql://user:pass@localhost:5432/db?schema=public"
 RUN pnpm --filter @golias/server exec prisma generate
 RUN pnpm --filter @golias/server deploy --prod --legacy /deploy/server
+# "pnpm deploy" monta um node_modules próprio para /deploy/server a partir
+# do lockfile — não reaproveita o client Prisma gerado no passo acima (que
+# ficou no node_modules do workspace, não no diretório deployado). Sem isto,
+# @prisma/client fica com o pacote publicado (sem o client gerado do nosso
+# schema) e o server quebra no import em runtime.
+RUN cd /deploy/server && node_modules/.bin/prisma generate
 
 FROM node:22-alpine AS production
 RUN addgroup -g 1001 -S golias && adduser -S golias -u 1001

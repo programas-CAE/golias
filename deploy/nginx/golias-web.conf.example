@@ -1,0 +1,27 @@
+# Vhost do Nginx do HOST (fora do Docker) para o app de campo/fiscal
+# (@golias/web), servido pelo container "web" na porta interna 8080.
+#
+# Troque "campo.golias.engecomengenharia.online" pelo subdomínio real e copie este
+# arquivo para /etc/nginx/sites-available/, depois:
+#   sudo ln -s /etc/nginx/sites-available/golias-web.conf /etc/nginx/sites-enabled/
+#   sudo nginx -t && sudo systemctl reload nginx
+#   sudo certbot --nginx -d campo.golias.engecomengenharia.online
+#
+# O certbot reescreve este arquivo sozinho para adicionar o bloco HTTPS
+# (listen 443 ssl) — não precisa escrever certificado nenhum aqui antes.
+# Isso não mexe em nenhum outro server_name já configurado no Nginx.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name campo.golias.engecomengenharia.online;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

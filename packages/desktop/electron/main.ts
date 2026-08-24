@@ -1,18 +1,21 @@
-import { app, BrowserWindow, ipcMain, type IpcMainInvokeEvent } from "electron";
+import { app, BrowserWindow, Menu, ipcMain } from "electron";
 import path from "node:path";
-import Store from "electron-store";
 
 interface GoliasSettings {
   apiUrl: string;
   webUrl: string;
 }
 
-const store = new Store<GoliasSettings>({
-  defaults: {
-    apiUrl: "http://localhost:3333",
-    webUrl: "http://localhost:5173",
-  },
-});
+// Endereço do servidor GOLIAS de produção, fixo no instalador — não existe
+// mais tela de configurações para trocar isso em runtime. Constante (não
+// electron-store): instalações anteriores a essa mudança já tinham salvo
+// "http://localhost:3333" no store do usuário, e o default do electron-store
+// só vale na primeira execução — nunca sobrescreve um valor já persistido.
+// Fixando a constante aqui, todo mundo aponta pra produção sempre.
+const SETTINGS: GoliasSettings = {
+  apiUrl: "https://api.golias.engecomengenharia.online",
+  webUrl: "https://campo.golias.engecomengenharia.online",
+};
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -21,7 +24,7 @@ function createWindow(): void {
     width: 1280,
     height: 800,
     title: "GOLIAS",
-    backgroundColor: "#0f172a",
+    backgroundColor: "#f4faf6",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -43,24 +46,10 @@ function createWindow(): void {
   });
 }
 
-ipcMain.handle("settings:get", (): GoliasSettings => {
-  return { apiUrl: store.get("apiUrl"), webUrl: store.get("webUrl") };
-});
-
-ipcMain.handle(
-  "settings:set",
-  (_event: IpcMainInvokeEvent, settings: Partial<GoliasSettings>): GoliasSettings => {
-    if (typeof settings.apiUrl === "string" && settings.apiUrl.trim().length > 0) {
-      store.set("apiUrl", settings.apiUrl.trim());
-    }
-    if (typeof settings.webUrl === "string" && settings.webUrl.trim().length > 0) {
-      store.set("webUrl", settings.webUrl.trim());
-    }
-    return { apiUrl: store.get("apiUrl"), webUrl: store.get("webUrl") };
-  },
-);
+ipcMain.handle("settings:get", (): GoliasSettings => SETTINGS);
 
 void app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   createWindow();
 
   app.on("activate", () => {
