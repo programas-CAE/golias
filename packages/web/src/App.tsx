@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-dom";
 import Campo from "./pages/Campo";
+import Verificar from "./pages/Verificar";
 
 function Placeholder({ titulo, descricao }: { titulo: string; descricao: string }): ReactElement {
   return (
@@ -39,6 +40,7 @@ export default function App(): ReactElement {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/campo/:token" element={<Campo />} />
+        <Route path="/verificar/:id" element={<Verificar />} />
         <Route path="/fiscal/:token" element={<FiscalPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

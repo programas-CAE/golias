@@ -37,6 +37,9 @@ export type RdoBlocoHorarioInput = z.infer<typeof rdoBlocoHorarioInputSchema>;
 export const rdoAtividadeInputSchema = z
   .object({
     atividadeCatalogoId: z.string().cuid(),
+    // Cada atividade é autorizada por uma OM própria — ver comentário no
+    // model RdoAtividade em packages/server/prisma/schema.prisma.
+    ordemManutencaoId: z.string().cuid().nullable().optional(),
     altura: z.number().positive().nullable().optional(),
     largura: z.number().positive().nullable().optional(),
     larguraFinal: z.number().positive().nullable().optional(),
@@ -83,9 +86,6 @@ export const rdoAtividadeInputSchema = z
 export type RdoAtividadeInput = z.infer<typeof rdoAtividadeInputSchema>;
 
 export const rdoLocalInputSchema = z.object({
-  // Um mesmo RDO pode cobrir vários trechos/locais no mesmo dia, cada um
-  // vinculado a uma OM diferente — por isso a OM fica aqui, não no RDO.
-  ordemManutencaoId: z.string().cuid().nullable().optional(),
   descricao: z.string().min(1, "Descrição do local é obrigatória"),
   kmInicial: z.number().nonnegative().nullable().optional(),
   kmFinal: z.number().nonnegative().nullable().optional(),
@@ -135,7 +135,6 @@ export const rdoCreateInputSchema = z.object({
   clima: tempoClimaSchema.nullable().optional(),
   encarregadoId: z.string().cuid().nullable().optional(),
   totalDesvios: z.number().int().nonnegative().nullable().optional(),
-  temperaturaMedia: z.number().nullable().optional(),
   observacoesContratada: z.string().max(4000).nullable().optional(),
   locais: z.array(rdoLocalInputSchema).min(1, "Informe ao menos um local trabalhado"),
   maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),
@@ -167,7 +166,6 @@ export const rdoCampoUpdateInputSchema = z.object({
   clima: tempoClimaSchema.nullable().optional(),
   encarregadoId: z.string().cuid().nullable().optional(),
   totalDesvios: z.number().int().nonnegative().nullable().optional(),
-  temperaturaMedia: z.number().nullable().optional(),
   observacoesContratada: z.string().max(4000).nullable().optional(),
   locais: z.array(rdoLocalInputSchema).default([]),
   maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),

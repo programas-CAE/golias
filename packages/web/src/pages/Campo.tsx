@@ -1,6 +1,7 @@
 import { useEffect, useState, type ChangeEvent, type ReactElement } from "react";
 import { useParams } from "react-router-dom";
 import { ApiError, api } from "../lib/apiClient";
+import Autocomplete from "../components/Autocomplete";
 
 interface Ref {
   id: string;
@@ -29,6 +30,7 @@ interface AtividadeCatalogo {
 interface OrdemManutencaoRef {
   id: string;
   numero: string;
+  detalhes?: string | null;
 }
 
 interface RdoAnexo {
@@ -40,6 +42,7 @@ interface RdoAnexo {
 
 interface RdoAtividadeSalva {
   atividadeCatalogoId: string;
+  ordemManutencaoId: string | null;
   altura: string | null;
   largura: string | null;
   larguraFinal: string | null;
@@ -52,7 +55,6 @@ interface RdoAtividadeSalva {
 
 interface RdoLocalSalvo {
   descricao: string;
-  ordemManutencaoId: string | null;
   kmInicial: string | null;
   kmFinal: string | null;
   lado: string | null;
@@ -100,7 +102,6 @@ interface Rdo {
   horaExtraInicio: string | null;
   horaExtraFim: string | null;
   totalDesvios: number | null;
-  temperaturaMedia: string | null;
   observacoesContratada: string | null;
   blocosHorario: RdoBlocoSalvo[];
   locais: RdoLocalSalvo[];
@@ -118,6 +119,7 @@ interface CampoResponse {
 
 interface AtividadeDraft {
   atividadeCatalogoId: string;
+  ordemManutencaoId: string;
   unidade: string;
   altura: string;
   largura: string;
@@ -130,7 +132,6 @@ interface AtividadeDraft {
 
 interface LocalDraft {
   descricao: string;
-  ordemManutencaoId: string;
   kmInicial: string;
   kmFinal: string;
   lado: string;
@@ -152,6 +153,7 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
   const primeira = atividadesCatalogo[0];
   return {
     atividadeCatalogoId: primeira?.id ?? "",
+    ordemManutencaoId: "",
     unidade: primeira?.unidade ?? "UND",
     altura: "",
     largura: "",
@@ -166,7 +168,6 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
 function novoLocal(atividadesCatalogo: AtividadeCatalogo[]): LocalDraft {
   return {
     descricao: "",
-    ordemManutencaoId: "",
     kmInicial: "",
     kmFinal: "",
     lado: "",
@@ -187,7 +188,6 @@ export default function Campo(): ReactElement {
   const [horaExtraInicio, setHoraExtraInicio] = useState("");
   const [horaExtraFim, setHoraExtraFim] = useState("");
   const [totalDesvios, setTotalDesvios] = useState("");
-  const [temperaturaMedia, setTemperaturaMedia] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [blocos, setBlocos] = useState<BlocoDraft[]>([]);
   const [materiais, setMateriais] = useState<MaterialDraft[]>([]);
@@ -223,7 +223,6 @@ export default function Campo(): ReactElement {
         setHoraExtraInicio(resposta.rdo.horaExtraInicio ?? "");
         setHoraExtraFim(resposta.rdo.horaExtraFim ?? "");
         setTotalDesvios(resposta.rdo.totalDesvios != null ? String(resposta.rdo.totalDesvios) : "");
-        setTemperaturaMedia(resposta.rdo.temperaturaMedia ?? "");
         setObservacoes(resposta.rdo.observacoesContratada ?? "");
         setMateriais(
           resposta.rdo.materiais.map((material) => ({
@@ -240,12 +239,12 @@ export default function Campo(): ReactElement {
           resposta.rdo.locais.length > 0
             ? resposta.rdo.locais.map((local) => ({
                 descricao: local.descricao,
-                ordemManutencaoId: local.ordemManutencaoId ?? "",
                 kmInicial: local.kmInicial ?? "",
                 kmFinal: local.kmFinal ?? "",
                 lado: local.lado ?? "",
                 atividades: local.atividades.map((atividade) => ({
                   atividadeCatalogoId: atividade.atividadeCatalogoId,
+                  ordemManutencaoId: atividade.ordemManutencaoId ?? "",
                   unidade: atividade.unidade,
                   altura: atividade.altura ?? "",
                   largura: atividade.largura ?? "",
@@ -364,7 +363,6 @@ export default function Campo(): ReactElement {
       horaExtraInicio: horaExtraInicio === "" ? null : horaExtraInicio,
       horaExtraFim: horaExtraFim === "" ? null : horaExtraFim,
       totalDesvios: totalDesvios === "" ? null : Number(totalDesvios),
-      temperaturaMedia: temperaturaMedia === "" ? null : Number(temperaturaMedia),
       observacoesContratada: observacoes === "" ? null : observacoes,
       blocosHorario: blocos
         .filter((b) => b.horarioInicial && b.horarioFinal && b.descricao)
@@ -373,13 +371,13 @@ export default function Campo(): ReactElement {
         .filter((local) => local.descricao.trim() !== "" && local.atividades.length > 0)
         .map((local, ordem) => ({
           descricao: local.descricao,
-          ordemManutencaoId: local.ordemManutencaoId || null,
           kmInicial: local.kmInicial === "" ? null : Number(local.kmInicial),
           kmFinal: local.kmFinal === "" ? null : Number(local.kmFinal),
           lado: local.lado || null,
           ordem,
           atividades: local.atividades.map((atividade) => ({
             atividadeCatalogoId: atividade.atividadeCatalogoId,
+            ordemManutencaoId: atividade.ordemManutencaoId || null,
             unidade: atividade.unidade,
             altura: atividade.altura === "" ? null : Number(atividade.altura),
             largura: atividade.largura === "" ? null : Number(atividade.largura),
@@ -497,16 +495,6 @@ export default function Campo(): ReactElement {
               onChange={(event) => setTotalDesvios(event.target.value)}
             />
           </div>
-          <div>
-            <label className="field-label">Temperatura média (°C)</label>
-            <input
-              type="number"
-              step="0.1"
-              className="field-input"
-              value={temperaturaMedia}
-              onChange={(event) => setTemperaturaMedia(event.target.value)}
-            />
-          </div>
         </div>
       </section>
 
@@ -564,20 +552,6 @@ export default function Campo(): ReactElement {
               onChange={(event) => atualizarLocal(localIndice, "descricao", event.target.value)}
             />
 
-            <label className="field-label">Ordem de manutenção (opcional)</label>
-            <select
-              className="field-input"
-              value={local.ordemManutencaoId}
-              onChange={(event) => atualizarLocal(localIndice, "ordemManutencaoId", event.target.value)}
-            >
-              <option value="">Nenhuma</option>
-              {ordensManutencao.map((om) => (
-                <option key={om.id} value={om.id}>
-                  {om.numero}
-                </option>
-              ))}
-            </select>
-
             <div className="campo-grid-3">
               <div>
                 <label className="field-label">Km inicial</label>
@@ -626,6 +600,17 @@ export default function Campo(): ReactElement {
                       </option>
                     ))}
                   </select>
+
+                  <Autocomplete
+                    value={atividade.ordemManutencaoId}
+                    items={ordensManutencao}
+                    getLabel={(om) => om.numero}
+                    getSublabel={(om) => om.detalhes}
+                    onChange={(ordemManutencaoId) =>
+                      atualizarAtividade(localIndice, atividadeIndice, "ordemManutencaoId", ordemManutencaoId)
+                    }
+                    placeholder="Ordem de manutenção (opcional)"
+                  />
 
                   {atividade.unidade === "M3" && (
                     <div className="campo-grid-3">
@@ -816,17 +801,13 @@ export default function Campo(): ReactElement {
         <h2>Materiais utilizados</h2>
         {materiais.map((material, indice) => (
           <div className="campo-item" key={indice}>
-            <select
-              className="field-input"
+            <Autocomplete
               value={material.materialCatalogoId}
-              onChange={(event) => atualizarMaterial(indice, "materialCatalogoId", event.target.value)}
-            >
-              {materiaisCatalogo.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.descricao} ({item.unidade})
-                </option>
-              ))}
-            </select>
+              items={materiaisCatalogo}
+              getLabel={(item) => `${item.descricao} (${item.unidade})`}
+              placeholder="Digite o nome do material…"
+              onChange={(materialCatalogoId) => atualizarMaterial(indice, "materialCatalogoId", materialCatalogoId)}
+            />
             <input
               type="number"
               step="0.001"

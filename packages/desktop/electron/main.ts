@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, ipcMain } from "electron";
+import { app, BrowserWindow, Menu, ipcMain, shell } from "electron";
 import path from "node:path";
 
 interface GoliasSettings {
@@ -47,6 +47,14 @@ function createWindow(): void {
 }
 
 ipcMain.handle("settings:get", (): GoliasSettings => SETTINGS);
+
+// Só abre URLs do próprio servidor GOLIAS (API ou web) no navegador padrão do
+// sistema — evita que a página vire um abridor de links arbitrários.
+ipcMain.handle("shell:openExternal", (_event, url: string): void => {
+  if (url.startsWith(SETTINGS.apiUrl) || url.startsWith(SETTINGS.webUrl)) {
+    void shell.openExternal(url);
+  }
+});
 
 void app.whenReady().then(() => {
   Menu.setApplicationMenu(null);

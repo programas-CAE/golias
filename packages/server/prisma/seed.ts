@@ -36,10 +36,23 @@ async function seedFrentes(): Promise<void> {
     const existente = await prisma.frente.findUnique({ where: { codigo: frente.codigo } });
     await prisma.frente.upsert({
       where: { codigo: frente.codigo },
-      // Só aplica o contrato do seed se ainda não foi definido — não
-      // sobrescreve um vínculo que o usuário já ajustou pela tela de Frentes.
-      update: { nome: frente.nome, ...(existente?.contratoId == null ? { contratoId } : {}) },
-      create: { codigo: frente.codigo, nome: frente.nome, contratoId },
+      // Só aplica o contrato/meta do seed se ainda não foram definidos — não
+      // sobrescreve valores que o usuário já ajustou pela tela de Frentes.
+      update: {
+        nome: frente.nome,
+        ...(existente?.contratoId == null ? { contratoId } : {}),
+        ...(existente?.metaEficienciaPct == null && frente.metaEficienciaPct != null
+          ? { metaEficienciaPct: frente.metaEficienciaPct }
+          : {}),
+        ...(existente?.metaPusGeral == null && frente.metaPusGeral != null ? { metaPusGeral: frente.metaPusGeral } : {}),
+      },
+      create: {
+        codigo: frente.codigo,
+        nome: frente.nome,
+        contratoId,
+        metaEficienciaPct: frente.metaEficienciaPct,
+        metaPusGeral: frente.metaPusGeral,
+      },
     });
   }
   console.log(`Frentes: ${FRENTES.length} sincronizadas.`);

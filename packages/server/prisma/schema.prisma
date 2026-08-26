@@ -100,15 +100,21 @@ model Contrato {
 }
 
 model Frente {
-  id               String            @id @default(cuid())
-  codigo           FrenteCodigo      @unique
-  nome             String
-  contratoId       String
-  contrato         Contrato          @relation(fields: [contratoId], references: [id])
-  ativo            Boolean           @default(true)
-  distritos        Distrito[]
-  ordensManutencao OrdemManutencao[]
-  rdos             Rdo[]
+  id                String            @id @default(cuid())
+  codigo            FrenteCodigo      @unique
+  nome              String
+  contratoId        String
+  contrato          Contrato          @relation(fields: [contratoId], references: [id])
+  ativo             Boolean           @default(true)
+  // Meta de eficiência (%) usada como referência no gauge "PUS por frente"
+  // da tela de início — ver packages/shared/src/constants/catalogo.ts.
+  metaEficienciaPct Decimal?          @db.Decimal(5, 2)
+  // Meta de PUS geral da equipe (não por atividade) — só exibida como
+  // referência, sem um "PUS geral" calculado para comparar.
+  metaPusGeral      Decimal?          @db.Decimal(6, 2)
+  distritos         Distrito[]
+  ordensManutencao  OrdemManutencao[]
+  rdos              Rdo[]
 }
 
 // Subdivisão geográfica de uma Frente (ex.: Marabá, Bom Jesus das Selvas).
@@ -170,7 +176,7 @@ model OrdemManutencao {
   kmFinal     Decimal?   @db.Decimal(10, 3)
   lado        String?
   detalhes    String?
-  locais      RdoLocal[]
+  atividades  RdoAtividade[]
 }
 
 model Usuario {
@@ -208,7 +214,6 @@ model Rdo {
   clima             TempoClima?
   encarregadoId     String?
   totalDesvios      Int?
-  temperaturaMedia  Decimal?         @db.Decimal(4, 1)
   observacoesContratada String?      @db.Text
   observacoesCliente    String?      @db.Text
   status            RdoStatus        @default(RASCUNHO)
@@ -257,10 +262,6 @@ model RdoLocal {
   id                String           @id @default(cuid())
   rdoId             String
   rdo               Rdo              @relation(fields: [rdoId], references: [id])
-  // Um mesmo RDO pode cobrir vários trechos/locais no mesmo dia, cada um
-  // vinculado a uma OM diferente — por isso a OM fica aqui, não em Rdo.
-  ordemManutencaoId String?
-  ordemManutencao   OrdemManutencao? @relation(fields: [ordemManutencaoId], references: [id])
   descricao         String
   kmInicial         Decimal?         @db.Decimal(10, 3)
   kmFinal           Decimal?         @db.Decimal(10, 3)
@@ -275,6 +276,11 @@ model RdoAtividade {
   rdoLocal            RdoLocal          @relation(fields: [rdoLocalId], references: [id])
   atividadeCatalogoId String
   atividadeCatalogo   AtividadeCatalogo @relation(fields: [atividadeCatalogoId], references: [id])
+  // Cada atividade é autorizada por uma OM própria — um mesmo local/trecho
+  // pode ter atividades diferentes cobertas por OMs diferentes, por isso a
+  // OM fica aqui, não em RdoLocal.
+  ordemManutencaoId   String?
+  ordemManutencao     OrdemManutencao?  @relation(fields: [ordemManutencaoId], references: [id])
   altura              Decimal?          @db.Decimal(10, 3)
   largura             Decimal?          @db.Decimal(10, 3)
   larguraFinal        Decimal?          @db.Decimal(10, 3)

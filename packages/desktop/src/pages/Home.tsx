@@ -24,6 +24,8 @@ interface FrenteIndicador {
   codigo: string;
   rdosEmitidos: number;
   eficiencia: number | null;
+  metaEficiencia: number;
+  metaPus: number | null;
 }
 
 interface CausaImprodutividade {
@@ -50,7 +52,6 @@ interface Indicadores {
   ordensManutencao: number;
   maoDeObraMedia: number;
   totalDesvios: number;
-  temperaturaMedia: number | null;
   eficienciaGeral: number | null;
   horasImprodutivas: number;
   horasProdutivas: number;
@@ -121,11 +122,6 @@ export default function Home(): ReactElement {
                 vazio={dados.eficienciaGeral == null}
               />
               <KpiCard label="Total de desvios" valor={String(dados.totalDesvios)} vazio={dados.rdosEmitidos === 0} />
-              <KpiCard
-                label="Temperatura média"
-                valor={dados.temperaturaMedia != null ? `${dados.temperaturaMedia.toFixed(1)}°C` : "—"}
-                vazio={dados.temperaturaMedia == null}
-              />
             </div>
 
             <div className="dashboard-charts">
@@ -146,14 +142,20 @@ export default function Home(): ReactElement {
               <h2 className="form-section-title">PUS por frente</h2>
               <div className="dashboard-gauges">
                 {dados.porFrente.map((frente) => (
-                  <GaugeChart
-                    key={frente.id}
-                    label={`${frente.nome} (${frente.rdosEmitidos} RDO${frente.rdosEmitidos === 1 ? "" : "s"})`}
-                    value={frente.eficiencia}
-                    max={150}
-                    meta={100}
-                    formatValue={(valor) => `${valor.toFixed(0)}%`}
-                  />
+                  <div key={frente.id}>
+                    <GaugeChart
+                      label={`${frente.nome} (${frente.rdosEmitidos} RDO${frente.rdosEmitidos === 1 ? "" : "s"})`}
+                      value={frente.eficiencia}
+                      max={150}
+                      meta={frente.metaEficiencia}
+                      formatValue={(valor) => `${valor.toFixed(0)}%`}
+                    />
+                    {frente.metaPus != null && (
+                      <p className="list-subtitle" style={{ textAlign: "center", marginTop: -8 }}>
+                        Meta de PUS da equipe: {frente.metaPus.toFixed(1)}
+                      </p>
+                    )}
+                  </div>
                 ))}
               </div>
             </section>

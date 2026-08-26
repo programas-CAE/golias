@@ -175,6 +175,71 @@ textarea.field-input {
   line-height: 1.5;
 }
 
+.om-autocomplete {
+  position: relative;
+}
+
+.om-autocomplete-lista {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #dbe8de;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(20, 40, 28, 0.16);
+}
+
+.om-autocomplete-lista li + li {
+  margin-top: 2px;
+}
+
+.om-autocomplete-lista button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.om-autocomplete-lista button:hover,
+.om-autocomplete-lista button:focus-visible {
+  background: #eaf5ec;
+}
+
+.om-autocomplete-numero {
+  font-weight: 600;
+  color: #16281c;
+}
+
+.om-autocomplete-detalhes {
+  font-size: 0.8rem;
+  color: #5b7268;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.om-autocomplete-vazio {
+  padding: 8px 10px;
+  font-size: 0.85rem;
+  color: #5b7268;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
@@ -415,7 +480,8 @@ textarea.field-input {
   margin-bottom: 8px;
 }
 
-.material-row select {
+.material-row select,
+.material-row .om-autocomplete {
   min-width: 0;
 }
 

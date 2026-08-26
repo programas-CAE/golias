@@ -106,16 +106,12 @@ export function registerDistritosRoutes(app: FastifyInstance): void {
         ? rdos.reduce((soma, rdo) => soma + rdo.maoDeObra.reduce((s, mdo) => s + mdo.quantidade, 0), 0) / rdosEmitidos
         : 0;
     const totalDesvios = rdos.reduce((soma, rdo) => soma + (rdo.totalDesvios ?? 0), 0);
-    const temperaturas = rdos.map((rdo) => rdo.temperaturaMedia).filter((valor): valor is Prisma.Decimal => valor != null);
-    const temperaturaMedia =
-      temperaturas.length > 0 ? temperaturas.reduce((soma, valor) => soma + Number(valor), 0) / temperaturas.length : null;
 
     return {
       periodo,
       rdosEmitidos,
       maoDeObraMedia,
       totalDesvios,
-      temperaturaMedia,
       eficienciaGeral: resumo.eficiencia,
       horasTrabalhadas: resumo.horasTrabalhadas,
       horasImprodutivas: resumo.horasImprodutivas,

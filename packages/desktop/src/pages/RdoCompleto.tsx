@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
 import CroquiAtividade from "../components/CroquiAtividade";
+import Autocomplete from "../components/Autocomplete";
 import { ApiError, api } from "../lib/apiClient";
 
 interface Frente {
@@ -53,10 +54,12 @@ interface OrdemManutencao {
   id: string;
   numero: string;
   frenteId: string;
+  detalhes: string | null;
 }
 
 interface AtividadeDraft {
   atividadeCatalogoId: string;
+  ordemManutencaoId: string;
   unidade: string;
   altura: string;
   largura: string;
@@ -69,7 +72,6 @@ interface AtividadeDraft {
 
 interface LocalDraft {
   descricao: string;
-  ordemManutencaoId: string;
   kmInicial: string;
   kmFinal: string;
   lado: string;
@@ -107,6 +109,7 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
   const primeira = atividadesCatalogo[0];
   return {
     atividadeCatalogoId: primeira?.id ?? "",
+    ordemManutencaoId: "",
     unidade: primeira?.unidade ?? "UND",
     altura: "",
     largura: "",
@@ -121,7 +124,6 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
 function novoLocal(atividadesCatalogo: AtividadeCatalogo[]): LocalDraft {
   return {
     descricao: "",
-    ordemManutencaoId: "",
     kmInicial: "",
     kmFinal: "",
     lado: "",
@@ -170,7 +172,6 @@ export default function RdoCompleto(): ReactElement {
   const [encarregadoId, setEncarregadoId] = useState("");
   const [clima, setClima] = useState("");
   const [totalDesvios, setTotalDesvios] = useState("");
-  const [temperaturaMedia, setTemperaturaMedia] = useState("");
   const [horaExtraInicio, setHoraExtraInicio] = useState("");
   const [horaExtraFim, setHoraExtraFim] = useState("");
 
@@ -290,7 +291,7 @@ export default function RdoCompleto(): ReactElement {
   function adicionarOutraMaoDeObra(): void {
     setOutrasMaoDeObra((atual) => [
       ...atual,
-      { funcaoId: funcoes[0]?.id ?? "", colaboradorId: "", quantidade: "1" },
+      { funcaoId: funcoes[0]?.id ?? "", colaboradorId: colaboradores[0]?.id ?? "", quantidade: "1" },
     ]);
   }
 
@@ -321,7 +322,6 @@ export default function RdoCompleto(): ReactElement {
       clima: clima === "" ? null : clima,
       encarregadoId: encarregadoId === "" ? null : encarregadoId,
       totalDesvios: totalDesvios === "" ? null : Number(totalDesvios),
-      temperaturaMedia: temperaturaMedia === "" ? null : Number(temperaturaMedia),
       horaExtraInicio: horaExtraInicio === "" ? null : horaExtraInicio,
       horaExtraFim: horaExtraFim === "" ? null : horaExtraFim,
       observacoesContratada: observacoes === "" ? null : observacoes,
@@ -332,13 +332,13 @@ export default function RdoCompleto(): ReactElement {
         .filter((local) => local.descricao.trim() !== "" && local.atividades.length > 0)
         .map((local, ordem) => ({
           descricao: local.descricao,
-          ordemManutencaoId: local.ordemManutencaoId || null,
           kmInicial: local.kmInicial === "" ? null : Number(local.kmInicial),
           kmFinal: local.kmFinal === "" ? null : Number(local.kmFinal),
           lado: local.lado || null,
           ordem,
           atividades: local.atividades.map((atividade) => ({
             atividadeCatalogoId: atividade.atividadeCatalogoId,
+            ordemManutencaoId: atividade.ordemManutencaoId || null,
             unidade: atividade.unidade,
             altura: atividade.altura === "" ? null : Number(atividade.altura),
             largura: atividade.largura === "" ? null : Number(atividade.largura),
@@ -515,16 +515,6 @@ export default function RdoCompleto(): ReactElement {
               />
             </div>
             <div>
-              <label className="field-label">Temp. média (°C)</label>
-              <input
-                type="number"
-                step="0.1"
-                className="field-input"
-                value={temperaturaMedia}
-                onChange={(event) => setTemperaturaMedia(event.target.value)}
-              />
-            </div>
-            <div>
               <label className="field-label">Hora extra</label>
               <div className="grid-2">
                 <input
@@ -603,22 +593,7 @@ export default function RdoCompleto(): ReactElement {
                 onChange={(event) => atualizarLocal(localIndice, "descricao", event.target.value)}
               />
 
-              <div className="grid-2" style={{ marginTop: 8 }}>
-                <div>
-                  <label className="field-label">Ordem de manutenção</label>
-                  <select
-                    className="field-input"
-                    value={local.ordemManutencaoId}
-                    onChange={(event) => atualizarLocal(localIndice, "ordemManutencaoId", event.target.value)}
-                  >
-                    <option value="">Nenhuma</option>
-                    {ordensDaFrente.map((om) => (
-                      <option key={om.id} value={om.id}>
-                        {om.numero}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="grid-3" style={{ marginTop: 8 }}>
                 <div>
                   <label className="field-label">Lado</label>
                   <input
@@ -628,9 +603,6 @@ export default function RdoCompleto(): ReactElement {
                     onChange={(event) => atualizarLocal(localIndice, "lado", event.target.value)}
                   />
                 </div>
-              </div>
-
-              <div className="grid-2" style={{ marginTop: 8 }}>
                 <div>
                   <label className="field-label">Km inicial</label>
                   <input
@@ -701,6 +673,20 @@ export default function RdoCompleto(): ReactElement {
                         </option>
                       ))}
                     </select>
+
+                    <div style={{ marginTop: 12 }}>
+                      <label className="field-label">Ordem de manutenção</label>
+                      <Autocomplete
+                        value={atividade.ordemManutencaoId}
+                        items={ordensDaFrente}
+                        getLabel={(om) => om.numero}
+                        getSublabel={(om) => om.detalhes}
+                        placeholder="Digite o número da OM…"
+                        onChange={(ordemManutencaoId) =>
+                          atualizarAtividade(localIndice, atividadeIndice, "ordemManutencaoId", ordemManutencaoId)
+                        }
+                      />
+                    </div>
 
                     {atividade.unidade === "M3" && (
                       <div className="grid-3" style={{ marginTop: 12 }}>
@@ -924,7 +910,6 @@ export default function RdoCompleto(): ReactElement {
                 value={item.colaboradorId}
                 onChange={(event) => atualizarOutraMaoDeObra(indice, "colaboradorId", event.target.value)}
               >
-                <option value="">Sem colaborador nomeado</option>
                 {colaboradores.map((colaborador) => (
                   <option key={colaborador.id} value={colaborador.id}>
                     {colaborador.nome}
@@ -980,17 +965,13 @@ export default function RdoCompleto(): ReactElement {
             const catalogoDoMaterial = materiaisCatalogo.find((item) => item.id === material.materialCatalogoId);
             return (
               <div className="material-row" key={indice}>
-                <select
-                  className="field-input"
+                <Autocomplete
                   value={material.materialCatalogoId}
-                  onChange={(event) => atualizarMaterial(indice, "materialCatalogoId", event.target.value)}
-                >
-                  {materiaisCatalogo.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.descricao} ({item.unidade})
-                    </option>
-                  ))}
-                </select>
+                  items={materiaisCatalogo}
+                  getLabel={(item) => `${item.descricao} (${item.unidade})`}
+                  placeholder="Digite o nome do material…"
+                  onChange={(materialCatalogoId) => atualizarMaterial(indice, "materialCatalogoId", materialCatalogoId)}
+                />
                 <input
                   type="number"
                   step="0.001"

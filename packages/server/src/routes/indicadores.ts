@@ -15,7 +15,6 @@ export const rdoIndicadorSelect = {
   data: true,
   frenteId: true,
   totalDesvios: true,
-  temperaturaMedia: true,
   maoDeObra: { select: { quantidade: true, horasImprodutivas: true, causaImprodutividade: true } },
   locais: {
     select: {
@@ -213,7 +212,11 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
       prisma.rdo.findMany({ where: { data: { gte: inicio, lt: fim } }, select: rdoIndicadorSelect }),
       prisma.rdo.findMany({ where: { data: { gte: inicioAnterior, lt: fimAnterior } }, select: rdoIndicadorSelect }),
       prisma.ordemManutencao.count({ where: { dataEmissao: { gte: inicio, lt: fim } } }),
-      prisma.frente.findMany({ where: { ativo: true }, orderBy: { codigo: "asc" }, select: { id: true, nome: true, codigo: true } }),
+      prisma.frente.findMany({
+        where: { ativo: true },
+        orderBy: { codigo: "asc" },
+        select: { id: true, nome: true, codigo: true, metaEficienciaPct: true, metaPusGeral: true },
+      }),
       prisma.periodoMedicao.findMany({
         where: { ano, mes: mesNum },
         select: { frenteId: true, itens: { select: { atividadeCatalogoId: true, quantidadeTotal: true, unidade: true } } },
@@ -261,14 +264,21 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
         ? rdos.reduce((soma, rdo) => soma + rdo.maoDeObra.reduce((s, mdo) => s + mdo.quantidade, 0), 0) / rdosEmitidos
         : 0;
     const totalDesvios = rdos.reduce((soma, rdo) => soma + (rdo.totalDesvios ?? 0), 0);
-    const temperaturas = rdos.map((rdo) => rdo.temperaturaMedia).filter((valor): valor is Prisma.Decimal => valor != null);
-    const temperaturaMedia =
-      temperaturas.length > 0 ? temperaturas.reduce((soma, valor) => soma + Number(valor), 0) / temperaturas.length : null;
 
     const porFrente = frentes.map((frente) => {
       const rdosDaFrente = rdos.filter((rdo) => rdo.frenteId === frente.id);
       const { eficiencia } = calcularProdutividade(rdosDaFrente, metasMesAnterior);
-      return { id: frente.id, nome: frente.nome, codigo: frente.codigo, rdosEmitidos: rdosDaFrente.length, eficiencia };
+      const metaEficiencia = frente.metaEficienciaPct != null ? Number(frente.metaEficienciaPct) : 100;
+      const metaPus = frente.metaPusGeral != null ? Number(frente.metaPusGeral) : null;
+      return {
+        id: frente.id,
+        nome: frente.nome,
+        codigo: frente.codigo,
+        rdosEmitidos: rdosDaFrente.length,
+        eficiencia,
+        metaEficiencia,
+        metaPus,
+      };
     });
 
     const causasMap = new Map<string, number>();
@@ -305,7 +315,6 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
       ordensManutencao,
       maoDeObraMedia,
       totalDesvios,
-      temperaturaMedia,
       eficienciaGeral: geral.eficiencia,
       horasTrabalhadas: geral.horasTrabalhadas,
       horasImprodutivas: geral.horasImprodutivas,

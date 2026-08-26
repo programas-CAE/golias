@@ -71,7 +71,6 @@ describe("POST /rdos/completo", () => {
         data: "2026-07-21",
         clima: "SOL",
         totalDesvios: 2,
-        temperaturaMedia: 28.5,
         blocosHorario: [{ horarioInicial: "07:00", horarioFinal: "08:50", descricao: "Deslocamento", ordem: 0 }],
         locais: [
           {
@@ -91,7 +90,6 @@ describe("POST /rdos/completo", () => {
       status: string;
       linkCampoToken: string;
       totalDesvios: number;
-      temperaturaMedia: string;
       locais: Array<{ atividades: Array<{ totalCalculado: string }> }>;
       maoDeObra: unknown[];
       equipamentos: unknown[];
@@ -100,7 +98,6 @@ describe("POST /rdos/completo", () => {
     expect(body.status).toBe("RASCUNHO");
     expect(body.linkCampoToken).toHaveLength(43);
     expect(body.totalDesvios).toBe(2);
-    expect(Number(body.temperaturaMedia)).toBe(28.5);
     expect(Number(body.locais[0]?.atividades[0]?.totalCalculado)).toBe(3168);
     expect(body.maoDeObra).toHaveLength(1);
     expect(body.equipamentos).toHaveLength(1);
@@ -304,5 +301,56 @@ describe("PATCH /rdos/campo/:token", () => {
     });
 
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe("POST /rdos/:id/pdf e GET /rdos/:id/verificar", () => {
+  it("gera o PDF, grava o hash de autenticidade, e a verificação confirma", async () => {
+    const { frente, equipe } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21") },
+    });
+
+    const app = buildApp();
+    const gerar = await app.inject({ method: "POST", url: `/rdos/${rdo.id}/pdf` });
+    expect(gerar.statusCode).toBe(200);
+    const gerado = gerar.json() as { pdfPath: string; pdfHash: string };
+    expect(gerado.pdfPath).toBeTruthy();
+    expect(gerado.pdfHash).toHaveLength(64);
+
+    const baixar = await app.inject({ method: "GET", url: `/rdos/${rdo.id}/pdf` });
+    expect(baixar.statusCode).toBe(200);
+    expect(baixar.headers["content-type"]).toBe("application/pdf");
+
+    const verOk = await app.inject({ method: "GET", url: `/rdos/${rdo.id}/verificar?h=${gerado.pdfHash}` });
+    expect(verOk.statusCode).toBe(200);
+    const okBody = verOk.json() as { autentico: boolean; motivo: string };
+    expect(okBody.autentico).toBe(true);
+    expect(okBody.motivo).toBe("OK");
+
+    const verErrado = await app.inject({ method: "GET", url: `/rdos/${rdo.id}/verificar?h=hash-invalido` });
+    const erradoBody = verErrado.json() as { autentico: boolean; motivo: string };
+    expect(erradoBody.autentico).toBe(false);
+    expect(erradoBody.motivo).toBe("HASH_DESATUALIZADO");
+  });
+
+  it("verificar informa PDF_NAO_GERADO antes de qualquer geração", async () => {
+    const { frente, equipe } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21") },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: `/rdos/${rdo.id}/verificar` });
+    expect((response.json() as { motivo: string }).motivo).toBe("PDF_NAO_GERADO");
+  });
+
+  it("retorna 404 para RDO inexistente, tanto ao gerar quanto ao verificar", async () => {
+    const app = buildApp();
+    const gerar = await app.inject({ method: "POST", url: "/rdos/nao-existe/pdf" });
+    expect(gerar.statusCode).toBe(404);
+
+    const verificar = await app.inject({ method: "GET", url: "/rdos/nao-existe/verificar" });
+    expect(verificar.statusCode).toBe(404);
   });
 });

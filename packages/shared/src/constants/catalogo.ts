@@ -38,12 +38,23 @@ export interface FrenteCatalogoItem {
   readonly codigo: FrenteCodigo;
   readonly nome: string;
   readonly contratoNumero: string;
+  readonly metaEficienciaPct: number | null;
+  readonly metaPusGeral: number | null;
 }
 
+/**
+ * `metaEficienciaPct`/`metaPusGeral` vêm de "Metas_e_Complementos.xlsx"
+ * (aba Metas_Equipe, Mes_Referencia "Todos") — referência de meta por
+ * equipe mostrada na tela de início. `metaPusGeral` é um alvo único da
+ * equipe (não por atividade/unidade, ao contrário de
+ * `AtividadeCatalogo.metaPus`), por isso é só exibido como referência —
+ * não há um "PUS geral" comparável calculado hoje, já que cada atividade
+ * tem sua própria unidade de medida.
+ */
 export const FRENTES: readonly FrenteCatalogoItem[] = [
-  { codigo: "MAB", nome: "Marabá", contratoNumero: "5900130281" },
-  { codigo: "PBA", nome: "Parauapebas", contratoNumero: "5900130281" },
-  { codigo: "RAMAL", nome: "Canaã", contratoNumero: "5900130281" },
+  { codigo: "MAB", nome: "Marabá", contratoNumero: "5900130281", metaEficienciaPct: 85, metaPusGeral: 18 },
+  { codigo: "PBA", nome: "Parauapebas", contratoNumero: "5900130281", metaEficienciaPct: 85, metaPusGeral: 18 },
+  { codigo: "RAMAL", nome: "Canaã", contratoNumero: "5900130281", metaEficienciaPct: 85, metaPusGeral: 18 },
 ] as const;
 
 export interface ColaboradorCatalogoItem {

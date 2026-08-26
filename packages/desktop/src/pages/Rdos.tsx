@@ -126,8 +126,11 @@ export default function Rdos(): ReactElement {
                       <span className="badge badge--ativo">{STATUS_LABEL[rdo.status] ?? rdo.status}</span>
                     </td>
                     <td>{rdo.linkCampoExpiraEm ? rdo.linkCampoExpiraEm.slice(0, 10) : "—"}</td>
-                    <td>
-                      {rdo.linkCampoToken ? (
+                    <td style={{ display: "flex", gap: 8 }}>
+                      <button type="button" className="button button--ghost button--small" onClick={() => navigate(`/rdos/${rdo.id}`)}>
+                        Ver
+                      </button>
+                      {rdo.linkCampoToken && (
                         <button
                           type="button"
                           className="button button--ghost button--small"
@@ -135,8 +138,6 @@ export default function Rdos(): ReactElement {
                         >
                           {linkGerado?.rdo.id === rdo.id && linkGerado.copiado ? "Copiado!" : "Copiar link"}
                         </button>
-                      ) : (
-                        "—"
                       )}
                     </td>
                   </tr>

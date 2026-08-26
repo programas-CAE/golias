@@ -6,9 +6,10 @@ import {
 } from "@golias/shared";
 import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { prisma } from "../lib/prisma.js";
+import { calcularHashConteudo, gerarPdfRdo, type RdoConteudo } from "../lib/rdoPdf.js";
 import { generateToken } from "../lib/tokens.js";
 import { parseBody } from "../lib/validate.js";
 
@@ -27,7 +28,7 @@ const rdoListSelect = {
 const rdoCampoSelect = {
   id: true,
   frenteId: true,
-  frente: { select: { id: true, nome: true, codigo: true } },
+  frente: { select: { id: true, nome: true, codigo: true, contrato: { select: { numero: true } } } },
   equipeId: true,
   equipe: {
     select: {
@@ -52,7 +53,6 @@ const rdoCampoSelect = {
   horaExtraFim: true,
   encarregadoId: true,
   totalDesvios: true,
-  temperaturaMedia: true,
   observacoesContratada: true,
   observacoesCliente: true,
   linkCampoToken: true,
@@ -70,12 +70,12 @@ const rdoCampoSelect = {
       kmFinal: true,
       lado: true,
       ordem: true,
-      ordemManutencaoId: true,
       atividades: {
         select: {
           id: true,
           atividadeCatalogoId: true,
           atividadeCatalogo: { select: { id: true, codigo: true, descricao: true, unidade: true, usaDimensoes: true } },
+          ordemManutencaoId: true,
           altura: true,
           largura: true,
           larguraFinal: true,
@@ -174,6 +174,58 @@ function tokenExpirado(expiraEm: Date | null): boolean {
   return expiraEm != null && expiraEm.getTime() < Date.now();
 }
 
+type RdoParaPdf = NonNullable<Awaited<ReturnType<typeof buscarRdoPorToken>>>;
+
+/**
+ * Monta o conteúdo do RDO com nomes já resolvidos (não IDs), usado tanto
+ * para gerar o PDF quanto para calcular o hash de autenticidade.
+ * `Rdo.encarregadoId` não tem relação declarada no Prisma — resolvido aqui
+ * com uma busca à parte, como já feito em distritos.ts
+ * (`/distritos/:id/encarregados`).
+ */
+async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
+  const encarregado = rdo.encarregadoId
+    ? await prisma.colaborador.findUnique({ where: { id: rdo.encarregadoId }, select: { nome: true } })
+    : null;
+
+  return {
+    numeroSap: rdo.frente.contrato.numero,
+    encarregadoNome: encarregado?.nome ?? null,
+    equipeNome: rdo.equipe.nome,
+    frenteNome: rdo.frente.nome,
+    data: rdo.data,
+    clima: rdo.clima,
+    horaExtraInicio: rdo.horaExtraInicio,
+    horaExtraFim: rdo.horaExtraFim,
+    blocosHorario: rdo.blocosHorario,
+    locais: rdo.locais.map((local) => ({
+      descricao: local.descricao,
+      kmInicial: local.kmInicial != null ? Number(local.kmInicial) : null,
+      kmFinal: local.kmFinal != null ? Number(local.kmFinal) : null,
+      lado: local.lado,
+      atividades: local.atividades.map((atividade) => ({
+        item: atividade.atividadeCatalogo.codigo,
+        descricao: atividade.atividadeCatalogo.descricao,
+        unidade: atividade.unidade,
+        quantidade: Number(atividade.totalCalculado),
+      })),
+    })),
+    maoDeObra: rdo.maoDeObra
+      .filter((item) => item.quantidade > 0)
+      .map((item) => ({ funcao: item.funcao.nome, quantidade: item.quantidade })),
+    equipamentos: rdo.equipamentos
+      .filter((item) => item.quantidade > 0)
+      .map((item) => ({ nome: item.equipamentoCatalogo.nome, quantidade: item.quantidade })),
+    observacoesContratada: rdo.observacoesContratada,
+    observacoesCliente: rdo.observacoesCliente,
+  };
+}
+
+function montarUrlVerificacao(rdoId: string, hash: string): string {
+  const publicWebUrl = process.env.PUBLIC_WEB_URL ?? "http://localhost:5173";
+  return `${publicWebUrl.replace(/\/$/, "")}/verificar/${rdoId}?h=${hash}`;
+}
+
 export function registerRdosRoutes(app: FastifyInstance): void {
   app.get("/rdos", async () => {
     return prisma.rdo.findMany({ orderBy: { criadoEm: "desc" }, select: rdoListSelect });
@@ -226,7 +278,6 @@ export function registerRdosRoutes(app: FastifyInstance): void {
             clima: data.clima,
             encarregadoId: data.encarregadoId,
             totalDesvios: data.totalDesvios,
-            temperaturaMedia: data.temperaturaMedia,
             observacoesContratada: data.observacoesContratada,
             linkCampoToken: generateToken(),
             linkCampoExpiraEm,
@@ -242,7 +293,6 @@ export function registerRdosRoutes(app: FastifyInstance): void {
           await tx.rdoLocal.create({
             data: {
               rdoId: rdo.id,
-              ordemManutencaoId: local.ordemManutencaoId,
               descricao: local.descricao,
               kmInicial: local.kmInicial,
               kmFinal: local.kmFinal,
@@ -251,6 +301,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
               atividades: {
                 create: local.atividades.map((atividade) => ({
                   atividadeCatalogoId: atividade.atividadeCatalogoId,
+                  ordemManutencaoId: atividade.ordemManutencaoId,
                   altura: atividade.altura,
                   largura: atividade.largura,
                   larguraFinal: atividade.larguraFinal,
@@ -289,7 +340,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
     }
 
     const [ordensManutencao, atividadesCatalogo] = await Promise.all([
-      prisma.ordemManutencao.findMany({ where: { frenteId: rdo.frenteId }, select: { id: true, numero: true } }),
+      prisma.ordemManutencao.findMany({ where: { frenteId: rdo.frenteId }, select: { id: true, numero: true, detalhes: true } }),
       prisma.atividadeCatalogo.findMany({
         where: { ativo: true },
         orderBy: { ordem: "asc" },
@@ -337,7 +388,6 @@ export function registerRdosRoutes(app: FastifyInstance): void {
               clima: data.clima,
               encarregadoId: data.encarregadoId,
               totalDesvios: data.totalDesvios,
-              temperaturaMedia: data.temperaturaMedia,
               observacoesContratada: data.observacoesContratada,
               blocosHorario: { create: data.blocosHorario },
               maoDeObra: { create: data.maoDeObra },
@@ -350,7 +400,6 @@ export function registerRdosRoutes(app: FastifyInstance): void {
             await tx.rdoLocal.create({
               data: {
                 rdoId,
-                ordemManutencaoId: local.ordemManutencaoId,
                 descricao: local.descricao,
                 kmInicial: local.kmInicial,
                 kmFinal: local.kmFinal,
@@ -359,6 +408,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
                 atividades: {
                   create: local.atividades.map((atividade) => ({
                     atividadeCatalogoId: atividade.atividadeCatalogoId,
+                    ordemManutencaoId: atividade.ordemManutencaoId,
                     altura: atividade.altura,
                     largura: atividade.largura,
                     comprimento: atividade.comprimento,
@@ -451,6 +501,86 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       });
 
       return await reply.status(201).send(anexo);
+    },
+  );
+
+  app.get<{ Params: { id: string } }>("/rdos/:id", async (request, reply) => {
+    const rdo = await prisma.rdo.findUnique({ where: { id: request.params.id }, select: rdoCampoSelect });
+    if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
+    return rdo;
+  });
+
+  app.post<{ Params: { id: string } }>("/rdos/:id/pdf", async (request, reply) => {
+    const rdo = await prisma.rdo.findUnique({ where: { id: request.params.id }, select: rdoCampoSelect });
+    if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
+
+    const conteudo = await montarConteudoRdo(rdo);
+    const hash = calcularHashConteudo(conteudo);
+    const urlVerificacao = montarUrlVerificacao(rdo.id, hash);
+    const buffer = await gerarPdfRdo({ ...conteudo, urlVerificacao });
+
+    const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
+    const rdoDir = path.join(uploadsRoot, "rdos", rdo.id);
+    await mkdir(rdoDir, { recursive: true });
+    const caminhoCompleto = path.join(rdoDir, "rdo.pdf");
+    await writeFile(caminhoCompleto, buffer);
+
+    const atualizado = await prisma.rdo.update({
+      where: { id: rdo.id },
+      data: { pdfPath: caminhoCompleto, pdfHash: hash },
+      select: { id: true, pdfPath: true, pdfHash: true },
+    });
+
+    return atualizado;
+  });
+
+  app.get<{ Params: { id: string } }>("/rdos/:id/pdf", async (request, reply) => {
+    const rdo = await prisma.rdo.findUnique({
+      where: { id: request.params.id },
+      select: { pdfPath: true },
+    });
+    if (!rdo?.pdfPath) return reply.status(404).send({ error: "PDF ainda não foi gerado para este RDO" });
+
+    const buffer = await readFile(rdo.pdfPath);
+    return reply.header("Content-Type", "application/pdf").send(buffer);
+  });
+
+  /**
+   * Pública (sem login) e propositalmente enxuta — o que dá pra ver
+   * escaneando o QR do PDF, sem expor dados sensíveis do RDO. Segue a mesma
+   * filosofia de acesso sem autenticação de `/rdos/campo/:token`, mas por ID
+   * (não por token secreto) porque aqui o objetivo é o oposto: qualquer um
+   * com o papel em mãos deve conseguir validar, não é um link privado.
+   */
+  app.get<{ Params: { id: string }; Querystring: { h?: string } }>(
+    "/rdos/:id/verificar",
+    { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const rdo = await prisma.rdo.findUnique({
+        where: { id: request.params.id },
+        select: {
+          id: true,
+          data: true,
+          status: true,
+          pdfHash: true,
+          frente: { select: { nome: true } },
+          equipe: { select: { nome: true } },
+        },
+      });
+      if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
+
+      const hashRecebido = request.query.h;
+      const autentico = hashRecebido != null && rdo.pdfHash != null && hashRecebido === rdo.pdfHash;
+
+      return {
+        rdoId: rdo.id,
+        data: rdo.data,
+        frente: rdo.frente.nome,
+        equipe: rdo.equipe.nome,
+        status: rdo.status,
+        autentico,
+        motivo: rdo.pdfHash == null ? "PDF_NAO_GERADO" : autentico ? "OK" : "HASH_DESATUALIZADO",
+      };
     },
   );
 }

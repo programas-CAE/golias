@@ -61,7 +61,6 @@ interface IndicadoresDistrito {
   rdosEmitidos: number;
   maoDeObraMedia: number;
   totalDesvios: number;
-  temperaturaMedia: number | null;
   eficienciaGeral: number | null;
   produtividadePorAtividade: ProdutividadeAtividade[];
 }
@@ -355,11 +354,6 @@ export default function DistritoDetalhe(): ReactElement {
                     vazio={indicadores.eficienciaGeral == null}
                   />
                   <KpiCard label="Total de desvios" valor={String(indicadores.totalDesvios)} vazio={indicadores.rdosEmitidos === 0} />
-                  <KpiCard
-                    label="Temperatura média"
-                    valor={indicadores.temperaturaMedia != null ? `${indicadores.temperaturaMedia.toFixed(1)}°C` : "—"}
-                    vazio={indicadores.temperaturaMedia == null}
-                  />
                 </div>
 
                 <section className="form-section">

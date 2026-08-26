@@ -18,3 +18,8 @@ export async function getSettings(): Promise<GoliasSettings> {
 export function getAppVersion(): string {
   return window.golias.appVersion ?? "0.0.0";
 }
+
+/** Abre uma URL do próprio servidor GOLIAS no navegador padrão do sistema (ex.: baixar o PDF de um RDO). */
+export async function abrirExterno(url: string): Promise<void> {
+  await window.golias.abrirExterno(url);
+}
