@@ -50,10 +50,12 @@ const ordemSelect = {
 
 export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
   /**
-   * Painel dia a dia do ciclo de medição (dia 19 do mês anterior ao dia 20
-   * do mês informado, não o mês corrido) — quantas OMs programadas para
-   * cada dia estão realizadas, aguardando validação, reprovadas, pendentes
-   * (data ainda não chegou) ou não executadas (data já passou, sem RDO).
+   * Painel do ciclo de medição (dia 19 do mês anterior ao dia 20 do mês
+   * informado, não o mês corrido) — compara OM programada x OM realizada.
+   * `dias`: contagem por dia (realizada/aguardando validação/reprovada/
+   * pendente/não executada), pra visão geral rápida. `itens`: uma linha por
+   * OM do período com o status derivado, pra o técnico conferir
+   * individualmente quais ainda faltam.
    */
   app.get<{ Querystring: { mes?: string } }>("/ordens-manutencao/farol", async (request) => {
     const mesParam =
@@ -68,8 +70,14 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
 
     const ordens = await prisma.ordemManutencao.findMany({
       where: { dataEmissao: { gte: inicio, lte: fim } },
+      orderBy: { dataEmissao: "asc" },
       select: {
+        id: true,
+        numero: true,
         dataEmissao: true,
+        lado: true,
+        detalhes: true,
+        frente: { select: { id: true, nome: true, codigo: true } },
         atividades: { select: { rdoLocal: { select: { rdo: { select: { status: true } } } } } },
       },
     });
@@ -82,12 +90,39 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
       porDia.set(d.toISOString().slice(0, 10), { ...STATUS_FAROL_ZERADO });
     }
 
+    // Comparativo "OM programada x OM realizada" — uma linha por OM, com o
+    // status derivado dos RDOs vinculados a ela, pra o técnico conseguir ver
+    // quais faltam (não só quantas por dia).
+    const itens: Array<{
+      id: string;
+      numero: string;
+      frenteId: string;
+      frenteNome: string;
+      frenteCodigo: string;
+      dataEmissao: string;
+      lado: string | null;
+      detalhes: string | null;
+      status: StatusFarol;
+    }> = [];
+
     for (const ordem of ordens) {
       const statusDosRdos = ordem.atividades.map((atividade) => atividade.rdoLocal.rdo.status);
       const status = derivarStatusFarol(statusDosRdos, ordem.dataEmissao, hoje);
       const chave = ordem.dataEmissao.toISOString().slice(0, 10);
       const contagem = porDia.get(chave);
       if (contagem) contagem[status] += 1;
+
+      itens.push({
+        id: ordem.id,
+        numero: ordem.numero,
+        frenteId: ordem.frente.id,
+        frenteNome: ordem.frente.nome,
+        frenteCodigo: ordem.frente.codigo,
+        dataEmissao: chave,
+        lado: ordem.lado,
+        detalhes: ordem.detalhes,
+        status,
+      });
     }
 
     const dias = [...porDia.entries()].map(([data, contagem]) => ({
@@ -100,6 +135,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
     return {
       periodo: { inicio: inicio.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10) },
       dias,
+      itens,
     };
   });
 

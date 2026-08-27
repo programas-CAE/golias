@@ -13,10 +13,47 @@ interface DiaFarol {
   total: number;
 }
 
+interface ItemFarolOm {
+  id: string;
+  numero: string;
+  frenteId: string;
+  frenteNome: string;
+  frenteCodigo: string;
+  dataEmissao: string;
+  lado: string | null;
+  detalhes: string | null;
+  status: string;
+}
+
 interface RespostaFarol {
   periodo: { inicio: string; fim: string };
   dias: DiaFarol[];
+  itens: ItemFarolOm[];
 }
+
+const OM_STATUS_DOT_CLASSE: Record<string, string> = {
+  realizada: "farol-dot--aprovado",
+  aguardandoValidacao: "farol-dot--aguardando",
+  reprovada: "farol-dot--reprovado",
+  naoExecutada: "farol-dot--atrasada",
+  pendente: "farol-dot--rascunho",
+};
+
+const OM_STATUS_LABEL: Record<string, string> = {
+  realizada: "Realizada",
+  aguardandoValidacao: "RDO lançado, aguardando aprovação",
+  reprovada: "Reprovada pelo fiscal",
+  naoExecutada: "Atrasada — data passou e não tem RDO",
+  pendente: "Ainda não venceu",
+};
+
+const OM_LEGENDA: Array<{ chave: string; classe: string; texto: string }> = [
+  { chave: "realizada", classe: "farol-dot--aprovado", texto: "Realizada" },
+  { chave: "aguardandoValidacao", classe: "farol-dot--aguardando", texto: "Aguardando aprovação" },
+  { chave: "reprovada", classe: "farol-dot--reprovado", texto: "Reprovada" },
+  { chave: "naoExecutada", classe: "farol-dot--atrasada", texto: "Atrasada" },
+  { chave: "pendente", classe: "farol-dot--rascunho", texto: "Ainda não venceu" },
+];
 
 interface LinhaFarolRdo {
   equipeId: string;
@@ -124,17 +161,10 @@ export default function Farol(): ReactElement {
     };
   }, [mes, aba]);
 
-  const totais = dados?.dias.reduce(
-    (soma, dia) => ({
-      realizada: soma.realizada + dia.realizada,
-      aguardandoValidacao: soma.aguardandoValidacao + dia.aguardandoValidacao,
-      reprovada: soma.reprovada + dia.reprovada,
-      pendente: soma.pendente + dia.pendente,
-      naoExecutada: soma.naoExecutada + dia.naoExecutada,
-      total: soma.total + dia.total,
-    }),
-    { realizada: 0, aguardandoValidacao: 0, reprovada: 0, pendente: 0, naoExecutada: 0, total: 0 },
-  );
+  const contagemPorStatus = dados?.itens.reduce<Record<string, number>>((soma, item) => {
+    soma[item.status] = (soma[item.status] ?? 0) + 1;
+    return soma;
+  }, {});
 
   return (
     <div className="app-shell">
@@ -244,66 +274,57 @@ export default function Farol(): ReactElement {
           <p className="table-empty">Carregando…</p>
         ) : (
           <div className="panel">
-            <p className="list-subtitle" style={{ marginBottom: 12 }}>
-              Período: {formatarData(dados.periodo.inicio)} a {formatarData(dados.periodo.fim)}
+            <div className="farol-legenda-bar">
+              {OM_LEGENDA.map((item) => (
+                <span className="farol-legenda-item" key={item.chave}>
+                  <span className={`farol-dot ${item.classe}`} />
+                  {item.texto} ({contagemPorStatus?.[item.chave] ?? 0})
+                </span>
+              ))}
+            </div>
+            <p className="list-subtitle" style={{ padding: "0 18px", marginTop: 14 }}>
+              OMs programadas de {formatarData(dados.periodo.inicio)} a {formatarData(dados.periodo.fim)} — compare
+              com o que já foi realizado e cobre as que ainda faltam.
             </p>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Dia</th>
-                  <th>Realizada</th>
-                  <th>Aguardando validação</th>
-                  <th>Reprovada</th>
-                  <th>Pendente</th>
-                  <th>Não executada</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dados.dias.map((dia) => (
-                  <tr key={dia.data} className={dia.total === 0 ? "farol-linha-vazia" : undefined}>
-                    <td>{formatarData(dia.data)}</td>
-                    <td>{dia.diaSemana}</td>
-                    <td className="farol-celula farol-celula--realizada">{dia.realizada || "—"}</td>
-                    <td className="farol-celula farol-celula--aguardando">{dia.aguardandoValidacao || "—"}</td>
-                    <td className="farol-celula farol-celula--reprovada">{dia.reprovada || "—"}</td>
-                    <td className="farol-celula farol-celula--pendente">{dia.pendente || "—"}</td>
-                    <td className="farol-celula farol-celula--nao-executada">{dia.naoExecutada || "—"}</td>
-                    <td>
-                      <strong>{dia.total || "—"}</strong>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              {totais && (
-                <tfoot>
+            <div className="farol-scroll">
+              <table className="table">
+                <thead>
                   <tr>
-                    <td colSpan={2}>
-                      <strong>Total do período</strong>
-                    </td>
-                    <td>
-                      <strong>{totais.realizada}</strong>
-                    </td>
-                    <td>
-                      <strong>{totais.aguardandoValidacao}</strong>
-                    </td>
-                    <td>
-                      <strong>{totais.reprovada}</strong>
-                    </td>
-                    <td>
-                      <strong>{totais.pendente}</strong>
-                    </td>
-                    <td>
-                      <strong>{totais.naoExecutada}</strong>
-                    </td>
-                    <td>
-                      <strong>{totais.total}</strong>
-                    </td>
+                    <th>Número</th>
+                    <th>Frente</th>
+                    <th>Emissão</th>
+                    <th>Lado</th>
+                    <th>Status</th>
                   </tr>
-                </tfoot>
-              )}
-            </table>
+                </thead>
+                <tbody>
+                  {dados.itens.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="table-empty">
+                        Nenhuma OM programada nesse período.
+                      </td>
+                    </tr>
+                  ) : (
+                    dados.itens.map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <strong>{item.numero}</strong>
+                        </td>
+                        <td>{item.frenteNome}</td>
+                        <td>{formatarData(item.dataEmissao)}</td>
+                        <td>{item.lado ?? "—"}</td>
+                        <td>
+                          <span className="farol-status-linha" title={OM_STATUS_LABEL[item.status]}>
+                            <span className={`farol-dot ${OM_STATUS_DOT_CLASSE[item.status] ?? "farol-dot--vazio"}`} />
+                            {OM_STATUS_LABEL[item.status] ?? item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

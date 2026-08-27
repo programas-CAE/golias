@@ -252,4 +252,22 @@ describe("GET /ordens-manutencao/farol", () => {
     expect(dia?.naoExecutada).toBe(1);
     expect(dia?.total).toBe(2);
   });
+
+  it("retorna uma linha por OM (itens) com o status individual, para conferência", async () => {
+    const frente = await criarFrente();
+
+    await prisma.ordemManutencao.create({
+      data: { numero: "OM-ITEM-1", frenteId: frente.id, dataEmissao: new Date("2020-01-12"), lado: "LE" },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: "/ordens-manutencao/farol?mes=2020-01" });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as {
+      itens: Array<{ numero: string; frenteNome: string; dataEmissao: string; lado: string | null; status: string }>;
+    };
+    const item = body.itens.find((i) => i.numero === "OM-ITEM-1");
+    expect(item).toMatchObject({ frenteNome: "Marabá", dataEmissao: "2020-01-12", lado: "LE", status: "naoExecutada" });
+  });
 });
