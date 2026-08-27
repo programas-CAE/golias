@@ -497,6 +497,22 @@ describe("GET /rdos/farol-status", () => {
     expect(linha?.porDia["2026-07-21"]).toBe("APROVADO");
     expect(linha?.porDia["2026-07-20"]).toBeNull();
   });
+
+  it("retorna uma lista plana (itens) com um RDO por linha, para agrupar por status", async () => {
+    const { frente, equipe } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21"), status: "EM_CORRECAO" },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: "/rdos/farol-status?periodo=2026-07" });
+
+    const body = response.json() as {
+      itens: Array<{ id: string; data: string; status: string; equipe: string; distrito: string }>;
+    };
+    const item = body.itens.find((i) => i.id === rdo.id);
+    expect(item).toMatchObject({ data: "2026-07-21", status: "EM_CORRECAO", equipe: equipe.nome, distrito: "Marabá Centro" });
+  });
 });
 
 describe("POST /rdos/:id/pdf e GET /rdos/:id/verificar", () => {

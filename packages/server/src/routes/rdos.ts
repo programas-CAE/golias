@@ -693,7 +693,8 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       }),
       prisma.rdo.findMany({
         where: { data: { gte: inicio, lt: fim } },
-        select: { equipeId: true, data: true, status: true, atualizadoEm: true },
+        orderBy: { data: "asc" },
+        select: { id: true, equipeId: true, data: true, status: true, atualizadoEm: true },
       }),
     ]);
 
@@ -729,7 +730,24 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       ),
     }));
 
-    return { periodo, dias, linhas };
+    // Lista plana, um RDO por linha — pra agrupar por status embaixo da
+    // grade (quais estão em correção, quais faltam assinar etc.), já que a
+    // grade sozinha só dá a visão de relance por dia.
+    const equipePorId = new Map(equipes.map((equipe) => [equipe.id, equipe]));
+    const itens = rdos.map((rdo) => {
+      const equipe = equipePorId.get(rdo.equipeId);
+      return {
+        id: rdo.id,
+        data: rdo.data.toISOString().slice(0, 10),
+        status: rdo.status,
+        equipeId: rdo.equipeId,
+        equipe: equipe?.nome ?? "—",
+        distrito: equipe?.distrito.nome ?? "—",
+        encarregado: equipe?.encarregadoId ? (nomePorEncarregadoId.get(equipe.encarregadoId) ?? null) : null,
+      };
+    });
+
+    return { periodo, dias, linhas, itens };
   });
 
   app.get<{ Params: { id: string } }>("/rdos/:id", async (request, reply) => {

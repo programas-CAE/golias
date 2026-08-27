@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
 
@@ -63,11 +64,26 @@ interface LinhaFarolRdo {
   porDia: Record<string, string | null>;
 }
 
+interface ItemFarolRdo {
+  id: string;
+  data: string;
+  status: string;
+  equipeId: string;
+  equipe: string;
+  distrito: string;
+  encarregado: string | null;
+}
+
 interface RespostaFarolRdo {
   periodo: string;
   dias: string[];
   linhas: LinhaFarolRdo[];
+  itens: ItemFarolRdo[];
 }
+
+// Ordem de "o que precisa de atenção primeiro": aguardando o fiscal e
+// reprovado pedem uma ação de alguém agora; aprovado é o fim da linha.
+const RDO_GRUPOS_ORDEM = ["AGUARDANDO_APROVACAO", "REPROVADO", "EM_CORRECAO", "RASCUNHO", "APROVADO"];
 
 const RDO_STATUS_DOT_CLASSE: Record<string, string> = {
   APROVADO: "farol-dot--aprovado",
@@ -121,6 +137,7 @@ function fimDeSemana(iso: string): boolean {
 }
 
 export default function Farol(): ReactElement {
+  const navigate = useNavigate();
   const [aba, setAba] = useState<"om" | "rdo">("om");
   const [mes, setMes] = useState(mesAtual());
   const [dados, setDados] = useState<RespostaFarol | null>(null);
@@ -165,6 +182,17 @@ export default function Farol(): ReactElement {
     soma[item.status] = (soma[item.status] ?? 0) + 1;
     return soma;
   }, {});
+
+  const rdosPorStatus = useMemo(() => {
+    const grupos = new Map<string, ItemFarolRdo[]>();
+    for (const item of dadosRdo?.itens ?? []) {
+      const atual = grupos.get(item.status) ?? [];
+      atual.push(item);
+      grupos.set(item.status, atual);
+    }
+    for (const lista of grupos.values()) lista.sort((a, b) => b.data.localeCompare(a.data));
+    return grupos;
+  }, [dadosRdo]);
 
   return (
     <div className="app-shell">
@@ -267,6 +295,31 @@ export default function Farol(): ReactElement {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              <div className="farol-listas">
+                {RDO_GRUPOS_ORDEM.filter((status) => (rdosPorStatus.get(status)?.length ?? 0) > 0).map((status) => (
+                  <section className="farol-lista-grupo" key={status}>
+                    <h3 className="farol-lista-titulo">
+                      <span className={`farol-dot ${RDO_STATUS_DOT_CLASSE[status]}`} />
+                      {RDO_STATUS_LABEL[status]}
+                      <span className="farol-lista-contagem">{rdosPorStatus.get(status)?.length}</span>
+                    </h3>
+                    <ul className="farol-lista">
+                      {rdosPorStatus.get(status)?.map((item) => (
+                        <li key={item.id}>
+                          <button type="button" className="farol-lista-item" onClick={() => navigate(`/rdos/${item.id}`)}>
+                            <span className="farol-lista-item-data">{formatarData(item.data)}</span>
+                            <span className="farol-lista-item-equipe">{item.equipe}</span>
+                            <span className="farol-lista-item-detalhe">
+                              {item.distrito} · {item.encarregado ?? "sem encarregado"}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
               </div>
             </div>
           )

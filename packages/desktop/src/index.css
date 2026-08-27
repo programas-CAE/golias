@@ -564,6 +564,92 @@ textarea.field-input {
   margin: 5px;
 }
 
+.farol-listas {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  padding: 18px;
+  border-top: 1px solid #e3ece5;
+}
+
+.farol-lista-grupo {
+  background: #fbfdfc;
+  border: 1px solid #e3ece5;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 360px;
+}
+
+.farol-lista-titulo {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #2c3d33;
+}
+
+.farol-lista-contagem {
+  margin-left: auto;
+  background: #e3ece5;
+  color: #2c3d33;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+}
+
+.farol-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.farol-lista-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #e3ece5;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.farol-lista-item:hover,
+.farol-lista-item:focus-visible {
+  border-color: #16a34a;
+  background: #f4faf6;
+}
+
+.farol-lista-item-data {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #2c3d33;
+}
+
+.farol-lista-item-equipe {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #2c3d33;
+}
+
+.farol-lista-item-detalhe {
+  font-size: 0.75rem;
+  color: #7c9184;
+}
+
 .farol-tabela-rdo th,
 .farol-tabela-rdo td {
   text-align: center;
