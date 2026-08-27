@@ -155,7 +155,7 @@ export interface AtividadeCatalogoItem {
  */
 export const ATIVIDADES: readonly AtividadeCatalogoItem[] = [
   { codigo: "2.1.2", descricao: "Limpeza de bueiros", unidade: "M3", usaDimensoes: true, ordem: 1, metaPus: 1 },
-  { codigo: "2.1.3", descricao: "Limpeza de canaleta em corte e aterro até meia seção", unidade: "M", usaDimensoes: true, ordem: 2, metaPus: 15 },
+  { codigo: "2.1.3", descricao: "Limpeza de canaleta em corte e aterro até meia seção", unidade: "M3", usaDimensoes: true, ordem: 2, metaPus: 15 },
   { codigo: "2.1.3.1", descricao: "Limpeza de canaleta em corte e aterro até meia seção - Mecanizada", unidade: "M", usaDimensoes: true, ordem: 3, metaPus: 1 },
   { codigo: "2.1.4", descricao: "Limpeza de canaleta em corte e aterro com seção plena", unidade: "M", usaDimensoes: true, ordem: 4, metaPus: 2.82 },
   { codigo: "2.1.4.1", descricao: "Limpeza de canaleta em corte e aterro com seção plena - Mecanizada", unidade: "M", usaDimensoes: true, ordem: 5, metaPus: 18 },
