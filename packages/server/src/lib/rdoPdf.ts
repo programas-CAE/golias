@@ -18,6 +18,11 @@ export interface RdoPdfAtividade {
   quantidade: number;
   kmInicial: number | null;
   kmFinal: number | null;
+  usaDimensoes: boolean;
+  altura: number | null;
+  largura: number | null;
+  larguraFinal: number | null;
+  comprimento: number | null;
 }
 
 export interface RdoPdfLocal {
@@ -341,6 +346,196 @@ function desenharBlocoAssinatura(
   }
 }
 
+/** Texto do memorial de cálculo (fórmula = resultado), mesma matemática de `calcularTotalAtividade` (packages/shared) e do croqui exibido no formulário (CroquiAtividade.tsx). */
+function montarMemorialCalculo(atividade: RdoPdfAtividade): string | null {
+  const { unidade, altura: a, largura: l, larguraFinal: lFim, comprimento: c, quantidade } = atividade;
+  if (unidade === "M3" && a != null && l != null && c != null) {
+    return `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)} = ${formatarNumero(quantidade)} m³`;
+  }
+  if (unidade === "M2" && l != null && c != null) {
+    if (lFim != null && lFim !== l) {
+      return `média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)} = ${formatarNumero(quantidade)} m²`;
+    }
+    return `${formatarNumero(c)} × ${formatarNumero(l)} = ${formatarNumero(quantidade)} m²`;
+  }
+  if (unidade === "M" && c != null) {
+    return `${formatarNumero(c)} m`;
+  }
+  return null;
+}
+
+const CROQUI_LARGURA = 250;
+const CROQUI_ALTURA_DESENHO = 90;
+
+/** Rótulo "X m" (ou "?" quando a dimensão não foi informada), igual ao croqui exibido no formulário. */
+function rotuloDimensao(valor: number | null): string {
+  return valor != null ? `${formatarNumero(valor)} m` : "?";
+}
+
+/** Desenha uma linha horizontal com marcas nas pontas — croqui de atividades em M (comprimento apenas). */
+function desenharCroquiLinha(doc: PDFKit.PDFDocument, x: number, y: number, comprimento: number | null): void {
+  const yLinha = y + CROQUI_ALTURA_DESENHO / 2 + 8;
+  const xIni = x + 20;
+  const xFim = x + CROQUI_LARGURA - 20;
+  doc.lineWidth(1).strokeColor("#2c3d33");
+  doc.moveTo(xIni, yLinha).lineTo(xFim, yLinha).stroke();
+  doc.moveTo(xIni, yLinha - 8).lineTo(xIni, yLinha + 8).stroke();
+  doc.moveTo(xFim, yLinha - 8).lineTo(xFim, yLinha + 8).stroke();
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#2c3d33")
+    .text(rotuloDimensao(comprimento), x, yLinha - 22, { width: CROQUI_LARGURA, align: "center" });
+}
+
+/** Retângulo (ou trapézio, quando larguraFinal difere de largura) — croqui de atividades em M2. */
+function desenharCroquiRetangulo(
+  doc: PDFKit.PDFDocument,
+  x: number,
+  y: number,
+  largura: number | null,
+  larguraFinal: number | null,
+  comprimento: number | null,
+): void {
+  const lIni = largura ?? 0;
+  const lFim = larguraFinal ?? lIni;
+  const maior = Math.max(lIni, lFim, 0.001);
+  const alturaMax = CROQUI_ALTURA_DESENHO - 20;
+  const alturaMin = 16;
+  const alturaDe = (valor: number): number => (valor <= 0 ? 0 : Math.max((valor / maior) * alturaMax, alturaMin));
+  const hIni = alturaDe(lIni);
+  const hFim = alturaDe(lFim);
+  const xIni = x + 40;
+  const xFim = x + CROQUI_LARGURA - 40;
+  const centroY = y + CROQUI_ALTURA_DESENHO / 2 + 4;
+
+  doc
+    .lineWidth(1)
+    .strokeColor("#2c3d33")
+    .fillColor("#eefaf1")
+    .polygon(
+      [xIni, centroY - hIni / 2],
+      [xFim, centroY - hFim / 2],
+      [xFim, centroY + hFim / 2],
+      [xIni, centroY + hIni / 2],
+    )
+    .fillAndStroke("#eefaf1", "#2c3d33");
+
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#2c3d33")
+    .text(rotuloDimensao(comprimento), x, y, { width: CROQUI_LARGURA, align: "center" });
+
+  doc.save();
+  doc.rotate(-90, { origin: [x + 14, centroY] });
+  doc.text(rotuloDimensao(largura), x + 14 - 40, centroY - 5, { width: 80, align: "center" });
+  doc.restore();
+
+  if (larguraFinal != null && larguraFinal !== largura) {
+    doc.save();
+    doc.rotate(-90, { origin: [x + CROQUI_LARGURA - 14, centroY] });
+    doc.text(rotuloDimensao(larguraFinal), x + CROQUI_LARGURA - 14 - 40, centroY - 5, { width: 80, align: "center" });
+    doc.restore();
+  }
+}
+
+/** Caixa em perspectiva simples (face frontal + topo + lado) — croqui de atividades em M3. */
+function desenharCroquiCaixa(
+  doc: PDFKit.PDFDocument,
+  x: number,
+  y: number,
+  altura: number | null,
+  largura: number | null,
+  comprimento: number | null,
+): void {
+  const fbl = { x: x + 60, y: y + 80 };
+  const fbr = { x: x + 150, y: y + 80 };
+  const ftr = { x: x + 150, y: y + 18 };
+  const ftl = { x: x + 60, y: y + 18 };
+  const offset = { x: 38, y: -22 };
+  const bbr = { x: fbr.x + offset.x, y: fbr.y + offset.y };
+  const btr = { x: ftr.x + offset.x, y: ftr.y + offset.y };
+  const btl = { x: ftl.x + offset.x, y: ftl.y + offset.y };
+
+  doc.lineWidth(1).strokeColor("#2c3d33");
+  doc.polygon([fbr.x, fbr.y], [ftr.x, ftr.y], [btr.x, btr.y], [bbr.x, bbr.y]).fillAndStroke("#dbe8de", "#2c3d33");
+  doc.polygon([ftl.x, ftl.y], [ftr.x, ftr.y], [btr.x, btr.y], [btl.x, btl.y]).fillAndStroke("#eefaf1", "#2c3d33");
+  doc.polygon([fbl.x, fbl.y], [fbr.x, fbr.y], [ftr.x, ftr.y], [ftl.x, ftl.y]).fillAndStroke("#f4faf6", "#2c3d33");
+
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor("#2c3d33")
+    .text(rotuloDimensao(largura), fbl.x - 20, fbl.y + 6, { width: (fbr.x - fbl.x) + 40, align: "center" });
+
+  doc.save();
+  doc.rotate(-90, { origin: [fbl.x - 16, (fbl.y + ftl.y) / 2] });
+  doc.text(rotuloDimensao(altura), fbl.x - 16 - 40, (fbl.y + ftl.y) / 2 - 5, { width: 80, align: "center" });
+  doc.restore();
+
+  doc.text(rotuloDimensao(comprimento), (fbr.x + bbr.x) / 2 + 4, (fbr.y + bbr.y) / 2 - 4, { width: 70 });
+}
+
+/** Uma "carta" de croqui + memorial de cálculo para uma atividade, dentro de `largura`. Devolve a altura ocupada. */
+function desenharCartaoCroqui(doc: PDFKit.PDFDocument, x: number, y: number, atividade: RdoPdfAtividade): number {
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(8)
+    .fillColor("#000000")
+    .text(`${atividade.item} — ${atividade.descricao}`, x, y, { width: CROQUI_LARGURA });
+  const yDesenho = doc.y + 4;
+
+  if (atividade.unidade === "M3") {
+    desenharCroquiCaixa(doc, x, yDesenho, atividade.altura, atividade.largura, atividade.comprimento);
+  } else if (atividade.unidade === "M2") {
+    desenharCroquiRetangulo(doc, x, yDesenho, atividade.largura, atividade.larguraFinal, atividade.comprimento);
+  } else {
+    desenharCroquiLinha(doc, x, yDesenho, atividade.comprimento);
+  }
+
+  const yFormula = yDesenho + CROQUI_ALTURA_DESENHO + 4;
+  const memorial = montarMemorialCalculo(atividade);
+  doc
+    .font("Helvetica")
+    .fontSize(7.5)
+    .fillColor("#2c3d33")
+    .text(memorial ?? "Dimensões não informadas.", x, yFormula, { width: CROQUI_LARGURA });
+
+  return doc.y - y;
+}
+
+/** Croquis e memorial de cálculo de cada atividade que usa dimensões (M/M2/M3) — página própria, 2 por linha. */
+function desenharCroquis(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
+  const atividades = dados.locais.flatMap((local) => local.atividades).filter((atividade) => atividade.usaDimensoes);
+  if (atividades.length === 0) return;
+
+  doc.addPage();
+  doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000").text("CROQUIS E MEMORIAL DE CÁLCULO", MARGEM, MARGEM);
+  doc.moveTo(MARGEM, doc.y + 4).lineTo(LARGURA_PAGINA - MARGEM, doc.y + 4).lineWidth(0.75).stroke();
+
+  const gap = 20;
+  const colX = [MARGEM, MARGEM + CROQUI_LARGURA + gap];
+  let coluna = 0;
+  let y = doc.y + 16;
+  const alturaCartao = CROQUI_ALTURA_DESENHO + 44;
+
+  for (const atividade of atividades) {
+    if (y + alturaCartao > ALTURA_PAGINA - MARGEM) {
+      doc.addPage();
+      y = MARGEM;
+      coluna = 0;
+    }
+    desenharCartaoCroqui(doc, colX[coluna]!, y, atividade);
+    if (coluna === 0) {
+      coluna = 1;
+    } else {
+      coluna = 0;
+      y += alturaCartao;
+    }
+  }
+}
+
 async function desenharRodape(doc: PDFKit.PDFDocument, dados: RdoPdfDados): Promise<void> {
   garantirEspaco(doc, 130);
   const y0 = doc.y + 16;
@@ -387,6 +582,7 @@ export async function gerarPdfRdo(dados: RdoPdfDados): Promise<Buffer> {
 
   desenharObservacoes(doc, dados);
   await desenharRodape(doc, dados);
+  desenharCroquis(doc, dados);
 
   doc.end();
   return fim;

@@ -208,6 +208,11 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
         quantidade: Number(atividade.totalCalculado),
         kmInicial: atividade.kmInicial != null ? Number(atividade.kmInicial) : null,
         kmFinal: atividade.kmFinal != null ? Number(atividade.kmFinal) : null,
+        usaDimensoes: atividade.atividadeCatalogo.usaDimensoes,
+        altura: atividade.altura != null ? Number(atividade.altura) : null,
+        largura: atividade.largura != null ? Number(atividade.largura) : null,
+        larguraFinal: atividade.larguraFinal != null ? Number(atividade.larguraFinal) : null,
+        comprimento: atividade.comprimento != null ? Number(atividade.comprimento) : null,
       })),
     })),
     maoDeObra: rdo.maoDeObra
