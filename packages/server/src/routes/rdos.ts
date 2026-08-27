@@ -764,7 +764,17 @@ export function registerRdosRoutes(app: FastifyInstance): void {
   app.get<{ Params: { id: string } }>("/rdos/:id", async (request, reply) => {
     const rdo = await prisma.rdo.findUnique({ where: { id: request.params.id }, select: rdoCampoSelect });
     if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
-    return rdo;
+
+    const ultimaReprovacao =
+      rdo.status === "REPROVADO" || rdo.status === "EM_CORRECAO"
+        ? await prisma.aprovacaoFiscal.findFirst({
+            where: { rdoId: rdo.id, status: "REPROVADO" },
+            orderBy: { criadoEm: "desc" },
+            select: { comentarioReprovacao: true, assinanteNome: true, assinadoEm: true },
+          })
+        : null;
+
+    return { ...rdo, ultimaReprovacao };
   });
 
   app.post<{ Params: { id: string } }>("/rdos/:id/pdf", async (request, reply) => {

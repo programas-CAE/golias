@@ -47,6 +47,12 @@ interface MaterialDetalhe {
   quantidade: string;
 }
 
+interface UltimaReprovacao {
+  comentarioReprovacao: string | null;
+  assinanteNome: string | null;
+  assinadoEm: string | null;
+}
+
 interface RdoDetalheResponse {
   id: string;
   data: string;
@@ -59,11 +65,13 @@ interface RdoDetalheResponse {
   observacoesCliente: string | null;
   frente: { nome: string };
   equipe: { nome: string };
+  linkCampoToken: string | null;
   blocosHorario: BlocoDetalhe[];
   locais: LocalDetalhe[];
   maoDeObra: MaoDeObraDetalhe[];
   equipamentos: EquipamentoDetalhe[];
   materiais: MaterialDetalhe[];
+  ultimaReprovacao: UltimaReprovacao | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -80,6 +88,8 @@ export default function RdoDetalhe(): ReactElement {
   const [erro, setErro] = useState<string | null>(null);
   const [gerando, setGerando] = useState(false);
   const [pdfGerado, setPdfGerado] = useState(false);
+  const [webUrl, setWebUrl] = useState("");
+  const [linkCopiado, setLinkCopiado] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -87,7 +97,16 @@ export default function RdoDetalhe(): ReactElement {
       .get<RdoDetalheResponse>(`/rdos/${id}`)
       .then(setRdo)
       .catch((error) => setErro(error instanceof ApiError ? error.message : "Não foi possível carregar o RDO."));
+    void getSettings().then((settings) => setWebUrl(settings.webUrl));
   }, [id]);
+
+  async function copiarLinkCampo(): Promise<void> {
+    if (!rdo?.linkCampoToken) return;
+    const link = `${webUrl.replace(/\/$/, "")}/campo/${rdo.linkCampoToken}`;
+    await navigator.clipboard.writeText(link);
+    setLinkCopiado(true);
+    setTimeout(() => setLinkCopiado(false), 2000);
+  }
 
   async function gerarPdf(): Promise<void> {
     if (!id) return;
@@ -128,6 +147,11 @@ export default function RdoDetalhe(): ReactElement {
                 </p>
               </div>
               <div style={{ display: "flex", gap: 12 }}>
+                {rdo.linkCampoToken && rdo.status !== "APROVADO" && (
+                  <button type="button" className="button button--ghost" onClick={() => void copiarLinkCampo()}>
+                    {linkCopiado ? "Copiado!" : "Copiar link de campo"}
+                  </button>
+                )}
                 <button type="button" className="button button--secondary" onClick={() => void gerarPdf()} disabled={gerando}>
                   {gerando ? "Gerando…" : "Gerar PDF"}
                 </button>
@@ -142,6 +166,17 @@ export default function RdoDetalhe(): ReactElement {
                 </button>
               </div>
             </div>
+
+            {(rdo.status === "REPROVADO" || rdo.status === "EM_CORRECAO") && (
+              <p className="feedback feedback--erro" style={{ marginBottom: 16 }}>
+                Reprovado pelo fiscal
+                {rdo.ultimaReprovacao?.assinanteNome ? ` (${rdo.ultimaReprovacao.assinanteNome})` : ""}
+                {rdo.ultimaReprovacao?.comentarioReprovacao ? `: ${rdo.ultimaReprovacao.comentarioReprovacao}` : ""}
+                {rdo.status === "EM_CORRECAO"
+                  ? " — o encarregado já reabriu o RDO para correção pelo link de campo."
+                  : " — envie o link de campo pro encarregado corrigir."}
+              </p>
+            )}
 
             <section className="form-section">
               <h2 className="form-section-title">Linha do tempo do dia</h2>
