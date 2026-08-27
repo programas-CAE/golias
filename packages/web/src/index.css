@@ -242,6 +242,28 @@ body {
   border-color: #f97316;
 }
 
+.assinatura-canvas-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assinatura-canvas {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #2a3a5f;
+  background: #ffffff;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+.assinatura-canvas-acoes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .om-autocomplete {
   position: relative;
 }

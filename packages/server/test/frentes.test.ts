@@ -91,3 +91,23 @@ describe("PATCH /frentes/:id", () => {
     expect(response.statusCode).toBe(400);
   });
 });
+
+describe("POST /frentes/:id/portal-token", () => {
+  it("gera o link fixo do portal do fiscal para a frente", async () => {
+    const contrato = await criarContrato();
+    const frente = await prisma.frente.create({ data: { codigo: "MAB", nome: "Marabá", contratoId: contrato.id } });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "POST", url: `/frentes/${frente.id}/portal-token` });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { portalFiscalToken: string };
+    expect(body.portalFiscalToken).toHaveLength(43);
+  });
+
+  it("retorna 404 para frente inexistente", async () => {
+    const app = buildApp();
+    const response = await app.inject({ method: "POST", url: "/frentes/nao-existe/portal-token" });
+    expect(response.statusCode).toBe(404);
+  });
+});

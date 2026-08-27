@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
+import { getSettings } from "../lib/settingsStore";
 
 interface Contrato {
   id: string;
@@ -16,6 +17,7 @@ interface Frente {
   contratoId: string;
   contrato: Contrato;
   ativo: boolean;
+  portalFiscalToken: string | null;
 }
 
 export default function Frentes(): ReactElement {
@@ -24,16 +26,21 @@ export default function Frentes(): ReactElement {
   const [contratos, setContratos] = useState<Contrato[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [editando, setEditando] = useState<Frente | null>(null);
+  const [webUrl, setWebUrl] = useState("");
+  const [gerandoToken, setGerandoToken] = useState<string | null>(null);
+  const [linkCopiado, setLinkCopiado] = useState<string | null>(null);
 
   async function carregar(): Promise<void> {
     setErro(null);
     try {
-      const [listaFrentes, listaContratos] = await Promise.all([
+      const [listaFrentes, listaContratos, settings] = await Promise.all([
         api.get<Frente[]>("/frentes"),
         api.get<Contrato[]>("/contratos"),
+        getSettings(),
       ]);
       setFrentes(listaFrentes);
       setContratos(listaContratos);
+      setWebUrl(settings.webUrl);
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível carregar as frentes.");
     }
@@ -42,6 +49,29 @@ export default function Frentes(): ReactElement {
   useEffect(() => {
     void carregar();
   }, []);
+
+  function linkPortalFiscal(token: string): string {
+    return `${webUrl.replace(/\/$/, "")}/portal-fiscal/${token}`;
+  }
+
+  async function gerarLinkFiscal(frenteId: string): Promise<void> {
+    setGerandoToken(frenteId);
+    try {
+      const atualizada = await api.post<Frente>(`/frentes/${frenteId}/portal-token`, {});
+      setFrentes((atual) => atual?.map((f) => (f.id === atualizada.id ? atualizada : f)) ?? atual);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível gerar o link.");
+    } finally {
+      setGerandoToken(null);
+    }
+  }
+
+  async function copiarLinkFiscal(frente: Frente): Promise<void> {
+    if (!frente.portalFiscalToken) return;
+    await navigator.clipboard.writeText(linkPortalFiscal(frente.portalFiscalToken));
+    setLinkCopiado(frente.id);
+    setTimeout(() => setLinkCopiado((atual) => (atual === frente.id ? null : atual)), 2000);
+  }
 
   return (
     <div className="app-shell">
@@ -69,6 +99,7 @@ export default function Frentes(): ReactElement {
                   <th>Nome</th>
                   <th>Contrato (Nº SAP)</th>
                   <th>Status</th>
+                  <th>Portal do fiscal</th>
                   <th />
                 </tr>
               </thead>
@@ -82,6 +113,26 @@ export default function Frentes(): ReactElement {
                       <span className={`badge badge--${frente.ativo ? "ativo" : "inativo"}`}>
                         {frente.ativo ? "Ativa" : "Inativa"}
                       </span>
+                    </td>
+                    <td>
+                      {frente.portalFiscalToken ? (
+                        <button
+                          type="button"
+                          className="button button--ghost button--small"
+                          onClick={() => void copiarLinkFiscal(frente)}
+                        >
+                          {linkCopiado === frente.id ? "Copiado!" : "Copiar link"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="button button--ghost button--small"
+                          disabled={gerandoToken === frente.id}
+                          onClick={() => void gerarLinkFiscal(frente.id)}
+                        >
+                          {gerandoToken === frente.id ? "Gerando…" : "Gerar link"}
+                        </button>
+                      )}
                     </td>
                     <td style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                       <button

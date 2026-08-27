@@ -25,7 +25,7 @@ const rdoListSelect = {
   linkCampoExpiraEm: true,
 } as const;
 
-const rdoCampoSelect = {
+export const rdoCampoSelect = {
   id: true,
   frenteId: true,
   frente: { select: { id: true, nome: true, codigo: true, contrato: { select: { numero: true } } } },
@@ -145,7 +145,7 @@ const ANEXO_MIME_EXTENSAO: Record<string, string> = {
  * declarado — o Content-Type do multipart é só uma alegação do cliente, não
  * prova do conteúdo real (endpoint público, sem login).
  */
-function assinaturaValida(mimetype: string, buffer: Buffer): boolean {
+export function assinaturaValida(mimetype: string, buffer: Buffer): boolean {
   switch (mimetype) {
     case "image/jpeg":
       return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
@@ -224,6 +224,68 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
 function montarUrlVerificacao(rdoId: string, hash: string): string {
   const publicWebUrl = process.env.PUBLIC_WEB_URL ?? "http://localhost:5173";
   return `${publicWebUrl.replace(/\/$/, "")}/verificar/${rdoId}?h=${hash}`;
+}
+
+/**
+ * (Re)gera o PDF do RDO — com as assinaturas já dadas embutidas, se houver
+ * — grava em disco e atualiza `pdfPath`/`pdfHash`. Reaproveitado pela rota
+ * manual de gerar PDF e pelos fluxos de envio/assinatura/reprovação, que
+ * precisam de um PDF atualizado a cada mudança de status.
+ */
+export async function gerarEArmazenarPdf(rdoId: string): Promise<{ id: string; pdfPath: string | null; pdfHash: string | null }> {
+  const rdo = await prisma.rdo.findUnique({ where: { id: rdoId }, select: rdoCampoSelect });
+  if (!rdo) throw new Error(`RDO ${rdoId} não encontrado ao gerar PDF`);
+
+  const [rdoComAssinaturas, aprovacaoFiscal] = await Promise.all([
+    prisma.rdo.findUnique({
+      where: { id: rdoId },
+      select: { assinaturaEncarregadoPath: true, encarregadoId: true, enviadoParaFiscalEm: true },
+    }),
+    prisma.aprovacaoFiscal.findFirst({
+      where: { rdoId, status: { in: ["APROVADO", "REPROVADO"] } },
+      orderBy: { criadoEm: "desc" },
+      select: { assinaturaImagemPath: true, assinanteNome: true, assinadoEm: true, status: true },
+    }),
+  ]);
+
+  const encarregado = rdoComAssinaturas?.encarregadoId
+    ? await prisma.colaborador.findUnique({ where: { id: rdoComAssinaturas.encarregadoId }, select: { nome: true } })
+    : null;
+
+  const conteudo = await montarConteudoRdo(rdo);
+  const hash = calcularHashConteudo(conteudo);
+  const urlVerificacao = montarUrlVerificacao(rdo.id, hash);
+
+  const assinaturaEncarregado =
+    rdoComAssinaturas?.assinaturaEncarregadoPath && rdoComAssinaturas.enviadoParaFiscalEm
+      ? {
+          imagem: await readFile(rdoComAssinaturas.assinaturaEncarregadoPath),
+          nome: encarregado?.nome ?? "Encarregado",
+          data: rdoComAssinaturas.enviadoParaFiscalEm,
+        }
+      : null;
+  const assinaturaFiscal =
+    aprovacaoFiscal?.status === "APROVADO" && aprovacaoFiscal.assinaturaImagemPath && aprovacaoFiscal.assinadoEm
+      ? {
+          imagem: await readFile(aprovacaoFiscal.assinaturaImagemPath),
+          nome: aprovacaoFiscal.assinanteNome ?? "Fiscal",
+          data: aprovacaoFiscal.assinadoEm,
+        }
+      : null;
+
+  const buffer = await gerarPdfRdo({ ...conteudo, urlVerificacao, assinaturaEncarregado, assinaturaFiscal });
+
+  const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
+  const rdoDir = path.join(uploadsRoot, "rdos", rdo.id);
+  await mkdir(rdoDir, { recursive: true });
+  const caminhoCompleto = path.join(rdoDir, "rdo.pdf");
+  await writeFile(caminhoCompleto, buffer);
+
+  return prisma.rdo.update({
+    where: { id: rdo.id },
+    data: { pdfPath: caminhoCompleto, pdfHash: hash },
+    select: { id: true, pdfPath: true, pdfHash: true },
+  });
 }
 
 export function registerRdosRoutes(app: FastifyInstance): void {
@@ -339,16 +401,23 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       return reply.status(410).send({ error: "Link expirado" });
     }
 
-    const [ordensManutencao, atividadesCatalogo] = await Promise.all([
+    const [ordensManutencao, atividadesCatalogo, ultimaReprovacao] = await Promise.all([
       prisma.ordemManutencao.findMany({ where: { frenteId: rdo.frenteId }, select: { id: true, numero: true, detalhes: true } }),
       prisma.atividadeCatalogo.findMany({
         where: { ativo: true },
         orderBy: { ordem: "asc" },
         select: { id: true, codigo: true, descricao: true, unidade: true, usaDimensoes: true },
       }),
+      rdo.status === "REPROVADO"
+        ? prisma.aprovacaoFiscal.findFirst({
+            where: { rdoId: rdo.id, status: "REPROVADO" },
+            orderBy: { criadoEm: "desc" },
+            select: { comentarioReprovacao: true, assinanteNome: true, assinadoEm: true },
+          })
+        : null,
     ]);
 
-    return { rdo, ordensManutencao, atividadesCatalogo };
+    return { rdo, ordensManutencao, atividadesCatalogo, ultimaReprovacao };
   });
 
   app.patch<{ Params: { token: string } }>(
@@ -360,7 +429,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
 
       const existente = await prisma.rdo.findUnique({
         where: { linkCampoToken: request.params.token },
-        select: { id: true, linkCampoExpiraEm: true },
+        select: { id: true, linkCampoExpiraEm: true, status: true, encarregadoId: true },
       });
       if (!existente) {
         return reply.status(404).send({ error: "Link inválido" });
@@ -370,6 +439,10 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       }
 
       const rdoId = existente.id;
+      // Reprovado pelo fiscal + editado de novo pelo encarregado = está em
+      // correção — reabre o fluxo para poder ser reenviado (ver máquina de
+      // estados do RdoStatus). Outros status não mudam ao salvar rascunho.
+      const reabrindoAposReprovacao = existente.status === "REPROVADO";
 
       try {
         await prisma.$transaction(async (tx) => {
@@ -393,6 +466,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
               maoDeObra: { create: data.maoDeObra },
               equipamentos: { create: data.equipamentos },
               materiais: { create: data.materiais },
+              ...(reabrindoAposReprovacao ? { status: "EM_CORRECAO" as const } : {}),
             },
           });
 
@@ -418,6 +492,15 @@ export function registerRdosRoutes(app: FastifyInstance): void {
                   })),
                 },
               },
+            });
+          }
+
+          if (reabrindoAposReprovacao) {
+            const encarregado = data.encarregadoId
+              ? await tx.colaborador.findUnique({ where: { id: data.encarregadoId }, select: { nome: true } })
+              : null;
+            await tx.rdoHistorico.create({
+              data: { rdoId, deStatus: "REPROVADO", paraStatus: "EM_CORRECAO", ator: encarregado?.nome ?? "Encarregado" },
             });
           }
         });
@@ -504,6 +587,151 @@ export function registerRdosRoutes(app: FastifyInstance): void {
     },
   );
 
+  /**
+   * O encarregado finaliza o preenchimento e envia para aprovação —
+   * diferente do PATCH acima, que só salva o rascunho em progresso. Exige
+   * assinatura desenhada (canvas) e pelo menos 1 local com atividade,
+   * mesma regra de "RDO completo" (`rdoCreateInputSchema`).
+   */
+  app.post<{ Params: { token: string } }>(
+    "/rdos/campo/:token/enviar",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const rdo = await prisma.rdo.findUnique({
+        where: { linkCampoToken: request.params.token },
+        select: {
+          id: true,
+          status: true,
+          linkCampoExpiraEm: true,
+          encarregadoId: true,
+          locais: { select: { atividades: { select: { id: true } } } },
+        },
+      });
+      if (!rdo) {
+        return reply.status(404).send({ error: "Link inválido" });
+      }
+      if (tokenExpirado(rdo.linkCampoExpiraEm)) {
+        return reply.status(410).send({ error: "Link expirado" });
+      }
+      if (!["RASCUNHO", "EM_CORRECAO"].includes(rdo.status)) {
+        return reply.status(409).send({ error: "Este RDO já foi enviado para aprovação" });
+      }
+      if (!rdo.locais.some((local) => local.atividades.length > 0)) {
+        return reply.status(400).send({ error: "Informe ao menos um local com atividade antes de enviar" });
+      }
+
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ error: "Assinatura não enviada" });
+      }
+      if (file.mimetype !== "image/png") {
+        return reply.status(400).send({ error: "A assinatura precisa ser PNG" });
+      }
+      const buffer = await file.toBuffer();
+      if (file.file.truncated || !assinaturaValida("image/png", buffer)) {
+        return reply.status(400).send({ error: "Assinatura inválida" });
+      }
+
+      const encarregado = rdo.encarregadoId
+        ? await prisma.colaborador.findUnique({ where: { id: rdo.encarregadoId }, select: { nome: true } })
+        : null;
+
+      const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
+      const rdoDir = path.join(uploadsRoot, "rdos", rdo.id);
+      await mkdir(rdoDir, { recursive: true });
+      const caminhoAssinatura = path.join(rdoDir, "assinatura-encarregado.png");
+      await writeFile(caminhoAssinatura, buffer);
+
+      await prisma.$transaction([
+        prisma.rdo.update({
+          where: { id: rdo.id },
+          data: {
+            status: "AGUARDANDO_APROVACAO",
+            assinaturaEncarregadoPath: caminhoAssinatura,
+            enviadoParaFiscalEm: new Date(),
+          },
+        }),
+        prisma.rdoHistorico.create({
+          data: {
+            rdoId: rdo.id,
+            deStatus: rdo.status,
+            paraStatus: "AGUARDANDO_APROVACAO",
+            ator: encarregado?.nome ?? "Encarregado",
+          },
+        }),
+      ]);
+
+      await gerarEArmazenarPdf(rdo.id);
+
+      return buscarRdoPorToken(request.params.token);
+    },
+  );
+
+  /**
+   * Farol de RDO: uma linha por equipe ativa, uma coluna por dia do mês —
+   * pra grade "equipe × dia" mostrar de relance quem já mandou o RDO,
+   * quem está aguardando assinatura, quem foi aprovado/reprovado. Sem
+   * colunas de supervisor/fiscal (a planilha de referência tem, o GOLIAS
+   * não modela isso hoje) — só o que já existe: equipe, distrito,
+   * encarregado e o status do RDO por dia.
+   */
+  app.get<{ Querystring: { periodo?: string } }>("/rdos/farol-status", async (request) => {
+    const periodo =
+      request.query.periodo && /^\d{4}-\d{2}$/.test(request.query.periodo)
+        ? request.query.periodo
+        : new Date().toISOString().slice(0, 7);
+    const ano = Number(periodo.slice(0, 4));
+    const mes = Number(periodo.slice(5, 7));
+    const inicio = new Date(Date.UTC(ano, mes - 1, 1));
+    const fim = new Date(Date.UTC(ano, mes, 1));
+
+    const [equipes, rdos] = await Promise.all([
+      prisma.equipe.findMany({
+        where: { ativo: true },
+        orderBy: { nome: "asc" },
+        select: { id: true, nome: true, encarregadoId: true, distrito: { select: { nome: true } } },
+      }),
+      prisma.rdo.findMany({
+        where: { data: { gte: inicio, lt: fim } },
+        select: { equipeId: true, data: true, status: true, atualizadoEm: true },
+      }),
+    ]);
+
+    const encarregadoIds = [...new Set(equipes.map((e) => e.encarregadoId).filter((id): id is string => id != null))];
+    const encarregados =
+      encarregadoIds.length > 0
+        ? await prisma.colaborador.findMany({ where: { id: { in: encarregadoIds } }, select: { id: true, nome: true } })
+        : [];
+    const nomePorEncarregadoId = new Map(encarregados.map((c) => [c.id, c.nome]));
+
+    // Se por algum motivo houver mais de um RDO da mesma equipe no mesmo
+    // dia, fica o mais recente (atualizadoEm) — não deveria acontecer no
+    // fluxo normal, mas evita a grade quebrar se acontecer.
+    const statusPorChave = new Map<string, { status: string; atualizadoEm: Date }>();
+    for (const rdo of rdos) {
+      const chave = `${rdo.equipeId}|${rdo.data.toISOString().slice(0, 10)}`;
+      const atual = statusPorChave.get(chave);
+      if (!atual || rdo.atualizadoEm > atual.atualizadoEm) {
+        statusPorChave.set(chave, { status: rdo.status, atualizadoEm: rdo.atualizadoEm });
+      }
+    }
+
+    const diasNoMes = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
+    const dias = Array.from({ length: diasNoMes }, (_, i) => `${periodo}-${String(i + 1).padStart(2, "0")}`);
+
+    const linhas = equipes.map((equipe) => ({
+      equipeId: equipe.id,
+      equipe: equipe.nome,
+      distrito: equipe.distrito.nome,
+      encarregado: equipe.encarregadoId ? (nomePorEncarregadoId.get(equipe.encarregadoId) ?? null) : null,
+      porDia: Object.fromEntries(
+        dias.map((dia) => [dia, statusPorChave.get(`${equipe.id}|${dia}`)?.status ?? null]),
+      ),
+    }));
+
+    return { periodo, dias, linhas };
+  });
+
   app.get<{ Params: { id: string } }>("/rdos/:id", async (request, reply) => {
     const rdo = await prisma.rdo.findUnique({ where: { id: request.params.id }, select: rdoCampoSelect });
     if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
@@ -511,27 +739,10 @@ export function registerRdosRoutes(app: FastifyInstance): void {
   });
 
   app.post<{ Params: { id: string } }>("/rdos/:id/pdf", async (request, reply) => {
-    const rdo = await prisma.rdo.findUnique({ where: { id: request.params.id }, select: rdoCampoSelect });
-    if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
+    const existe = await prisma.rdo.findUnique({ where: { id: request.params.id }, select: { id: true } });
+    if (!existe) return reply.status(404).send({ error: "RDO não encontrado" });
 
-    const conteudo = await montarConteudoRdo(rdo);
-    const hash = calcularHashConteudo(conteudo);
-    const urlVerificacao = montarUrlVerificacao(rdo.id, hash);
-    const buffer = await gerarPdfRdo({ ...conteudo, urlVerificacao });
-
-    const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
-    const rdoDir = path.join(uploadsRoot, "rdos", rdo.id);
-    await mkdir(rdoDir, { recursive: true });
-    const caminhoCompleto = path.join(rdoDir, "rdo.pdf");
-    await writeFile(caminhoCompleto, buffer);
-
-    const atualizado = await prisma.rdo.update({
-      where: { id: rdo.id },
-      data: { pdfPath: caminhoCompleto, pdfHash: hash },
-      select: { id: true, pdfPath: true, pdfHash: true },
-    });
-
-    return atualizado;
+    return gerarEArmazenarPdf(request.params.id);
   });
 
   app.get<{ Params: { id: string } }>("/rdos/:id/pdf", async (request, reply) => {

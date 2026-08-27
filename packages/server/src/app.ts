@@ -14,6 +14,7 @@ import { registerIndicadoresRoutes } from "./routes/indicadores.js";
 import { registerMateriaisRoutes } from "./routes/materiais.js";
 import { registerMedicoesRoutes } from "./routes/medicoes.js";
 import { registerOrdensManutencaoRoutes } from "./routes/ordensManutencao.js";
+import { registerPortalFiscalRoutes } from "./routes/portalFiscal.js";
 import { registerRdosRoutes } from "./routes/rdos.js";
 
 /**
@@ -54,6 +55,7 @@ export function buildApp(): FastifyInstance {
   registerEquipamentosRoutes(app);
   registerMateriaisRoutes(app);
   registerRdosRoutes(app);
+  registerPortalFiscalRoutes(app);
   registerIndicadoresRoutes(app);
   registerMedicoesRoutes(app);
 

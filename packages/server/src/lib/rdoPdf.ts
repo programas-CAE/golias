@@ -60,9 +60,17 @@ export interface RdoConteudo {
   observacoesCliente: string | null;
 }
 
+export interface RdoPdfAssinatura {
+  imagem: Buffer;
+  nome: string;
+  data: Date;
+}
+
 /** `RdoConteudo` + a URL de verificação (que já embute o hash desse conteúdo) — o que o desenho do PDF efetivamente usa. */
 export interface RdoPdfDados extends RdoConteudo {
   urlVerificacao: string;
+  assinaturaEncarregado?: RdoPdfAssinatura | null;
+  assinaturaFiscal?: RdoPdfAssinatura | null;
 }
 
 const MARGEM = 28;
@@ -309,6 +317,30 @@ function desenharObservacoes(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void 
   doc.y = Math.max(yEsq, yDir);
 }
 
+function desenharBlocoAssinatura(
+  doc: PDFKit.PDFDocument,
+  x: number,
+  yLinha: number,
+  largura: number,
+  rotulo: string,
+  assinatura: RdoPdfAssinatura | null | undefined,
+): void {
+  if (assinatura) {
+    // Imagem desenhada no canvas, encaixada logo acima da linha — largura
+    // máxima do bloco, altura proporcional, sem distorcer.
+    const alturaImagem = 32;
+    doc.image(assinatura.imagem, x, yLinha - alturaImagem - 2, { fit: [largura, alturaImagem], align: "center" });
+  }
+  doc.moveTo(x, yLinha).lineTo(x + largura, yLinha).lineWidth(0.75).stroke();
+  doc.font("Helvetica").fontSize(8).text(rotulo, x, yLinha + 3, { width: largura });
+  if (assinatura) {
+    doc
+      .font("Helvetica")
+      .fontSize(7)
+      .text(`Assinado por ${assinatura.nome} em ${formatarData(assinatura.data)}`, x, doc.y + 1, { width: largura });
+  }
+}
+
 async function desenharRodape(doc: PDFKit.PDFDocument, dados: RdoPdfDados): Promise<void> {
   garantirEspaco(doc, 130);
   const y0 = doc.y + 16;
@@ -319,15 +351,14 @@ async function desenharRodape(doc: PDFKit.PDFDocument, dados: RdoPdfDados): Prom
 
   const yAssinaturas = y0 + 40;
   const colLargura = LARGURA_UTIL / 2 - 20;
-  doc.moveTo(MARGEM, yAssinaturas).lineTo(MARGEM + colLargura, yAssinaturas).lineWidth(0.75).stroke();
-  doc.font("Helvetica").fontSize(8).text("Responsável ENGECOM (Encarregado)", MARGEM, yAssinaturas + 3, { width: colLargura });
+  desenharBlocoAssinatura(doc, MARGEM, yAssinaturas, colLargura, "Responsável ENGECOM (Encarregado)", dados.assinaturaEncarregado);
 
   const xVale = MARGEM + colLargura + 40;
-  doc.moveTo(xVale, yAssinaturas).lineTo(xVale + colLargura, yAssinaturas).lineWidth(0.75).stroke();
-  doc.font("Helvetica").fontSize(8).text("Responsável VALE (Fiscal)", xVale, yAssinaturas + 3, { width: colLargura });
+  desenharBlocoAssinatura(doc, xVale, yAssinaturas, colLargura, "Responsável VALE (Fiscal)", dados.assinaturaFiscal);
 
   const qrDataUrl = await QRCode.toBuffer(dados.urlVerificacao, { margin: 0, width: 90 });
-  const qrY = yAssinaturas + 24;
+  const algumaAssinatura = dados.assinaturaEncarregado != null || dados.assinaturaFiscal != null;
+  const qrY = yAssinaturas + (algumaAssinatura ? 36 : 24);
   doc.image(qrDataUrl, MARGEM, qrY, { width: 60, height: 60 });
   doc
     .font("Helvetica")

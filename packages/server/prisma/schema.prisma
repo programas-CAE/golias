@@ -112,6 +112,10 @@ model Frente {
   // Meta de PUS geral da equipe (não por atividade) — só exibida como
   // referência, sem um "PUS geral" calculado para comparar.
   metaPusGeral      Decimal?          @db.Decimal(6, 2)
+  // Link fixo (sem expirar) do portal do fiscal dessa frente — gerado sob
+  // demanda pela tela Frentes do escritório. Diferente de um token por RDO:
+  // o fiscal salva/favorita esse link e vê todos os RDOs da frente nele.
+  portalFiscalToken String?           @unique
   distritos         Distrito[]
   ordensManutencao  OrdemManutencao[]
   rdos              Rdo[]
@@ -224,6 +228,11 @@ model Rdo {
   corrigidoPorId      String?
   corrigidoEm         DateTime?
   enviadoParaFiscalEm DateTime?
+  // Imagem (PNG) da assinatura desenhada pelo encarregado ao finalizar e
+  // enviar o RDO para aprovação — sem tabela própria porque é só 1 por RDO
+  // (diferente da do fiscal, que fica em AprovacaoFiscal junto do resto do
+  // registro de aprovação/reprovação).
+  assinaturaEncarregadoPath String?
 
   pdfPath String?
   pdfHash String?
@@ -376,6 +385,7 @@ model AprovacaoFiscal {
   assinadoEm            DateTime?
   assinadoIp            String?
   documentoHash         String?
+  assinaturaImagemPath  String?
   comentarioReprovacao  String?         @db.Text
   criadoEm              DateTime        @default(now())
 }

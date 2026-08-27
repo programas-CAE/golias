@@ -1,36 +1,20 @@
 import type { ReactElement } from "react";
-import { BrowserRouter, Routes, Route, useParams, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Campo from "./pages/Campo";
+import PortalFiscal from "./pages/PortalFiscal";
 import Verificar from "./pages/Verificar";
 
-function Placeholder({ titulo, descricao }: { titulo: string; descricao: string }): ReactElement {
+function HomePage(): ReactElement {
   return (
     <div className="placeholder-page">
       <div className="placeholder-card">
         <h1>GOLIAS</h1>
-        <p className="subtitle">{titulo}</p>
-        <p className="description">{descricao}</p>
+        <p className="subtitle">Em construção</p>
+        <p className="description">
+          Use o link de campo ou o link do portal do fiscal que o escritório te enviou para acessar o RDO.
+        </p>
       </div>
     </div>
-  );
-}
-
-function FiscalPage(): ReactElement {
-  const { token } = useParams<{ token: string }>();
-  return (
-    <Placeholder
-      titulo="Aprovação de RDO pelo fiscal"
-      descricao={`Esta página permitirá que o fiscal da VALE revise e assine o RDO. Token: ${token ?? "—"}. Em construção — chega na Fase 4.`}
-    />
-  );
-}
-
-function HomePage(): ReactElement {
-  return (
-    <Placeholder
-      titulo="Em construção"
-      descricao="O portal público de campo e de aprovação do fiscal será disponibilizado aqui nas próximas fases do projeto."
-    />
   );
 }
 
@@ -41,7 +25,7 @@ export default function App(): ReactElement {
         <Route path="/" element={<HomePage />} />
         <Route path="/campo/:token" element={<Campo />} />
         <Route path="/verificar/:id" element={<Verificar />} />
-        <Route path="/fiscal/:token" element={<FiscalPage />} />
+        <Route path="/portal-fiscal/:token" element={<PortalFiscal />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

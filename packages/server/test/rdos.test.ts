@@ -302,6 +302,201 @@ describe("PATCH /rdos/campo/:token", () => {
 
     expect(response.statusCode).toBe(400);
   });
+
+  it("reabre um RDO reprovado para correção (REPROVADO -> EM_CORRECAO) ao salvar de novo", async () => {
+    const { frente, equipe, atividade } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: new Date("2026-07-21"),
+        status: "REPROVADO",
+        linkCampoToken: "token-corrigir",
+        linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+      },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/rdos/campo/token-corrigir",
+      payload: {
+        locais: [
+          { descricao: "Trecho corrigido", ordem: 0, atividades: [{ atividadeCatalogoId: atividade.id, comprimento: 10, unidade: "M" }] },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const atualizado = await prisma.rdo.findUniqueOrThrow({ where: { id: rdo.id } });
+    expect(atualizado.status).toBe("EM_CORRECAO");
+
+    const historico = await prisma.rdoHistorico.findMany({ where: { rdoId: rdo.id } });
+    expect(historico).toHaveLength(1);
+    expect(historico[0]?.deStatus).toBe("REPROVADO");
+    expect(historico[0]?.paraStatus).toBe("EM_CORRECAO");
+  });
+});
+
+const BOUNDARY = "----golias-test-boundary";
+// PNG 1x1 válido de verdade (não só o cabeçalho) — o PDF da assinatura é
+// realmente desenhado com pdfkit (doc.image), que decodifica o PNG e falha
+// se o arquivo não tiver os chunks IHDR/IDAT/IEND completos.
+const PNG_BYTES = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64",
+);
+
+function multipartAssinatura(content: Buffer = PNG_BYTES): { headers: Record<string, string>; payload: Buffer } {
+  const preamble = Buffer.from(
+    `--${BOUNDARY}\r\nContent-Disposition: form-data; name="assinatura"; filename="assinatura.png"\r\nContent-Type: image/png\r\n\r\n`,
+  );
+  const epilogue = Buffer.from(`\r\n--${BOUNDARY}--\r\n`);
+  return {
+    headers: { "content-type": `multipart/form-data; boundary=${BOUNDARY}` },
+    payload: Buffer.concat([preamble, content, epilogue]),
+  };
+}
+
+describe("POST /rdos/campo/:token/enviar", () => {
+  async function criarRdoComAtividade(token: string) {
+    const { frente, equipe, atividade } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: new Date("2026-07-21"),
+        linkCampoToken: token,
+        linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+      },
+    });
+    await prisma.rdoLocal.create({
+      data: {
+        rdoId: rdo.id,
+        descricao: "Trecho A",
+        ordem: 0,
+        atividades: { create: [{ atividadeCatalogoId: atividade.id, comprimento: 10, unidade: "M", totalCalculado: 10 }] },
+      },
+    });
+    return rdo;
+  }
+
+  it("finaliza o RDO, salva a assinatura e muda o status para aguardando aprovação", async () => {
+    const rdo = await criarRdoComAtividade("token-enviar");
+
+    const app = buildApp();
+    const { headers, payload } = multipartAssinatura();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/campo/token-enviar/enviar",
+      headers,
+      payload,
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { status: string };
+    expect(body.status).toBe("AGUARDANDO_APROVACAO");
+
+    const atualizado = await prisma.rdo.findUniqueOrThrow({ where: { id: rdo.id } });
+    expect(atualizado.assinaturaEncarregadoPath).toBeTruthy();
+    expect(atualizado.enviadoParaFiscalEm).toBeTruthy();
+    expect(atualizado.pdfHash).toHaveLength(64);
+
+    const historico = await prisma.rdoHistorico.findMany({ where: { rdoId: rdo.id } });
+    expect(historico).toHaveLength(1);
+    expect(historico[0]?.paraStatus).toBe("AGUARDANDO_APROVACAO");
+  });
+
+  it("retorna 400 quando não há nenhum local com atividade", async () => {
+    const { frente, equipe } = await criarCenario();
+    await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: new Date("2026-07-21"),
+        linkCampoToken: "token-enviar-vazio",
+        linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+      },
+    });
+
+    const app = buildApp();
+    const { headers, payload } = multipartAssinatura();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/campo/token-enviar-vazio/enviar",
+      headers,
+      payload,
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("retorna 400 quando a assinatura não é enviada", async () => {
+    await criarRdoComAtividade("token-enviar-sem-assinatura");
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/campo/token-enviar-sem-assinatura/enviar",
+      headers: { "content-type": `multipart/form-data; boundary=${BOUNDARY}` },
+      payload: Buffer.from(`--${BOUNDARY}--\r\n`),
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("retorna 409 quando o RDO já foi enviado para aprovação", async () => {
+    const rdo = await criarRdoComAtividade("token-enviar-duplicado");
+    await prisma.rdo.update({ where: { id: rdo.id }, data: { status: "AGUARDANDO_APROVACAO" } });
+
+    const app = buildApp();
+    const { headers, payload } = multipartAssinatura();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/campo/token-enviar-duplicado/enviar",
+      headers,
+      payload,
+    });
+
+    expect(response.statusCode).toBe(409);
+  });
+
+  it("retorna 404 para token inexistente", async () => {
+    const app = buildApp();
+    const { headers, payload } = multipartAssinatura();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/campo/nao-existe/enviar",
+      headers,
+      payload,
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("GET /rdos/farol-status", () => {
+  it("monta a grade equipe x dia com o status de cada RDO no período", async () => {
+    const { frente, equipe } = await criarCenario();
+    await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21"), status: "APROVADO" },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: "/rdos/farol-status?periodo=2026-07" });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as {
+      periodo: string;
+      dias: string[];
+      linhas: Array<{ equipeId: string; porDia: Record<string, string | null> }>;
+    };
+    expect(body.periodo).toBe("2026-07");
+    expect(body.dias).toHaveLength(31);
+    const linha = body.linhas.find((l) => l.equipeId === equipe.id);
+    expect(linha?.porDia["2026-07-21"]).toBe("APROVADO");
+    expect(linha?.porDia["2026-07-20"]).toBeNull();
+  });
 });
 
 describe("POST /rdos/:id/pdf e GET /rdos/:id/verificar", () => {

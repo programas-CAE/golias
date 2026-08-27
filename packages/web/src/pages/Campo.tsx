@@ -1,7 +1,8 @@
-import { useEffect, useState, type ChangeEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { useParams } from "react-router-dom";
 import { ApiError, api } from "../lib/apiClient";
 import Autocomplete from "../components/Autocomplete";
+import AssinaturaCanvas, { type AssinaturaCanvasHandle } from "../components/AssinaturaCanvas";
 
 interface Ref {
   id: string;
@@ -111,10 +112,17 @@ interface Rdo {
   anexos: RdoAnexo[];
 }
 
+interface UltimaReprovacao {
+  comentarioReprovacao: string | null;
+  assinanteNome: string | null;
+  assinadoEm: string | null;
+}
+
 interface CampoResponse {
   rdo: Rdo;
   ordensManutencao: OrdemManutencaoRef[];
   atividadesCatalogo: AtividadeCatalogo[];
+  ultimaReprovacao: UltimaReprovacao | null;
 }
 
 interface AtividadeDraft {
@@ -175,6 +183,13 @@ function novoLocal(atividadesCatalogo: AtividadeCatalogo[]): LocalDraft {
   };
 }
 
+const RDO_EDITAVEL = new Set(["RASCUNHO", "EM_CORRECAO", "REPROVADO"]);
+const STATUS_MENSAGEM: Record<string, string> = {
+  AGUARDANDO_APROVACAO: "RDO enviado — aguardando o fiscal assinar ou reprovar.",
+  APROVADO: "RDO aprovado e assinado pelo fiscal.",
+  EM_CORRECAO: "RDO em correção — salve e envie novamente para o fiscal.",
+};
+
 export default function Campo(): ReactElement {
   const { token } = useParams<{ token: string }>();
   const [carregando, setCarregando] = useState(true);
@@ -203,6 +218,11 @@ export default function Campo(): ReactElement {
   const [salvando, setSalvando] = useState(false);
   const [salvarStatus, setSalvarStatus] = useState<"idle" | "salvo" | "erro">("idle");
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
+
+  const [mostrandoAssinatura, setMostrandoAssinatura] = useState(false);
+  const [finalizando, setFinalizando] = useState(false);
+  const [erroFinalizar, setErroFinalizar] = useState<string | null>(null);
+  const assinaturaRef = useRef<AssinaturaCanvasHandle>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -352,13 +372,8 @@ export default function Campo(): ReactElement {
     }
   }
 
-  async function handleSalvar(): Promise<void> {
-    if (!token) return;
-    setSalvando(true);
-    setSalvarStatus("idle");
-    setErroSalvar(null);
-
-    const payload = {
+  function montarPayload() {
+    return {
       clima: clima === "" ? null : clima,
       horaExtraInicio: horaExtraInicio === "" ? null : horaExtraInicio,
       horaExtraFim: horaExtraFim === "" ? null : horaExtraFim,
@@ -409,15 +424,51 @@ export default function Campo(): ReactElement {
           ordem,
         })),
     };
+  }
+
+  async function handleSalvar(): Promise<void> {
+    if (!token) return;
+    setSalvando(true);
+    setSalvarStatus("idle");
+    setErroSalvar(null);
 
     try {
-      await api.patch(`/rdos/campo/${token}`, payload);
+      await api.patch(`/rdos/campo/${token}`, montarPayload());
       setSalvarStatus("salvo");
     } catch (error) {
       setErroSalvar(error instanceof ApiError ? error.message : "Não foi possível salvar o RDO.");
       setSalvarStatus("erro");
     } finally {
       setSalvando(false);
+    }
+  }
+
+  async function handleFinalizar(): Promise<void> {
+    if (!token) return;
+    setErroFinalizar(null);
+
+    const blob = await assinaturaRef.current?.exportarPng();
+    if (!blob) {
+      setErroFinalizar("Desenhe sua assinatura antes de enviar.");
+      return;
+    }
+
+    setFinalizando(true);
+    try {
+      // Garante que o que está na tela foi salvo antes de enviar pra
+      // aprovação — "enviar" só transiciona o status, não recebe o
+      // formulário inteiro de novo.
+      await api.patch(`/rdos/campo/${token}`, montarPayload());
+
+      const form = new FormData();
+      form.append("assinatura", blob, "assinatura.png");
+      const resposta = await api.postForm<{ status: string }>(`/rdos/campo/${token}/enviar`, form);
+      setDados((atual) => (atual ? { ...atual, rdo: { ...atual.rdo, status: resposta.status } } : atual));
+      setMostrandoAssinatura(false);
+    } catch (error) {
+      setErroFinalizar(error instanceof ApiError ? error.message : "Não foi possível enviar o RDO para aprovação.");
+    } finally {
+      setFinalizando(false);
     }
   }
 
@@ -856,11 +907,55 @@ export default function Campo(): ReactElement {
       {erroSalvar && <p className="feedback feedback--erro">{erroSalvar}</p>}
       {salvarStatus === "salvo" && <p className="feedback feedback--ok">RDO salvo com sucesso.</p>}
 
-      <div className="campo-acoes">
-        <button type="button" className="button" disabled={salvando} onClick={() => void handleSalvar()}>
-          {salvando ? "Salvando…" : "Salvar RDO"}
-        </button>
-      </div>
+      {STATUS_MENSAGEM[dados.rdo.status] && (
+        <p className="feedback feedback--ok">{STATUS_MENSAGEM[dados.rdo.status]}</p>
+      )}
+      {dados.rdo.status === "REPROVADO" && (
+        <p className="feedback feedback--erro">
+          RDO reprovado pelo fiscal{dados.ultimaReprovacao?.assinanteNome ? ` (${dados.ultimaReprovacao.assinanteNome})` : ""}
+          {dados.ultimaReprovacao?.comentarioReprovacao ? `: ${dados.ultimaReprovacao.comentarioReprovacao}` : ""}
+          {" — corrija e envie de novo."}
+        </p>
+      )}
+
+      {mostrandoAssinatura && (
+        <section className="campo-secao">
+          <h2>Assinatura</h2>
+          <p className="list-subtitle" style={{ marginTop: -4, marginBottom: 12 }}>
+            Ao assinar, o RDO é enviado para aprovação do fiscal e não pode mais ser editado até que ele
+            responda.
+          </p>
+          <AssinaturaCanvas ref={assinaturaRef} />
+          {erroFinalizar && <p className="feedback feedback--erro">{erroFinalizar}</p>}
+          <div className="campo-acoes" style={{ marginTop: 12 }}>
+            <button type="button" className="button" disabled={finalizando} onClick={() => void handleFinalizar()}>
+              {finalizando ? "Enviando…" : "Confirmar e enviar"}
+            </button>
+            <button
+              type="button"
+              className="button button--secondary"
+              disabled={finalizando}
+              onClick={() => {
+                setMostrandoAssinatura(false);
+                setErroFinalizar(null);
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </section>
+      )}
+
+      {!mostrandoAssinatura && (RDO_EDITAVEL.has(dados.rdo.status)) && (
+        <div className="campo-acoes">
+          <button type="button" className="button button--secondary" disabled={salvando} onClick={() => void handleSalvar()}>
+            {salvando ? "Salvando…" : "Salvar RDO"}
+          </button>
+          <button type="button" className="button" onClick={() => setMostrandoAssinatura(true)}>
+            Finalizar e enviar para aprovação
+          </button>
+        </div>
+      )}
     </div>
   );
 }

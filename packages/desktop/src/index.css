@@ -514,6 +514,46 @@ textarea.field-input {
   color: #d97706;
 }
 
+.farol-scroll {
+  overflow-x: auto;
+}
+
+.farol-legenda {
+  padding: 12px 16px;
+  margin: 0;
+  font-size: 0.8rem;
+  color: #5b6b62;
+  border-top: 1px solid #e3ece5;
+}
+
+.farol-legenda .farol-celula {
+  display: inline;
+  padding: 0 2px;
+}
+
+.tabs-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-button {
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 1px solid #dbe8de;
+  background: #ffffff;
+  color: #5b6b62;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.tab-button--ativa {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
