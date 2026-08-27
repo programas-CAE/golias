@@ -24,6 +24,7 @@ export default function FrenteDistritos(): ReactElement {
   const [distritos, setDistritos] = useState<Distrito[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [criando, setCriando] = useState(false);
+  const [editando, setEditando] = useState<Distrito | null>(null);
 
   async function carregar(): Promise<void> {
     if (!frenteId) return;
@@ -86,7 +87,17 @@ export default function FrenteDistritos(): ReactElement {
                         {distrito.ativo ? "Ativo" : "Inativo"}
                       </span>
                     </td>
-                    <td>
+                    <td style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        className="button button--ghost button--small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setEditando(distrito);
+                        }}
+                      >
+                        Editar
+                      </button>
                       <button
                         type="button"
                         className="button button--ghost button--small"
@@ -116,6 +127,82 @@ export default function FrenteDistritos(): ReactElement {
           }}
         />
       )}
+
+      {editando && (
+        <EditarDistritoModal
+          distrito={editando}
+          onClose={() => setEditando(null)}
+          onSalvo={(atualizado) => {
+            setDistritos((atual) => atual?.map((d) => (d.id === atualizado.id ? { ...d, ...atualizado } : d)) ?? atual);
+            setEditando(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditarDistritoModal({
+  distrito,
+  onClose,
+  onSalvo,
+}: {
+  distrito: Distrito;
+  onClose: () => void;
+  onSalvo: (distrito: Distrito) => void;
+}): ReactElement {
+  const [nome, setNome] = useState(distrito.nome);
+  const [ativo, setAtivo] = useState(distrito.ativo);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const salvo = await api.patch<Omit<Distrito, "_count">>(`/distritos/${distrito.id}`, { nome, ativo });
+      onSalvo({ ...salvo, _count: distrito._count });
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">Editar distrito</h2>
+        <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="field-label" htmlFor="nomeEditar">
+            Nome
+          </label>
+          <input
+            id="nomeEditar"
+            className="field-input"
+            value={nome}
+            onChange={(event) => setNome(event.target.value)}
+            autoComplete="off"
+          />
+
+          <label className="checkbox-row">
+            <input type="checkbox" checked={ativo} onChange={(event) => setAtivo(event.target.checked)} />
+            Distrito ativo
+          </label>
+
+          {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+          <div className="form-actions">
+            <button type="submit" className="button" disabled={salvando}>
+              {salvando ? "Salvando…" : "Salvar"}
+            </button>
+            <button type="button" className="button button--secondary" onClick={onClose}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
