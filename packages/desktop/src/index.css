@@ -21,8 +21,8 @@ body {
 
 .app-shell {
   display: flex;
-  flex-direction: column;
-  min-height: 100%;
+  flex-direction: row;
+  height: 100vh;
 }
 
 .page {
@@ -269,15 +269,44 @@ textarea.field-input {
 
 .nav {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 14px 24px;
-  border-bottom: 1px solid #dbe8de;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 236px;
+  padding: 20px 14px;
+  border-right: 1px solid #dbe8de;
   background: #ffffff;
+  overflow-y: auto;
+}
+
+.nav-brand {
+  padding: 6px 10px 24px;
+}
+
+.nav-brand-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #15803d;
+}
+
+.nav-brand-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #8a9c90;
+  text-transform: uppercase;
+}
+
+.nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .nav-link {
-  padding: 8px 14px;
+  padding: 10px 12px;
   border-radius: 8px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -297,7 +326,9 @@ textarea.field-input {
 
 .list-page {
   flex: 1;
+  min-width: 0;
   padding: 32px;
+  overflow-y: auto;
 }
 
 .list-header {

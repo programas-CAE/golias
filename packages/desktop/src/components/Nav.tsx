@@ -14,16 +14,22 @@ const LINKS: Array<{ to: string; label: string }> = [
 export default function Nav(): ReactElement {
   return (
     <nav className="nav">
-      {LINKS.map((link) => (
-        <NavLink
-          key={link.to}
-          to={link.to}
-          end={link.to === "/"}
-          className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
-        >
-          {link.label}
-        </NavLink>
-      ))}
+      <div className="nav-brand">
+        <p className="nav-brand-title">GOLIAS</p>
+        <p className="nav-brand-subtitle">Gestão de contratos</p>
+      </div>
+      <div className="nav-links">
+        {LINKS.map((link) => (
+          <NavLink
+            key={link.to}
+            to={link.to}
+            end={link.to === "/"}
+            className={({ isActive }) => `nav-link${isActive ? " nav-link--active" : ""}`}
+          >
+            {link.label}
+          </NavLink>
+        ))}
+      </div>
     </nav>
   );
 }
