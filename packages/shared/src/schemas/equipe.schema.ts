@@ -19,7 +19,9 @@ export const equipeUpdateInputSchema = z.object({
 export type EquipeUpdateInput = z.infer<typeof equipeUpdateInputSchema>;
 
 export const equipeMembroInputSchema = z.object({
-  colaboradorId: z.string().cuid("Colaborador inválido"),
+  // Opcional: quando ausente, a linha é um posto genérico da função (ex.:
+  // "3 Pedreiro"), sem vincular a uma pessoa nomeada.
+  colaboradorId: z.string().cuid("Colaborador inválido").nullable().optional(),
   funcaoId: z.string().cuid("Função inválida"),
   quantidade: z.number().int().positive().default(1),
 });

@@ -28,8 +28,8 @@ interface Funcao {
 
 interface Membro {
   id: string;
-  colaboradorId: string;
-  colaborador: { id: string; nome: string };
+  colaboradorId: string | null;
+  colaborador: { id: string; nome: string } | null;
   funcaoId: string;
   funcao: { id: string; nome: string };
   quantidade: number;
@@ -523,7 +523,6 @@ function EquipeModal({
         {equipeAtual && (
           <MembrosSection
             equipe={equipeAtual}
-            colaboradores={colaboradores}
             funcoes={funcoes}
             onAtualizado={(atualizada) => {
               setEquipeAtual(atualizada);
@@ -538,16 +537,13 @@ function EquipeModal({
 
 function MembrosSection({
   equipe,
-  colaboradores,
   funcoes,
   onAtualizado,
 }: {
   equipe: Equipe;
-  colaboradores: Colaborador[];
   funcoes: Funcao[];
   onAtualizado: (equipe: Equipe) => void;
 }): ReactElement {
-  const [colaboradorId, setColaboradorId] = useState(colaboradores[0]?.id ?? "");
   const [funcaoId, setFuncaoId] = useState(funcoes[0]?.id ?? "");
   const [quantidade, setQuantidade] = useState("1");
   const [erro, setErro] = useState<string | null>(null);
@@ -555,12 +551,11 @@ function MembrosSection({
 
   async function handleAdicionar(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    if (!colaboradorId || !funcaoId) return;
+    if (!funcaoId) return;
     setProcessando(true);
     setErro(null);
     try {
       const membro = await api.post<Membro>(`/equipes/${equipe.id}/membros`, {
-        colaboradorId,
         funcaoId,
         quantidade: Number(quantidade) || 1,
       });
@@ -595,7 +590,8 @@ function MembrosSection({
         equipe.membros.map((membro) => (
           <div className="membro-row" key={membro.id}>
             <span>
-              {membro.colaborador.nome} — {membro.funcao.nome} ({membro.quantidade}x)
+              {membro.colaborador ? `${membro.colaborador.nome} — ` : ""}
+              {membro.funcao.nome} ({membro.quantidade}x)
             </span>
             <button
               type="button"
@@ -612,13 +608,6 @@ function MembrosSection({
       {erro && <p className="feedback feedback--erro">{erro}</p>}
 
       <form className="membro-add-row" onSubmit={(event) => void handleAdicionar(event)}>
-        <select className="field-input" value={colaboradorId} onChange={(event) => setColaboradorId(event.target.value)}>
-          {colaboradores.map((colaborador) => (
-            <option key={colaborador.id} value={colaborador.id}>
-              {colaborador.nome}
-            </option>
-          ))}
-        </select>
         <select className="field-input" value={funcaoId} onChange={(event) => setFuncaoId(event.target.value)}>
           {funcoes.map((funcao) => (
             <option key={funcao.id} value={funcao.id}>

@@ -117,6 +117,46 @@ describe("POST /equipes/:id/membros", () => {
     expect((response.json() as { quantidade: number }).quantidade).toBe(3);
   });
 
+  it("adiciona um membro só por função, sem colaborador nomeado", async () => {
+    const distrito = await criarDistrito();
+    const equipe = await prisma.equipe.create({ data: { nome: "Equipe SoFuncao", distritoId: distrito.id } });
+    const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "Pedreiro" } });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: `/equipes/${equipe.id}/membros`,
+      payload: { funcaoId: funcao.id, quantidade: 3 },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as { colaboradorId: string | null; colaborador: unknown; quantidade: number };
+    expect(body.colaboradorId).toBeNull();
+    expect(body.colaborador).toBeNull();
+    expect(body.quantidade).toBe(3);
+  });
+
+  it("permite duas linhas só-função para a mesma função na mesma equipe", async () => {
+    const distrito = await criarDistrito();
+    const equipe = await prisma.equipe.create({ data: { nome: "Equipe SoFuncao2", distritoId: distrito.id } });
+    const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "TST" } });
+
+    const app = buildApp();
+    const primeira = await app.inject({
+      method: "POST",
+      url: `/equipes/${equipe.id}/membros`,
+      payload: { funcaoId: funcao.id, quantidade: 1 },
+    });
+    const segunda = await app.inject({
+      method: "POST",
+      url: `/equipes/${equipe.id}/membros`,
+      payload: { funcaoId: funcao.id, quantidade: 2 },
+    });
+
+    expect(primeira.statusCode).toBe(201);
+    expect(segunda.statusCode).toBe(201);
+  });
+
   it("retorna 409 ao adicionar o mesmo colaborador duas vezes", async () => {
     const distrito = await criarDistrito();
     const equipe = await prisma.equipe.create({ data: { nome: "Equipe F", distritoId: distrito.id } });

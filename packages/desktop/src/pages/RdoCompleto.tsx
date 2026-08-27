@@ -24,10 +24,11 @@ interface Funcao {
 
 interface EquipeMembro {
   id: string;
-  colaboradorId: string;
-  colaborador: Colaborador;
+  colaboradorId: string | null;
+  colaborador: Colaborador | null;
   funcaoId: string;
   funcao: Funcao;
+  quantidade: number;
 }
 
 interface Equipe {
@@ -380,11 +381,11 @@ export default function RdoCompleto(): ReactElement {
         })),
       maoDeObra: [
         ...(equipeSelecionada?.membros ?? [])
-          .filter((membro) => Number(maoDeObra[membro.colaboradorId] ?? "0") > 0)
+          .filter((membro) => Number(maoDeObra[membro.id] ?? membro.quantidade) > 0)
           .map((membro) => ({
             funcaoId: membro.funcaoId,
             colaboradorId: membro.colaboradorId,
-            quantidade: Number(maoDeObra[membro.colaboradorId]),
+            quantidade: Number(maoDeObra[membro.id] ?? membro.quantidade),
           })),
         ...outrasMaoDeObra
           .filter((item) => item.funcaoId && Number(item.quantidade) > 0)
@@ -911,14 +912,15 @@ export default function RdoCompleto(): ReactElement {
             equipeSelecionada.membros.map((membro) => (
               <div className="checklist-row" key={membro.id}>
                 <span>
-                  {membro.colaborador.nome} — {membro.funcao.nome}
+                  {membro.colaborador ? `${membro.colaborador.nome} — ` : ""}
+                  {membro.funcao.nome}
                 </span>
                 <input
                   type="number"
                   min={0}
                   className="field-input qty-input"
-                  value={maoDeObra[membro.colaboradorId] ?? "0"}
-                  onChange={(event) => setMaoDeObra((atual) => ({ ...atual, [membro.colaboradorId]: event.target.value }))}
+                  value={maoDeObra[membro.id] ?? String(membro.quantidade)}
+                  onChange={(event) => setMaoDeObra((atual) => ({ ...atual, [membro.id]: event.target.value }))}
                 />
               </div>
             ))

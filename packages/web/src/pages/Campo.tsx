@@ -15,7 +15,7 @@ interface EquipamentoRef extends Ref {}
 
 interface EquipeMembro {
   id: string;
-  colaborador: ColaboradorRef;
+  colaborador: ColaboradorRef | null;
   funcao: FuncaoRef;
   quantidade: number;
 }
@@ -279,17 +279,26 @@ export default function Campo(): ReactElement {
               }))
             : [novoLocal(resposta.atividadesCatalogo)],
         );
-        const membroIds = new Set(resposta.rdo.equipe.membros.map((membro) => membro.colaborador.id));
+        // RdoMaoDeObra não guarda o id do EquipeMembro, só funcaoId/
+        // colaboradorId — reconstituímos o vínculo pra achar qual membro
+        // (nomeado, por colaboradorId, ou só-função, por funcaoId) cada
+        // registro salvo representa.
+        function encontrarMembro(mdo: { colaboradorId: string | null; funcaoId: string }): EquipeMembro | undefined {
+          return resposta.rdo.equipe.membros.find((membro) =>
+            mdo.colaboradorId != null
+              ? membro.colaborador?.id === mdo.colaboradorId
+              : membro.funcao.id === mdo.funcaoId && !membro.colaborador,
+          );
+        }
+        const paresMaoDeObra = resposta.rdo.maoDeObra.map((mdo) => ({ mdo, membro: encontrarMembro(mdo) }));
         setMaoDeObra(
           Object.fromEntries(
-            resposta.rdo.maoDeObra
-              .filter((mdo) => mdo.colaboradorId != null && membroIds.has(mdo.colaboradorId))
-              .map((mdo) => [mdo.colaboradorId as string, String(mdo.quantidade)]),
+            paresMaoDeObra
+              .filter((par): par is { mdo: (typeof paresMaoDeObra)[number]["mdo"]; membro: EquipeMembro } => par.membro != null)
+              .map((par) => [par.membro.id, String(par.mdo.quantidade)]),
           ),
         );
-        setOutrasMaoDeObra(
-          resposta.rdo.maoDeObra.filter((mdo) => mdo.colaboradorId == null || !membroIds.has(mdo.colaboradorId)),
-        );
+        setOutrasMaoDeObra(paresMaoDeObra.filter((par) => par.membro == null).map((par) => par.mdo));
         setEquipamentos(
           Object.fromEntries(resposta.rdo.equipamentos.map((eq) => [eq.equipamentoCatalogoId, String(eq.quantidade)])),
         );
@@ -434,11 +443,11 @@ export default function Campo(): ReactElement {
         })),
       maoDeObra: [
         ...(dados?.rdo.equipe.membros ?? [])
-          .filter((membro) => Number(maoDeObra[membro.colaborador.id] ?? "0") > 0)
+          .filter((membro) => Number(maoDeObra[membro.id] ?? membro.quantidade) > 0)
           .map((membro) => ({
             funcaoId: membro.funcao.id,
-            colaboradorId: membro.colaborador.id,
-            quantidade: Number(maoDeObra[membro.colaborador.id]),
+            colaboradorId: membro.colaborador?.id ?? null,
+            quantidade: Number(maoDeObra[membro.id] ?? membro.quantidade),
           })),
         ...outrasMaoDeObra,
       ],
@@ -846,16 +855,15 @@ export default function Campo(): ReactElement {
           rdo.equipe.membros.map((membro) => (
             <div className="campo-checklist-row" key={membro.id}>
               <span>
-                {membro.colaborador.nome} — {membro.funcao.nome}
+                {membro.colaborador ? `${membro.colaborador.nome} — ` : ""}
+                {membro.funcao.nome}
               </span>
               <input
                 type="number"
                 min={0}
                 className="field-input campo-qtd"
-                value={maoDeObra[membro.colaborador.id] ?? "0"}
-                onChange={(event) =>
-                  setMaoDeObra((atual) => ({ ...atual, [membro.colaborador.id]: event.target.value }))
-                }
+                value={maoDeObra[membro.id] ?? String(membro.quantidade)}
+                onChange={(event) => setMaoDeObra((atual) => ({ ...atual, [membro.id]: event.target.value }))}
               />
             </div>
           ))

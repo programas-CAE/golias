@@ -157,12 +157,18 @@ model Equipe {
   rdos          Rdo[]
 }
 
+// Efetivo da equipe — desde que o usuário pediu pra não precisar nomear
+// pessoa (só função + quantidade, ex.: "3 Pedreiro"), colaboradorId é
+// opcional: quando ausente, a linha representa um posto genérico daquela
+// função; quando presente, mantém a pessoa nomeada (uso já existente, ex.:
+// encarregado listado como membro). Postgres permite múltiplos NULL sob um
+// unique index, então dá pra ter várias linhas "só função" na mesma equipe.
 model EquipeMembro {
   id            String         @id @default(cuid())
   equipeId      String
   equipe        Equipe         @relation(fields: [equipeId], references: [id])
-  colaboradorId String
-  colaborador   Colaborador    @relation(fields: [colaboradorId], references: [id])
+  colaboradorId String?
+  colaborador   Colaborador?   @relation(fields: [colaboradorId], references: [id])
   funcaoId      String
   funcao        FuncaoCatalogo @relation(fields: [funcaoId], references: [id])
   quantidade    Int            @default(1)
