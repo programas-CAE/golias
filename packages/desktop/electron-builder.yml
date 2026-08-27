@@ -12,3 +12,10 @@ nsis:
   oneClick: false
   perMachine: true
   allowToChangeInstallationDirectory: true
+# Feed de auto-update (electron-updater) — releases publicadas no GitHub do
+# repositório. Precisa de um "latest.yml" + o instalador anexados à release,
+# publicados via `electron-builder --publish always` (variável GH_TOKEN).
+publish:
+  provider: github
+  owner: programas-CAE
+  repo: golias

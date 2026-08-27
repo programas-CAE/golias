@@ -1,4 +1,5 @@
-import { app, BrowserWindow, Menu, ipcMain, shell } from "electron";
+import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from "electron";
+import { autoUpdater } from "electron-updater";
 import path from "node:path";
 
 interface GoliasSettings {
@@ -16,6 +17,44 @@ const SETTINGS: GoliasSettings = {
   apiUrl: "https://api.golias.engecomengenharia.online",
   webUrl: "https://campo.golias.engecomengenharia.online",
 };
+
+const UMA_HORA_MS = 60 * 60 * 1000;
+
+/**
+ * Auto-update via electron-updater, contra as releases do GitHub do
+ * repositório (ver `publish` em electron-builder.yml). Só roda em build
+ * empacotado (`app.isPackaged`) — em dev não há instalador nem release pra
+ * comparar, e o electron-updater loga erro sem isso.
+ */
+function configurarAutoUpdate(): void {
+  if (!app.isPackaged) return;
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on("update-downloaded", (info) => {
+    void dialog
+      .showMessageBox({
+        type: "info",
+        title: "Atualização disponível",
+        message: `Uma nova versão do GOLIAS (${info.version}) foi baixada.`,
+        detail: "Reinicie agora para aplicar, ou deixe para a próxima vez que abrir o programa.",
+        buttons: ["Reiniciar agora", "Depois"],
+        defaultId: 0,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+      });
+  });
+
+  autoUpdater.on("error", (error) => {
+    console.error("[auto-update]", error);
+  });
+
+  void autoUpdater.checkForUpdates();
+  setInterval(() => void autoUpdater.checkForUpdates(), UMA_HORA_MS);
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -59,6 +98,7 @@ ipcMain.handle("shell:openExternal", (_event, url: string): void => {
 void app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   createWindow();
+  configurarAutoUpdate();
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
