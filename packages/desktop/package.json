@@ -1,6 +1,6 @@
 {
   "name": "@golias/desktop",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "private": true,
   "description": "GOLIAS Desktop — aplicativo Electron para uso no escritório",
   "main": "dist-electron/main.js",
