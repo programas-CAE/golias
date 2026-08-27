@@ -174,6 +174,104 @@ describe("POST /rdos/completo", () => {
     expect(Number(daOmB?.kmInicial)).toBe(20);
     expect(Number(daOmB?.kmFinal)).toBe(21);
   });
+
+  it("deriva horasTrabalhadas do horário, maoObraDireta da quebra por função, e guarda o status da OM", async () => {
+    const { frente, equipe, funcao, atividade } = await criarCenario();
+    const om = await prisma.ordemManutencao.create({
+      data: { numero: "OM-HORARIO", frenteId: frente.id, dataEmissao: new Date("2026-07-01") },
+    });
+    const funcao2 = await prisma.funcaoCatalogo.create({ data: { nome: "Servente de Obras 2" } });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        locais: [
+          {
+            descricao: "Trecho único",
+            ordem: 0,
+            atividades: [
+              {
+                atividadeCatalogoId: atividade.id,
+                ordemManutencaoId: om.id,
+                statusOm: "CONCLUIDA",
+                comprimento: 10,
+                unidade: "M",
+                horarioInicial: "07:00",
+                horarioFinal: "09:30",
+                maoDeObra: [
+                  { funcaoId: funcao.id, quantidade: 1 },
+                  { funcaoId: funcao2.id, quantidade: 3 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as {
+      locais: Array<{
+        atividades: Array<{
+          statusOm: string;
+          horarioInicial: string;
+          horarioFinal: string;
+          horasTrabalhadas: string;
+          maoObraDireta: number;
+          maoDeObra: Array<{ funcao: { nome: string }; quantidade: number }>;
+        }>;
+      }>;
+    };
+    const salva = body.locais[0]?.atividades[0];
+    expect(salva?.statusOm).toBe("CONCLUIDA");
+    expect(salva?.horarioInicial).toBe("07:00");
+    expect(salva?.horarioFinal).toBe("09:30");
+    expect(Number(salva?.horasTrabalhadas)).toBe(2.5);
+    expect(salva?.maoObraDireta).toBe(4);
+    expect(salva?.maoDeObra).toHaveLength(2);
+  });
+
+  it("permite salvar de novo (PATCH) um RDO cujas atividades já têm mão de obra — não trava por FK", async () => {
+    const { frente, equipe, funcao, atividade } = await criarCenario();
+    await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: new Date("2026-07-21"),
+        linkCampoToken: "token-refazer",
+        linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+      },
+    });
+
+    const app = buildApp();
+    const payload = {
+      locais: [
+        {
+          descricao: "Trecho",
+          ordem: 0,
+          atividades: [
+            {
+              atividadeCatalogoId: atividade.id,
+              comprimento: 10,
+              unidade: "M",
+              maoDeObra: [{ funcaoId: funcao.id, quantidade: 2 }],
+            },
+          ],
+        },
+      ],
+    };
+
+    const primeira = await app.inject({ method: "PATCH", url: "/rdos/campo/token-refazer", payload });
+    const segunda = await app.inject({ method: "PATCH", url: "/rdos/campo/token-refazer", payload });
+
+    expect(primeira.statusCode).toBe(200);
+    expect(segunda.statusCode).toBe(200);
+  });
 });
 
 describe("GET /rdos/campo/:token", () => {
@@ -555,10 +653,10 @@ describe("POST /rdos/campo/:token/enviar", () => {
 });
 
 describe("GET /rdos/farol-status", () => {
-  it("monta a grade equipe x dia com o status de cada RDO no período", async () => {
+  it("monta a grade equipe x dia com o status de cada RDO no ciclo de medição (dia 19 do mês anterior ao dia 20 do mês selecionado)", async () => {
     const { frente, equipe } = await criarCenario();
     await prisma.rdo.create({
-      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21"), status: "APROVADO" },
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-15"), status: "APROVADO" },
     });
 
     const app = buildApp();
@@ -571,16 +669,32 @@ describe("GET /rdos/farol-status", () => {
       linhas: Array<{ equipeId: string; porDia: Record<string, string | null> }>;
     };
     expect(body.periodo).toBe("2026-07");
-    expect(body.dias).toHaveLength(31);
+    // Ciclo: 19/06 a 20/07 — 12 dias em junho (19..30) + 20 dias em julho (1..20) = 32.
+    expect(body.dias).toHaveLength(32);
+    expect(body.dias[0]).toBe("2026-06-19");
+    expect(body.dias[body.dias.length - 1]).toBe("2026-07-20");
     const linha = body.linhas.find((l) => l.equipeId === equipe.id);
-    expect(linha?.porDia["2026-07-21"]).toBe("APROVADO");
-    expect(linha?.porDia["2026-07-20"]).toBeNull();
+    expect(linha?.porDia["2026-07-15"]).toBe("APROVADO");
+    expect(linha?.porDia["2026-07-14"]).toBeNull();
+  });
+
+  it("não inclui RDOs fora do ciclo de medição (ex.: dia 21, que já entra no ciclo do mês seguinte)", async () => {
+    const { frente, equipe } = await criarCenario();
+    await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21"), status: "APROVADO" },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: "/rdos/farol-status?periodo=2026-07" });
+
+    const body = response.json() as { itens: Array<{ data: string }> };
+    expect(body.itens.find((i) => i.data === "2026-07-21")).toBeUndefined();
   });
 
   it("retorna uma lista plana (itens) com um RDO por linha, para agrupar por status", async () => {
     const { frente, equipe } = await criarCenario();
     const rdo = await prisma.rdo.create({
-      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21"), status: "EM_CORRECAO" },
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-15"), status: "EM_CORRECAO" },
     });
 
     const app = buildApp();
@@ -590,7 +704,7 @@ describe("GET /rdos/farol-status", () => {
       itens: Array<{ id: string; data: string; status: string; equipe: string; distrito: string }>;
     };
     const item = body.itens.find((i) => i.id === rdo.id);
-    expect(item).toMatchObject({ data: "2026-07-21", status: "EM_CORRECAO", equipe: equipe.nome, distrito: "Marabá Centro" });
+    expect(item).toMatchObject({ data: "2026-07-15", status: "EM_CORRECAO", equipe: equipe.nome, distrito: "Marabá Centro" });
   });
 });
 

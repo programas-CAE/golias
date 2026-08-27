@@ -60,9 +60,15 @@ interface OrdemManutencao {
   kmFinal: string | null;
 }
 
+interface AtividadeMaoDeObraDraft {
+  funcaoId: string;
+  quantidade: string;
+}
+
 interface AtividadeDraft {
   atividadeCatalogoId: string;
   ordemManutencaoId: string;
+  statusOm: string;
   unidade: string;
   kmInicial: string;
   kmFinal: string;
@@ -71,8 +77,10 @@ interface AtividadeDraft {
   larguraFinal: string;
   comprimento: string;
   quantidadeDireta: string;
+  horarioInicial: string;
+  horarioFinal: string;
   horasTrabalhadas: string;
-  maoObraDireta: string;
+  maoDeObra: AtividadeMaoDeObraDraft[];
 }
 
 interface LocalDraft {
@@ -107,12 +115,15 @@ interface MaterialDraft {
 }
 
 const CLIMA_OPCOES = ["SOL", "CHUVA", "NUBLADO"];
+/** Jornada de referência pra o fechamento do dia (07:00 às 17:00) — não bloqueia o salvamento, só avisa. */
+const JORNADA_REFERENCIA_HORAS = 10;
 
 function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft {
   const primeira = atividadesCatalogo[0];
   return {
     atividadeCatalogoId: primeira?.id ?? "",
     ordemManutencaoId: "",
+    statusOm: "",
     unidade: primeira?.unidade ?? "UND",
     kmInicial: "",
     kmFinal: "",
@@ -121,8 +132,10 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     larguraFinal: "",
     comprimento: "",
     quantidadeDireta: "",
+    horarioInicial: "",
+    horarioFinal: "",
     horasTrabalhadas: "",
-    maoObraDireta: "",
+    maoDeObra: [],
   };
 }
 
@@ -153,6 +166,42 @@ function calcularTempoTotal(blocos: BlocoDraft[]): string {
   const horas = Math.floor(minutos / 60);
   const min = minutos % 60;
   return `${horas}h${String(min).padStart(2, "0")}`;
+}
+
+/** Duração em horas (fim − início), ou null se algum dos dois estiver vazio/inválido. */
+function duracaoEmHoras(inicial: string, final: string): number | null {
+  if (!inicial || !final) return null;
+  const minutos = minutosDoHorario(final) - minutosDoHorario(inicial);
+  return minutos > 0 ? minutos / 60 : null;
+}
+
+/**
+ * Fecha o dia somando a "Linha do tempo" com o horário de cada atividade —
+ * pra bater com a jornada real (ex.: 07:00 às 17:00 = 10h), sinalizando se
+ * sobrou hora não apontada em nenhum bloco/atividade.
+ */
+function calcularHorasApontadasDia(blocos: BlocoDraft[], locais: LocalDraft[]): number {
+  let minutos = 0;
+  for (const bloco of blocos) {
+    if (!bloco.horarioInicial || !bloco.horarioFinal) continue;
+    const diferenca = minutosDoHorario(bloco.horarioFinal) - minutosDoHorario(bloco.horarioInicial);
+    if (diferenca > 0) minutos += diferenca;
+  }
+  for (const local of locais) {
+    for (const atividade of local.atividades) {
+      if (!atividade.horarioInicial || !atividade.horarioFinal) continue;
+      const diferenca = minutosDoHorario(atividade.horarioFinal) - minutosDoHorario(atividade.horarioInicial);
+      if (diferenca > 0) minutos += diferenca;
+    }
+  }
+  return minutos / 60;
+}
+
+function formatarHoras(horas: number): string {
+  const totalMinutos = Math.round(horas * 60);
+  const h = Math.floor(totalMinutos / 60);
+  const min = totalMinutos % 60;
+  return `${h}h${String(min).padStart(2, "0")}`;
 }
 
 export default function RdoCompleto(): ReactElement {
@@ -239,6 +288,7 @@ export default function RdoCompleto(): ReactElement {
   const equipeSelecionada = equipes.find((equipe) => equipe.id === equipeId) ?? null;
   const ordensDaFrente = ordensManutencao.filter((ordem) => ordem.frenteId === frenteId);
   const tempoTotal = useMemo(() => calcularTempoTotal(blocos), [blocos]);
+  const horasApontadasDia = useMemo(() => calcularHorasApontadasDia(blocos, locais), [blocos, locais]);
 
   function handleFrenteChange(novaFrenteId: string): void {
     setFrenteId(novaFrenteId);
@@ -310,7 +360,66 @@ export default function RdoCompleto(): ReactElement {
                   ordemManutencaoId,
                   kmInicial: om?.kmInicial ?? atividade.kmInicial,
                   kmFinal: om?.kmFinal ?? atividade.kmFinal,
+                  // OM trocada/removida invalida a declaração anterior.
+                  statusOm: ordemManutencaoId ? atividade.statusOm : "",
                 }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
+  function adicionarMaoDeObraAtividade(localIndice: number, atividadeIndice: number): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? { ...atividade, maoDeObra: [...atividade.maoDeObra, { funcaoId: funcoes[0]?.id ?? "", quantidade: "1" }] }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
+  function atualizarMaoDeObraAtividade(
+    localIndice: number,
+    atividadeIndice: number,
+    itemIndice: number,
+    campo: keyof AtividadeMaoDeObraDraft,
+    valor: string,
+  ): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? {
+                  ...atividade,
+                  maoDeObra: atividade.maoDeObra.map((item, k) => (k === itemIndice ? { ...item, [campo]: valor } : item)),
+                }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
+  function removerMaoDeObraAtividade(localIndice: number, atividadeIndice: number, itemIndice: number): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? { ...atividade, maoDeObra: atividade.maoDeObra.filter((_, k) => k !== itemIndice) }
               : atividade,
           ),
         };
@@ -367,6 +476,7 @@ export default function RdoCompleto(): ReactElement {
           atividades: local.atividades.map((atividade) => ({
             atividadeCatalogoId: atividade.atividadeCatalogoId,
             ordemManutencaoId: atividade.ordemManutencaoId || null,
+            statusOm: atividade.statusOm || null,
             kmInicial: atividade.kmInicial === "" ? null : Number(atividade.kmInicial),
             kmFinal: atividade.kmFinal === "" ? null : Number(atividade.kmFinal),
             unidade: atividade.unidade,
@@ -375,8 +485,12 @@ export default function RdoCompleto(): ReactElement {
             larguraFinal: atividade.larguraFinal === "" ? null : Number(atividade.larguraFinal),
             comprimento: atividade.comprimento === "" ? null : Number(atividade.comprimento),
             quantidadeDireta: atividade.quantidadeDireta === "" ? null : Number(atividade.quantidadeDireta),
+            horarioInicial: atividade.horarioInicial || null,
+            horarioFinal: atividade.horarioFinal || null,
             horasTrabalhadas: atividade.horasTrabalhadas === "" ? null : Number(atividade.horasTrabalhadas),
-            maoObraDireta: atividade.maoObraDireta === "" ? null : Number(atividade.maoObraDireta),
+            maoDeObra: atividade.maoDeObra
+              .filter((item) => item.funcaoId && Number(item.quantidade) > 0)
+              .map((item) => ({ funcaoId: item.funcaoId, quantidade: Number(item.quantidade) })),
           })),
         })),
       maoDeObra: [
@@ -829,20 +943,36 @@ export default function RdoCompleto(): ReactElement {
 
                     <div className="grid-2" style={{ marginTop: 12 }}>
                       <div>
-                        <label className="field-label">Mão de obra nesta atividade</label>
+                        <label className="field-label">Horário início (nesta atividade)</label>
                         <input
-                          type="number"
-                          step="1"
-                          min={0}
+                          type="time"
                           className="field-input"
-                          placeholder="efetivo do RDO, se vazio"
-                          value={atividade.maoObraDireta}
+                          value={atividade.horarioInicial}
                           onChange={(event) =>
-                            atualizarAtividade(localIndice, atividadeIndice, "maoObraDireta", event.target.value)
+                            atualizarAtividade(localIndice, atividadeIndice, "horarioInicial", event.target.value)
                           }
                         />
                       </div>
                       <div>
+                        <label className="field-label">Horário fim (nesta atividade)</label>
+                        <input
+                          type="time"
+                          className="field-input"
+                          value={atividade.horarioFinal}
+                          onChange={(event) =>
+                            atualizarAtividade(localIndice, atividadeIndice, "horarioFinal", event.target.value)
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    {duracaoEmHoras(atividade.horarioInicial, atividade.horarioFinal) != null ? (
+                      <p className="list-subtitle" style={{ marginTop: 4 }}>
+                        Horas trabalhadas: {formatarHoras(duracaoEmHoras(atividade.horarioInicial, atividade.horarioFinal)!)}{" "}
+                        (calculado do horário)
+                      </p>
+                    ) : (
+                      <div style={{ marginTop: 12 }}>
                         <label className="field-label">Horas trabalhadas nesta atividade</label>
                         <input
                           type="number"
@@ -856,6 +986,65 @@ export default function RdoCompleto(): ReactElement {
                           }
                         />
                       </div>
+                    )}
+
+                    {atividade.ordemManutencaoId && (
+                      <div style={{ marginTop: 12 }}>
+                        <label className="field-label">Status da OM</label>
+                        <select
+                          className="field-input"
+                          value={atividade.statusOm}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "statusOm", event.target.value)}
+                        >
+                          <option value="">—</option>
+                          <option value="EM_ANDAMENTO">Em andamento</option>
+                          <option value="CONCLUIDA">Concluída</option>
+                        </select>
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: 12 }}>
+                      <label className="field-label">Mão de obra nesta atividade</label>
+                      {atividade.maoDeObra.map((item, itemIndice) => (
+                        <div className="membro-add-row" key={itemIndice} style={{ marginBottom: 6 }}>
+                          <select
+                            className="field-input"
+                            value={item.funcaoId}
+                            onChange={(event) =>
+                              atualizarMaoDeObraAtividade(localIndice, atividadeIndice, itemIndice, "funcaoId", event.target.value)
+                            }
+                          >
+                            {funcoes.map((funcao) => (
+                              <option key={funcao.id} value={funcao.id}>
+                                {funcao.nome}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            min={1}
+                            className="field-input"
+                            value={item.quantidade}
+                            onChange={(event) =>
+                              atualizarMaoDeObraAtividade(localIndice, atividadeIndice, itemIndice, "quantidade", event.target.value)
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="button button--ghost button--small"
+                            onClick={() => removerMaoDeObraAtividade(localIndice, atividadeIndice, itemIndice)}
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="button button--secondary button--small"
+                        onClick={() => adicionarMaoDeObraAtividade(localIndice, atividadeIndice)}
+                      >
+                        + Adicionar função
+                      </button>
                     </div>
                   </div>
 
@@ -1027,6 +1216,14 @@ export default function RdoCompleto(): ReactElement {
             onChange={(event) => setObservacoes(event.target.value)}
             placeholder="Atrasos, ocorrências, justificativas..."
           />
+        </section>
+
+        <section className="form-section">
+          <h2 className="form-section-title">Fechamento do dia</h2>
+          <p className="list-subtitle">
+            {formatarHoras(horasApontadasDia)} apontadas (linha do tempo + atividades) de {JORNADA_REFERENCIA_HORAS}h de
+            referência ({horasApontadasDia >= JORNADA_REFERENCIA_HORAS ? "jornada completa" : "faltam apontar horas"}).
+          </p>
         </section>
 
         {erroSalvar && <p className="feedback feedback--erro">{erroSalvar}</p>}

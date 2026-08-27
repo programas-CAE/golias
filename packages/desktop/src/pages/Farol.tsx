@@ -264,7 +264,7 @@ export default function Farol(): ReactElement {
             <p className="list-subtitle">
               {aba === "om"
                 ? "Ciclo de medição — do dia 19 do mês anterior ao dia 20 do mês selecionado, dia a dia"
-                : "Recebimento e assinatura dos RDOs por equipe, dia a dia"}
+                : "Recebimento e assinatura dos RDOs por equipe — mesmo ciclo de medição, do dia 19 do mês anterior ao dia 20 do mês selecionado"}
             </p>
           </div>
           <input type="month" className="field-input" value={mes} onChange={(event) => setMes(event.target.value)} />

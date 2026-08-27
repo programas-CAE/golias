@@ -192,6 +192,13 @@ body {
   flex-shrink: 0;
 }
 
+.campo-mao-de-obra-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
 .campo-anexos-lista {
   list-style: none;
   margin: 12px 0 0;

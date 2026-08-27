@@ -15,6 +15,46 @@ import { parseBody } from "../lib/validate.js";
 
 const LINK_CAMPO_DIAS_VALIDADE = 7;
 
+function minutosDoHorario(horario: string): number {
+  const [horaStr, minutoStr] = horario.split(":");
+  return Number(horaStr) * 60 + Number(minutoStr);
+}
+
+/**
+ * Horas trabalhadas de uma atividade — quando início e fim são informados,
+ * é sempre derivado deles (fim − início), nunca digitado à parte; cai no
+ * valor manual só quando o horário não foi preenchido (RDO antigo, ou
+ * formulário sem os campos novos). Horário vencendo meia-noite (fim < início)
+ * não é esperado num RDO de um turno só — trata como 0 em vez de negativo.
+ */
+function resolverHorasTrabalhadas(
+  horarioInicial: string | null | undefined,
+  horarioFinal: string | null | undefined,
+  horasTrabalhadasManual: number | null | undefined,
+): number | null {
+  if (horarioInicial && horarioFinal) {
+    const minutos = minutosDoHorario(horarioFinal) - minutosDoHorario(horarioInicial);
+    return minutos > 0 ? Math.round((minutos / 60) * 1000) / 1000 : 0;
+  }
+  return horasTrabalhadasManual ?? null;
+}
+
+interface AtividadeMaoDeObraInput {
+  funcaoId: string;
+  quantidade: number;
+}
+
+/** Total de pessoas na atividade — soma da quebra por função, quando informada; senão cai no número digitado direto. */
+function resolverMaoObraDireta(
+  maoDeObra: AtividadeMaoDeObraInput[] | undefined,
+  maoObraDiretaManual: number | null | undefined,
+): number | null {
+  if (maoDeObra && maoDeObra.length > 0) {
+    return maoDeObra.reduce((soma, item) => soma + item.quantidade, 0);
+  }
+  return maoObraDiretaManual ?? null;
+}
+
 const rdoListSelect = {
   id: true,
   data: true,
@@ -74,6 +114,7 @@ export const rdoCampoSelect = {
           atividadeCatalogoId: true,
           atividadeCatalogo: { select: { id: true, codigo: true, descricao: true, unidade: true, usaDimensoes: true } },
           ordemManutencaoId: true,
+          statusOm: true,
           kmInicial: true,
           kmFinal: true,
           altura: true,
@@ -81,8 +122,11 @@ export const rdoCampoSelect = {
           larguraFinal: true,
           comprimento: true,
           quantidadeDireta: true,
+          horarioInicial: true,
+          horarioFinal: true,
           horasTrabalhadas: true,
           maoObraDireta: true,
+          maoDeObra: { select: { id: true, funcaoId: true, funcao: { select: { id: true, nome: true } }, quantidade: true } },
           totalCalculado: true,
           unidade: true,
         },
@@ -213,6 +257,12 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
         largura: atividade.largura != null ? Number(atividade.largura) : null,
         larguraFinal: atividade.larguraFinal != null ? Number(atividade.larguraFinal) : null,
         comprimento: atividade.comprimento != null ? Number(atividade.comprimento) : null,
+        horarioInicial: atividade.horarioInicial,
+        horarioFinal: atividade.horarioFinal,
+        statusOm: atividade.statusOm,
+        maoDeObra: atividade.maoDeObra
+          .filter((item) => item.quantidade > 0)
+          .map((item) => ({ funcao: item.funcao.nome, quantidade: item.quantidade })),
       })),
     })),
     maoDeObra: rdo.maoDeObra
@@ -367,14 +417,22 @@ export function registerRdosRoutes(app: FastifyInstance): void {
                 create: local.atividades.map((atividade) => ({
                   atividadeCatalogoId: atividade.atividadeCatalogoId,
                   ordemManutencaoId: atividade.ordemManutencaoId,
+                  statusOm: atividade.statusOm,
                   kmInicial: atividade.kmInicial,
                   kmFinal: atividade.kmFinal,
                   altura: atividade.altura,
                   largura: atividade.largura,
                   larguraFinal: atividade.larguraFinal,
                   comprimento: atividade.comprimento,
-                  horasTrabalhadas: atividade.horasTrabalhadas,
-                  maoObraDireta: atividade.maoObraDireta,
+                  horarioInicial: atividade.horarioInicial,
+                  horarioFinal: atividade.horarioFinal,
+                  horasTrabalhadas: resolverHorasTrabalhadas(
+                    atividade.horarioInicial,
+                    atividade.horarioFinal,
+                    atividade.horasTrabalhadas,
+                  ),
+                  maoObraDireta: resolverMaoObraDireta(atividade.maoDeObra, atividade.maoObraDireta),
+                  maoDeObra: { create: atividade.maoDeObra },
                   quantidadeDireta: atividade.quantidadeDireta,
                   unidade: atividade.unidade,
                   totalCalculado: calcularTotalAtividade(atividade.unidade, atividade),
@@ -455,6 +513,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       try {
         await prisma.$transaction(async (tx) => {
           await tx.rdoBlocoHorario.deleteMany({ where: { rdoId } });
+          await tx.rdoAtividadeMaoDeObra.deleteMany({ where: { rdoAtividade: { rdoLocal: { rdoId } } } });
           await tx.rdoAtividade.deleteMany({ where: { rdoLocal: { rdoId } } });
           await tx.rdoLocal.deleteMany({ where: { rdoId } });
           await tx.rdoMaoDeObra.deleteMany({ where: { rdoId } });
@@ -489,14 +548,22 @@ export function registerRdosRoutes(app: FastifyInstance): void {
                   create: local.atividades.map((atividade) => ({
                     atividadeCatalogoId: atividade.atividadeCatalogoId,
                     ordemManutencaoId: atividade.ordemManutencaoId,
+                    statusOm: atividade.statusOm,
                     kmInicial: atividade.kmInicial,
                     kmFinal: atividade.kmFinal,
                     altura: atividade.altura,
                     largura: atividade.largura,
                     larguraFinal: atividade.larguraFinal,
                     comprimento: atividade.comprimento,
-                    horasTrabalhadas: atividade.horasTrabalhadas,
-                    maoObraDireta: atividade.maoObraDireta,
+                    horarioInicial: atividade.horarioInicial,
+                    horarioFinal: atividade.horarioFinal,
+                    horasTrabalhadas: resolverHorasTrabalhadas(
+                      atividade.horarioInicial,
+                      atividade.horarioFinal,
+                      atividade.horasTrabalhadas,
+                    ),
+                    maoObraDireta: resolverMaoObraDireta(atividade.maoDeObra, atividade.maoObraDireta),
+                    maoDeObra: { create: atividade.maoDeObra },
                     quantidadeDireta: atividade.quantidadeDireta,
                     unidade: atividade.unidade,
                     totalCalculado: calcularTotalAtividade(atividade.unidade, atividade),
@@ -679,12 +746,14 @@ export function registerRdosRoutes(app: FastifyInstance): void {
   );
 
   /**
-   * Farol de RDO: uma linha por equipe ativa, uma coluna por dia do mês —
-   * pra grade "equipe × dia" mostrar de relance quem já mandou o RDO,
-   * quem está aguardando assinatura, quem foi aprovado/reprovado. Sem
-   * colunas de supervisor/fiscal (a planilha de referência tem, o GOLIAS
-   * não modela isso hoje) — só o que já existe: equipe, distrito,
-   * encarregado e o status do RDO por dia.
+   * Farol de RDO: uma linha por equipe ativa, uma coluna por dia do ciclo
+   * de medição (dia 19 do mês anterior ao dia 20 do mês informado — mesmo
+   * ciclo do Farol de OM, não o mês corrido) — pra grade "equipe × dia"
+   * mostrar de relance quem já mandou o RDO, quem está aguardando
+   * assinatura, quem foi aprovado/reprovado. Sem colunas de
+   * supervisor/fiscal (a planilha de referência tem, o GOLIAS não modela
+   * isso hoje) — só o que já existe: equipe, distrito, encarregado e o
+   * status do RDO por dia.
    */
   app.get<{ Querystring: { periodo?: string } }>("/rdos/farol-status", async (request) => {
     const periodo =
@@ -693,8 +762,8 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         : new Date().toISOString().slice(0, 7);
     const ano = Number(periodo.slice(0, 4));
     const mes = Number(periodo.slice(5, 7));
-    const inicio = new Date(Date.UTC(ano, mes - 1, 1));
-    const fim = new Date(Date.UTC(ano, mes, 1));
+    const inicio = new Date(Date.UTC(ano, mes - 2, 19));
+    const fim = new Date(Date.UTC(ano, mes - 1, 20, 23, 59, 59, 999));
 
     const [equipes, rdos] = await Promise.all([
       prisma.equipe.findMany({
@@ -703,7 +772,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         select: { id: true, nome: true, encarregadoId: true, distrito: { select: { nome: true } } },
       }),
       prisma.rdo.findMany({
-        where: { data: { gte: inicio, lt: fim } },
+        where: { data: { gte: inicio, lte: fim } },
         orderBy: { data: "asc" },
         select: { id: true, equipeId: true, data: true, status: true, atualizadoEm: true },
       }),
@@ -728,8 +797,10 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       }
     }
 
-    const diasNoMes = new Date(Date.UTC(ano, mes, 0)).getUTCDate();
-    const dias = Array.from({ length: diasNoMes }, (_, i) => `${periodo}-${String(i + 1).padStart(2, "0")}`);
+    const dias: string[] = [];
+    for (const d = new Date(inicio); d <= fim; d.setUTCDate(d.getUTCDate() + 1)) {
+      dias.push(d.toISOString().slice(0, 10));
+    }
 
     const linhas = equipes.map((equipe) => ({
       equipeId: equipe.id,

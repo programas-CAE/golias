@@ -34,6 +34,18 @@ export const rdoBlocoHorarioInputSchema = z.object({
 
 export type RdoBlocoHorarioInput = z.infer<typeof rdoBlocoHorarioInputSchema>;
 
+export const STATUS_OM_DECLARADO_VALUES = ["EM_ANDAMENTO", "CONCLUIDA"] as const;
+export const statusOmDeclaradoSchema = z.enum(STATUS_OM_DECLARADO_VALUES);
+export type StatusOmDeclarado = z.infer<typeof statusOmDeclaradoSchema>;
+
+/** Mão de obra por função dedicada a uma atividade específica (ex.: "1 TST, 3 Pedreiro" só para ela). */
+export const rdoAtividadeMaoDeObraInputSchema = z.object({
+  funcaoId: z.string().cuid(),
+  quantidade: z.number().int().positive().default(1),
+});
+
+export type RdoAtividadeMaoDeObraInput = z.infer<typeof rdoAtividadeMaoDeObraInputSchema>;
+
 export const rdoAtividadeInputSchema = z
   .object({
     atividadeCatalogoId: z.string().cuid(),
@@ -42,6 +54,9 @@ export const rdoAtividadeInputSchema = z
     // junto, pela mesma razão: um mesmo local pode ter atividades com OMs
     // (e kms) diferentes.
     ordemManutencaoId: z.string().cuid().nullable().optional(),
+    // Só faz sentido quando ordemManutencaoId está preenchido — não
+    // reforçado aqui porque o formulário já só mostra o campo nesse caso.
+    statusOm: statusOmDeclaradoSchema.nullable().optional(),
     kmInicial: z.number().nonnegative().nullable().optional(),
     kmFinal: z.number().nonnegative().nullable().optional(),
     altura: z.number().positive().nullable().optional(),
@@ -49,8 +64,13 @@ export const rdoAtividadeInputSchema = z
     larguraFinal: z.number().positive().nullable().optional(),
     comprimento: z.number().positive().nullable().optional(),
     quantidadeDireta: z.number().positive().nullable().optional(),
+    // Início/fim desta atividade — quando ambos informados, o servidor
+    // deriva horasTrabalhadas deles (fim − início) em vez do valor abaixo.
+    horarioInicial: horarioSchema.nullable().optional(),
+    horarioFinal: horarioSchema.nullable().optional(),
     horasTrabalhadas: z.number().positive().nullable().optional(),
     maoObraDireta: z.number().int().positive().nullable().optional(),
+    maoDeObra: z.array(rdoAtividadeMaoDeObraInputSchema).default([]),
     unidade: unidadeMedidaSchema,
   })
   .superRefine((data, ctx) => {

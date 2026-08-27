@@ -20,6 +20,16 @@ enum RdoStatus {
   REPROVADO
 }
 
+// Declarado pelo encarregado por atividade vinculada a uma OM — se aquele
+// trabalho terminou naquele dia ou continua em outro RDO futuro. Distinto
+// do status derivado no Farol de OM (que olha o RDO aprovado/reprovado):
+// uma OM pode ter RDO aprovado e ainda assim estar "em andamento" (só uma
+// parte do serviço foi feita naquele dia).
+enum StatusOmDeclarado {
+  EM_ANDAMENTO
+  CONCLUIDA
+}
+
 enum UnidadeMedida {
   M
   M2
@@ -71,12 +81,13 @@ model AtividadeCatalogo {
 }
 
 model FuncaoCatalogo {
-  id            String         @id @default(cuid())
-  nome          String         @unique
-  ativo         Boolean        @default(true)
-  colaboradores Colaborador[]
-  equipeMembros EquipeMembro[]
-  maoDeObra     RdoMaoDeObra[]
+  id                 String                  @id @default(cuid())
+  nome               String                  @unique
+  ativo              Boolean                 @default(true)
+  colaboradores      Colaborador[]
+  equipeMembros      EquipeMembro[]
+  maoDeObra          RdoMaoDeObra[]
+  atividadeMaoDeObra RdoAtividadeMaoDeObra[]
 }
 
 model EquipamentoCatalogo {
@@ -177,25 +188,25 @@ model EquipeMembro {
 }
 
 model OrdemManutencao {
-  id          String     @id @default(cuid())
-  numero      String     @unique
+  id          String         @id @default(cuid())
+  numero      String         @unique
   frenteId    String
-  frente      Frente     @relation(fields: [frenteId], references: [id])
+  frente      Frente         @relation(fields: [frenteId], references: [id])
   dataEmissao DateTime
-  kmInicial   Decimal?   @db.Decimal(10, 3)
-  kmFinal     Decimal?   @db.Decimal(10, 3)
+  kmInicial   Decimal?       @db.Decimal(10, 3)
+  kmFinal     Decimal?       @db.Decimal(10, 3)
   lado        String?
   detalhes    String?
   atividades  RdoAtividade[]
 }
 
 model Usuario {
-  id            String                @id @default(cuid())
+  id            String               @id @default(cuid())
   nome          String
-  email         String                @unique
+  email         String               @unique
   senhaHash     String
-  role          UsuarioRole           @default(ESCRITORIO)
-  ativo         Boolean               @default(true)
+  role          UsuarioRole          @default(ESCRITORIO)
+  ativo         Boolean              @default(true)
   refreshTokens SessaoRefreshToken[]
 }
 
@@ -211,29 +222,29 @@ model SessaoRefreshToken {
 }
 
 model Rdo {
-  id                String           @id @default(cuid())
-  frenteId          String
-  frente            Frente           @relation(fields: [frenteId], references: [id])
-  equipeId          String
-  equipe            Equipe           @relation(fields: [equipeId], references: [id])
-  data              DateTime         @db.Date
+  id                    String      @id @default(cuid())
+  frenteId              String
+  frente                Frente      @relation(fields: [frenteId], references: [id])
+  equipeId              String
+  equipe                Equipe      @relation(fields: [equipeId], references: [id])
+  data                  DateTime    @db.Date
   // Intervalo de hora extra do dia (formato HH:mm), quando houver — distinto
   // dos horários de cada bloco de atividade (ver RdoBlocoHorario).
-  horaExtraInicio    String?
-  horaExtraFim       String?
-  clima             TempoClima?
-  encarregadoId     String?
-  totalDesvios      Int?
-  observacoesContratada String?      @db.Text
-  observacoesCliente    String?      @db.Text
-  status            RdoStatus        @default(RASCUNHO)
+  horaExtraInicio       String?
+  horaExtraFim          String?
+  clima                 TempoClima?
+  encarregadoId         String?
+  totalDesvios          Int?
+  observacoesContratada String?     @db.Text
+  observacoesCliente    String?     @db.Text
+  status                RdoStatus   @default(RASCUNHO)
 
-  linkCampoToken    String?          @unique
+  linkCampoToken    String?   @unique
   linkCampoExpiraEm DateTime?
 
-  corrigidoPorId      String?
-  corrigidoEm         DateTime?
-  enviadoParaFiscalEm DateTime?
+  corrigidoPorId            String?
+  corrigidoEm               DateTime?
+  enviadoParaFiscalEm       DateTime?
   // Imagem (PNG) da assinatura desenhada pelo encarregado ao finalizar e
   // enviar o RDO para aprovação — sem tabela própria porque é só 1 por RDO
   // (diferente da do fiscal, que fica em AprovacaoFiscal junto do resto do
@@ -247,13 +258,13 @@ model Rdo {
   atualizadoEm DateTime @updatedAt
 
   blocosHorario RdoBlocoHorario[]
-  locais       RdoLocal[]
-  maoDeObra    RdoMaoDeObra[]
-  equipamentos RdoEquipamento[]
-  materiais    RdoMaterial[]
-  anexos       RdoAnexo[]
-  aprovacoes   AprovacaoFiscal[]
-  historico    RdoHistorico[]
+  locais        RdoLocal[]
+  maoDeObra     RdoMaoDeObra[]
+  equipamentos  RdoEquipamento[]
+  materiais     RdoMaterial[]
+  anexos        RdoAnexo[]
+  aprovacoes    AprovacaoFiscal[]
+  historico     RdoHistorico[]
 
   @@index([frenteId, data])
   @@index([status])
@@ -274,34 +285,44 @@ model RdoBlocoHorario {
 }
 
 model RdoLocal {
-  id                String           @id @default(cuid())
-  rdoId             String
-  rdo               Rdo              @relation(fields: [rdoId], references: [id])
-  descricao         String
-  lado              String?
-  ordem             Int              @default(0)
-  atividades        RdoAtividade[]
+  id         String         @id @default(cuid())
+  rdoId      String
+  rdo        Rdo            @relation(fields: [rdoId], references: [id])
+  descricao  String
+  lado       String?
+  ordem      Int            @default(0)
+  atividades RdoAtividade[]
 }
 
 model RdoAtividade {
-  id                  String            @id @default(cuid())
+  id                  String                  @id @default(cuid())
   rdoLocalId          String
-  rdoLocal            RdoLocal          @relation(fields: [rdoLocalId], references: [id])
+  rdoLocal            RdoLocal                @relation(fields: [rdoLocalId], references: [id])
   atividadeCatalogoId String
-  atividadeCatalogo   AtividadeCatalogo @relation(fields: [atividadeCatalogoId], references: [id])
+  atividadeCatalogo   AtividadeCatalogo       @relation(fields: [atividadeCatalogoId], references: [id])
   // Cada atividade é autorizada por uma OM própria — um mesmo local/trecho
   // pode ter atividades diferentes cobertas por OMs diferentes, por isso a
   // OM (e o km, que vem da OM) ficam aqui, não em RdoLocal.
   ordemManutencaoId   String?
-  ordemManutencao     OrdemManutencao?  @relation(fields: [ordemManutencaoId], references: [id])
-  kmInicial           Decimal?          @db.Decimal(10, 3)
-  kmFinal             Decimal?          @db.Decimal(10, 3)
-  altura              Decimal?          @db.Decimal(10, 3)
-  largura             Decimal?          @db.Decimal(10, 3)
-  larguraFinal        Decimal?          @db.Decimal(10, 3)
-  comprimento         Decimal?          @db.Decimal(10, 3)
-  quantidadeDireta    Decimal?          @db.Decimal(12, 3)
-  totalCalculado      Decimal           @db.Decimal(12, 3)
+  ordemManutencao     OrdemManutencao?        @relation(fields: [ordemManutencaoId], references: [id])
+  // Declarado pelo encarregado quando a atividade tem OM vinculada — ver
+  // enum StatusOmDeclarado. Sem sentido sem ordemManutencaoId, mas não
+  // reforçado no banco (validado na camada de aplicação).
+  statusOm            StatusOmDeclarado?
+  kmInicial           Decimal?                @db.Decimal(10, 3)
+  kmFinal             Decimal?                @db.Decimal(10, 3)
+  altura              Decimal?                @db.Decimal(10, 3)
+  largura             Decimal?                @db.Decimal(10, 3)
+  larguraFinal        Decimal?                @db.Decimal(10, 3)
+  comprimento         Decimal?                @db.Decimal(10, 3)
+  quantidadeDireta    Decimal?                @db.Decimal(12, 3)
+  totalCalculado      Decimal                 @db.Decimal(12, 3)
+  // Início/fim (HH:mm) desta atividade especificamente — permite que a
+  // equipe se divida em atividades simultâneas com horários diferentes.
+  // Quando ambos informados, horasTrabalhadas é derivado deles (fim −
+  // início) no servidor, não digitado à parte.
+  horarioInicial      String?
+  horarioFinal        String?
   // Horas efetivamente dedicadas a ESTA atividade nesse dia, e quantas
   // pessoas trabalharam nela — juntas formam os Homens-Hora usados como
   // denominador do PUS por atividade (PUS = produção ÷ (mão de obra ×
@@ -309,21 +330,37 @@ model RdoAtividade {
   // packages/server/src/routes/indicadores.ts). Ambas opcionais: quando
   // não informadas, o cálculo estima a partir do RDO inteiro (mão de obra
   // = efetivo do RDO; horas = horas do dia divididas entre as atividades).
-  horasTrabalhadas    Decimal?          @db.Decimal(6, 3)
+  horasTrabalhadas    Decimal?                @db.Decimal(6, 3)
+  // Total de pessoas nesta atividade — soma de `maoDeObra` (a quebra por
+  // função) quando ela existe, mantido como campo próprio porque é o que
+  // o cálculo de PUS já lê (packages/server/src/routes/indicadores.ts).
   maoObraDireta       Int?
+  maoDeObra           RdoAtividadeMaoDeObra[]
   unidade             UnidadeMedida
 }
 
+// Mão de obra por função dedicada a UMA atividade específica (ex.: "1
+// Encarregado, 1 TST, 1 Pedreiro, 2 Servente" só para essa atividade) —
+// diferente de RdoMaoDeObra, que é o efetivo do RDO inteiro no dia.
+model RdoAtividadeMaoDeObra {
+  id             String         @id @default(cuid())
+  rdoAtividadeId String
+  rdoAtividade   RdoAtividade   @relation(fields: [rdoAtividadeId], references: [id])
+  funcaoId       String
+  funcao         FuncaoCatalogo @relation(fields: [funcaoId], references: [id])
+  quantidade     Int            @default(1)
+}
+
 model RdoMaoDeObra {
-  id                   String          @id @default(cuid())
+  id                   String         @id @default(cuid())
   rdoId                String
-  rdo                  Rdo             @relation(fields: [rdoId], references: [id])
+  rdo                  Rdo            @relation(fields: [rdoId], references: [id])
   funcaoId             String
-  funcao               FuncaoCatalogo  @relation(fields: [funcaoId], references: [id])
+  funcao               FuncaoCatalogo @relation(fields: [funcaoId], references: [id])
   colaboradorId        String?
-  colaborador          Colaborador?    @relation(fields: [colaboradorId], references: [id])
-  quantidade           Int             @default(1)
-  horasImprodutivas    Decimal?        @db.Decimal(6, 2)
+  colaborador          Colaborador?   @relation(fields: [colaboradorId], references: [id])
+  quantidade           Int            @default(1)
+  horasImprodutivas    Decimal?       @db.Decimal(6, 2)
   causaImprodutividade String?
 }
 
@@ -340,15 +377,15 @@ model RdoEquipamento {
 // contrato — packages/server/prisma/data/materialCatalogo.json). Vinculado
 // ao Contrato porque preços mudam de um contrato para o outro.
 model MaterialCatalogo {
-  id             String        @id @default(cuid())
-  contratoId     String
-  contrato       Contrato      @relation(fields: [contratoId], references: [id])
-  codigo         String
-  descricao      String
-  unidade        String
-  precoUnitario  Decimal?      @db.Decimal(14, 4)
-  ativo          Boolean       @default(true)
-  rdoMateriais   RdoMaterial[]
+  id            String        @id @default(cuid())
+  contratoId    String
+  contrato      Contrato      @relation(fields: [contratoId], references: [id])
+  codigo        String
+  descricao     String
+  unidade       String
+  precoUnitario Decimal?      @db.Decimal(14, 4)
+  ativo         Boolean       @default(true)
+  rdoMateriais  RdoMaterial[]
 
   @@unique([contratoId, codigo])
 }
@@ -379,21 +416,21 @@ model RdoAnexo {
 }
 
 model AprovacaoFiscal {
-  id                    String          @id @default(cuid())
-  rdoId                 String
-  rdo                   Rdo             @relation(fields: [rdoId], references: [id])
-  fiscalNome            String
-  fiscalEmail           String
-  token                 String          @unique
-  tokenExpiraEm         DateTime
-  status                AprovacaoStatus @default(PENDENTE)
-  assinanteNome         String?
-  assinadoEm            DateTime?
-  assinadoIp            String?
-  documentoHash         String?
-  assinaturaImagemPath  String?
-  comentarioReprovacao  String?         @db.Text
-  criadoEm              DateTime        @default(now())
+  id                   String          @id @default(cuid())
+  rdoId                String
+  rdo                  Rdo             @relation(fields: [rdoId], references: [id])
+  fiscalNome           String
+  fiscalEmail          String
+  token                String          @unique
+  tokenExpiraEm        DateTime
+  status               AprovacaoStatus @default(PENDENTE)
+  assinanteNome        String?
+  assinadoEm           DateTime?
+  assinadoIp           String?
+  documentoHash        String?
+  assinaturaImagemPath String?
+  comentarioReprovacao String?         @db.Text
+  criadoEm             DateTime        @default(now())
 }
 
 model RdoHistorico {
@@ -408,11 +445,11 @@ model RdoHistorico {
 }
 
 model PeriodoMedicao {
-  id        String                @id @default(cuid())
+  id        String               @id @default(cuid())
   frenteId  String
   ano       Int
   mes       Int
-  status    PeriodoMedicaoStatus  @default(ABERTO)
+  status    PeriodoMedicaoStatus @default(ABERTO)
   fechadoEm DateTime?
   itens     MedicaoItem[]
 

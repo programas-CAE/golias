@@ -11,6 +11,11 @@ export interface RdoPdfBlocoHorario {
   ordem: number;
 }
 
+export interface RdoPdfAtividadeMaoDeObraItem {
+  funcao: string;
+  quantidade: number;
+}
+
 export interface RdoPdfAtividade {
   item: string;
   descricao: string;
@@ -23,6 +28,10 @@ export interface RdoPdfAtividade {
   largura: number | null;
   larguraFinal: number | null;
   comprimento: number | null;
+  horarioInicial: string | null;
+  horarioFinal: string | null;
+  statusOm: "EM_ANDAMENTO" | "CONCLUIDA" | null;
+  maoDeObra: RdoPdfAtividadeMaoDeObraItem[];
 }
 
 export interface RdoPdfLocal {
@@ -195,11 +204,17 @@ function montarLinhasTabela(dados: RdoPdfDados): LinhaTabela[] {
         atividade.kmInicial != null && atividade.kmFinal != null
           ? ` Km ${atividade.kmInicial} ao ${atividade.kmFinal}${local.lado ? ` ${local.lado}` : ""}`
           : "";
+      const maoDeObra =
+        atividade.maoDeObra.length > 0
+          ? ` — MO: ${atividade.maoDeObra.map((item) => `${item.quantidade} ${item.funcao}`).join(", ")}`
+          : "";
+      const statusOm =
+        atividade.statusOm === "CONCLUIDA" ? " [OM concluída]" : atividade.statusOm === "EM_ANDAMENTO" ? " [OM em andamento]" : "";
       linhas.push({
-        inicial: "",
-        final: "",
+        inicial: atividade.horarioInicial ?? "",
+        final: atividade.horarioFinal ?? "",
         item: atividade.item,
-        descricao: `${atividade.descricao} — ${local.descricao}${km}`,
+        descricao: `${atividade.descricao} — ${local.descricao}${km}${maoDeObra}${statusOm}`,
         unidade: atividade.unidade,
         quantidade: formatarNumero(atividade.quantidade),
       });
