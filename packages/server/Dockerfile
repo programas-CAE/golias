@@ -37,6 +37,11 @@ FROM node:22-alpine AS production
 RUN addgroup -g 1001 -S golias && adduser -S golias -u 1001
 WORKDIR /app
 COPY --from=build --chown=golias:golias /deploy/server ./
+# Pré-cria com o dono certo — o volume nomeado do Compose (UPLOADS_ROOT)
+# monta aqui, e o Docker copia o conteúdo/permissões desta pasta pro volume
+# só na primeira inicialização dele. Sem isto, um volume novo nasce com dono
+# root e o processo (uid 1001, non-root) não consegue escrever nele.
+RUN mkdir -p uploads && chown golias:golias uploads
 USER golias
 ENV NODE_ENV=production
 EXPOSE 3333
