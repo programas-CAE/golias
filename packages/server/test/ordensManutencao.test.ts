@@ -244,6 +244,7 @@ describe("GET /ordens-manutencao/farol", () => {
     const body = response.json() as {
       periodo: { inicio: string; fim: string };
       dias: Array<{ data: string; realizada: number; naoExecutada: number; total: number }>;
+      itens: Array<{ numero: string; dataRealizada: string | null }>;
     };
     expect(body.periodo).toEqual({ inicio: "2019-12-19", fim: "2020-01-20" });
 
@@ -251,6 +252,9 @@ describe("GET /ordens-manutencao/farol", () => {
     expect(dia?.realizada).toBe(1);
     expect(dia?.naoExecutada).toBe(1);
     expect(dia?.total).toBe(2);
+
+    expect(body.itens.find((i) => i.numero === "OM-FAROL-2")?.dataRealizada).toBe("2020-01-10");
+    expect(body.itens.find((i) => i.numero === "OM-FAROL-1")?.dataRealizada).toBeNull();
   });
 
   it("retorna uma linha por OM (itens) com o status individual, para conferência", async () => {

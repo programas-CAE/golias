@@ -379,6 +379,31 @@ textarea.field-input {
   color: #5b6b62;
 }
 
+.badge--realizada {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.badge--aguardando {
+  background: rgba(234, 179, 8, 0.15);
+  color: #a16207;
+}
+
+.badge--reprovada {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
+.badge--atrasada {
+  background: rgba(234, 88, 12, 0.14);
+  color: #c2410c;
+}
+
+.badge--pendente {
+  background: rgba(100, 116, 139, 0.12);
+  color: #5b6b62;
+}
+
 .button--small {
   padding: 6px 14px;
   font-size: 0.8rem;
@@ -487,6 +512,23 @@ textarea.field-input {
 
 .farol-scroll {
   overflow-x: auto;
+}
+
+.farol-filtros-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e3ece5;
+}
+
+.farol-filtros-bar .field-label {
+  margin: 0 0 4px;
+}
+
+.farol-filtros-bar select.field-input {
+  min-width: 220px;
 }
 
 .farol-legenda-bar {

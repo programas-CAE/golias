@@ -78,7 +78,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
         lado: true,
         detalhes: true,
         frente: { select: { id: true, nome: true, codigo: true } },
-        atividades: { select: { rdoLocal: { select: { rdo: { select: { status: true } } } } } },
+        atividades: { select: { rdoLocal: { select: { rdo: { select: { status: true, data: true } } } } } },
       },
     });
 
@@ -100,17 +100,20 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
       frenteNome: string;
       frenteCodigo: string;
       dataEmissao: string;
+      dataRealizada: string | null;
       lado: string | null;
       detalhes: string | null;
       status: StatusFarol;
     }> = [];
 
     for (const ordem of ordens) {
-      const statusDosRdos = ordem.atividades.map((atividade) => atividade.rdoLocal.rdo.status);
-      const status = derivarStatusFarol(statusDosRdos, ordem.dataEmissao, hoje);
+      const rdosDaOrdem = ordem.atividades.map((atividade) => atividade.rdoLocal.rdo);
+      const status = derivarStatusFarol(rdosDaOrdem.map((rdo) => rdo.status), ordem.dataEmissao, hoje);
       const chave = ordem.dataEmissao.toISOString().slice(0, 10);
       const contagem = porDia.get(chave);
       if (contagem) contagem[status] += 1;
+
+      const rdoAprovado = rdosDaOrdem.find((rdo) => rdo.status === "APROVADO");
 
       itens.push({
         id: ordem.id,
@@ -119,6 +122,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
         frenteNome: ordem.frente.nome,
         frenteCodigo: ordem.frente.codigo,
         dataEmissao: chave,
+        dataRealizada: rdoAprovado ? rdoAprovado.data.toISOString().slice(0, 10) : null,
         lado: ordem.lado,
         detalhes: ordem.detalhes,
         status,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
+import KpiCard from "../components/KpiCard";
 import { ApiError, api } from "../lib/apiClient";
 
 interface DiaFarol {
@@ -21,6 +22,7 @@ interface ItemFarolOm {
   frenteNome: string;
   frenteCodigo: string;
   dataEmissao: string;
+  dataRealizada: string | null;
   lado: string | null;
   detalhes: string | null;
   status: string;
@@ -54,6 +56,24 @@ const OM_LEGENDA: Array<{ chave: string; classe: string; texto: string }> = [
   { chave: "reprovada", classe: "farol-dot--reprovado", texto: "Reprovada" },
   { chave: "naoExecutada", classe: "farol-dot--atrasada", texto: "Atrasada" },
   { chave: "pendente", classe: "farol-dot--rascunho", texto: "Ainda não venceu" },
+];
+
+const OM_STATUS_BADGE_CLASSE: Record<string, string> = {
+  realizada: "badge--realizada",
+  aguardandoValidacao: "badge--aguardando",
+  reprovada: "badge--reprovada",
+  naoExecutada: "badge--atrasada",
+  pendente: "badge--pendente",
+};
+
+// Ordem das KPIs no topo do Farol de OM: total primeiro, depois o que
+// precisa de atenção antes do que já está resolvido.
+const OM_KPI_ORDEM: Array<{ chave: string; label: string }> = [
+  { chave: "naoExecutada", label: "Atrasadas" },
+  { chave: "aguardandoValidacao", label: "Aguardando aprovação" },
+  { chave: "reprovada", label: "Reprovadas" },
+  { chave: "pendente", label: "Ainda não vencidas" },
+  { chave: "realizada", label: "Realizadas" },
 ];
 
 interface LinhaFarolRdo {
@@ -136,10 +156,39 @@ function fimDeSemana(iso: string): boolean {
   return dow === 0 || dow === 6;
 }
 
+function celulaCsv(valor: string): string {
+  return `"${valor.replace(/"/g, '""')}"`;
+}
+
+function exportarFarolOmCsv(itens: ItemFarolOm[]): void {
+  const cabecalho = ["Nº OM", "Descrição do serviço", "Frente", "Data programada", "Data realizada", "Status do farol"];
+  const linhas = itens.map((item) =>
+    [
+      item.numero,
+      item.detalhes ?? "",
+      item.frenteNome,
+      formatarData(item.dataEmissao),
+      item.dataRealizada ? formatarData(item.dataRealizada) : "",
+      OM_STATUS_LABEL[item.status] ?? item.status,
+    ]
+      .map(celulaCsv)
+      .join(";"),
+  );
+  const csv = [cabecalho.map(celulaCsv).join(";"), ...linhas].join("\r\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `farol-om-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function Farol(): ReactElement {
   const navigate = useNavigate();
   const [aba, setAba] = useState<"om" | "rdo">("om");
   const [mes, setMes] = useState(mesAtual());
+  const [frenteFiltro, setFrenteFiltro] = useState("");
   const [dados, setDados] = useState<RespostaFarol | null>(null);
   const [dadosRdo, setDadosRdo] = useState<RespostaFarolRdo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -178,7 +227,18 @@ export default function Farol(): ReactElement {
     };
   }, [mes, aba]);
 
-  const contagemPorStatus = dados?.itens.reduce<Record<string, number>>((soma, item) => {
+  const frentesDisponiveis = useMemo(() => {
+    const mapa = new Map<string, string>();
+    for (const item of dados?.itens ?? []) mapa.set(item.frenteId, item.frenteNome);
+    return [...mapa.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [dados]);
+
+  const itensOmFiltrados = useMemo(
+    () => (dados?.itens ?? []).filter((item) => !frenteFiltro || item.frenteId === frenteFiltro),
+    [dados, frenteFiltro],
+  );
+
+  const contagemPorStatus = itensOmFiltrados.reduce<Record<string, number>>((soma, item) => {
     soma[item.status] = (soma[item.status] ?? 0) + 1;
     return soma;
   }, {});
@@ -326,59 +386,101 @@ export default function Farol(): ReactElement {
         ) : !dados ? (
           <p className="table-empty">Carregando…</p>
         ) : (
-          <div className="panel">
-            <div className="farol-legenda-bar">
-              {OM_LEGENDA.map((item) => (
-                <span className="farol-legenda-item" key={item.chave}>
-                  <span className={`farol-dot ${item.classe}`} />
-                  {item.texto} ({contagemPorStatus?.[item.chave] ?? 0})
-                </span>
+          <>
+            <div className="dashboard-kpis">
+              <KpiCard label="Total de OMs" valor={String(itensOmFiltrados.length)} vazio={itensOmFiltrados.length === 0} />
+              {OM_KPI_ORDEM.map((kpi) => (
+                <KpiCard
+                  key={kpi.chave}
+                  label={kpi.label}
+                  valor={String(contagemPorStatus[kpi.chave] ?? 0)}
+                  vazio={(contagemPorStatus[kpi.chave] ?? 0) === 0}
+                />
               ))}
             </div>
-            <p className="list-subtitle" style={{ padding: "0 18px", marginTop: 14 }}>
-              OMs programadas de {formatarData(dados.periodo.inicio)} a {formatarData(dados.periodo.fim)} — compare
-              com o que já foi realizado e cobre as que ainda faltam.
-            </p>
-            <div className="farol-scroll">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Número</th>
-                    <th>Frente</th>
-                    <th>Emissão</th>
-                    <th>Lado</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dados.itens.length === 0 ? (
+
+            <div className="panel">
+              <div className="farol-filtros-bar">
+                <div>
+                  <label className="field-label">Frente</label>
+                  <select
+                    className="field-input"
+                    value={frenteFiltro}
+                    onChange={(event) => setFrenteFiltro(event.target.value)}
+                  >
+                    <option value="">Todas as frentes</option>
+                    {frentesDisponiveis.map(([id, nome]) => (
+                      <option key={id} value={id}>
+                        {nome}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="button button--secondary button--small"
+                  style={{ alignSelf: "flex-end" }}
+                  onClick={() => exportarFarolOmCsv(itensOmFiltrados)}
+                  disabled={itensOmFiltrados.length === 0}
+                >
+                  Exportar Farol
+                </button>
+              </div>
+
+              <div className="farol-legenda-bar">
+                {OM_LEGENDA.map((item) => (
+                  <span className="farol-legenda-item" key={item.chave}>
+                    <span className={`farol-dot ${item.classe}`} />
+                    {item.texto} ({contagemPorStatus[item.chave] ?? 0})
+                  </span>
+                ))}
+              </div>
+              <p className="list-subtitle" style={{ padding: "0 18px", marginTop: 14 }}>
+                OMs programadas de {formatarData(dados.periodo.inicio)} a {formatarData(dados.periodo.fim)} — compare
+                com o que já foi realizado e cobre as que ainda faltam.
+              </p>
+              <div className="farol-scroll">
+                <table className="table">
+                  <thead>
                     <tr>
-                      <td colSpan={5} className="table-empty">
-                        Nenhuma OM programada nesse período.
-                      </td>
+                      <th>Nº OM</th>
+                      <th>Descrição do serviço</th>
+                      <th>Frente</th>
+                      <th>Data programada</th>
+                      <th>Data realizada</th>
+                      <th>Status do farol</th>
                     </tr>
-                  ) : (
-                    dados.itens.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <strong>{item.numero}</strong>
-                        </td>
-                        <td>{item.frenteNome}</td>
-                        <td>{formatarData(item.dataEmissao)}</td>
-                        <td>{item.lado ?? "—"}</td>
-                        <td>
-                          <span className="farol-status-linha" title={OM_STATUS_LABEL[item.status]}>
-                            <span className={`farol-dot ${OM_STATUS_DOT_CLASSE[item.status] ?? "farol-dot--vazio"}`} />
-                            {OM_STATUS_LABEL[item.status] ?? item.status}
-                          </span>
+                  </thead>
+                  <tbody>
+                    {itensOmFiltrados.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="table-empty">
+                          Nenhuma OM programada nesse período.
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      itensOmFiltrados.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            <strong>{item.numero}</strong>
+                          </td>
+                          <td>{item.detalhes ?? "—"}</td>
+                          <td>{item.frenteNome}</td>
+                          <td>{formatarData(item.dataEmissao)}</td>
+                          <td>{item.dataRealizada ? formatarData(item.dataRealizada) : "—/—/—"}</td>
+                          <td>
+                            <span className={`badge ${OM_STATUS_BADGE_CLASSE[item.status] ?? "badge--inativo"}`}>
+                              {OM_STATUS_LABEL[item.status] ?? item.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
     </div>
