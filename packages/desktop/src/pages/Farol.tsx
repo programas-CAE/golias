@@ -32,21 +32,31 @@ interface RespostaFarolRdo {
   linhas: LinhaFarolRdo[];
 }
 
-const RDO_STATUS_CLASSE: Record<string, string> = {
-  APROVADO: "farol-celula--realizada",
-  AGUARDANDO_APROVACAO: "farol-celula--aguardando",
-  REPROVADO: "farol-celula--reprovada",
-  RASCUNHO: "farol-celula--pendente",
-  EM_CORRECAO: "farol-celula--pendente",
+const RDO_STATUS_DOT_CLASSE: Record<string, string> = {
+  APROVADO: "farol-dot--aprovado",
+  AGUARDANDO_APROVACAO: "farol-dot--aguardando",
+  REPROVADO: "farol-dot--reprovado",
+  EM_CORRECAO: "farol-dot--correcao",
+  RASCUNHO: "farol-dot--rascunho",
 };
 
-const RDO_STATUS_ROTULO: Record<string, string> = {
-  APROVADO: "OK",
-  AGUARDANDO_APROVACAO: "AGD",
-  REPROVADO: "REP",
-  RASCUNHO: "RASC",
-  EM_CORRECAO: "CORR",
+const RDO_STATUS_LABEL: Record<string, string> = {
+  APROVADO: "Aprovado",
+  AGUARDANDO_APROVACAO: "Aguardando aprovação do fiscal",
+  REPROVADO: "Reprovado pelo fiscal",
+  EM_CORRECAO: "Em correção",
+  RASCUNHO: "Rascunho (não enviado)",
 };
+
+const RDO_LEGENDA: Array<{ classe: string; texto: string }> = [
+  { classe: "farol-dot--aprovado", texto: "Aprovado" },
+  { classe: "farol-dot--aguardando", texto: "Aguardando o fiscal" },
+  { classe: "farol-dot--reprovado", texto: "Reprovado" },
+  { classe: "farol-dot--correcao", texto: "Em correção" },
+  { classe: "farol-dot--rascunho", texto: "Rascunho" },
+];
+
+const DIAS_SEMANA_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
 function mesAtual(): string {
   return new Date().toISOString().slice(0, 7);
@@ -59,6 +69,18 @@ function formatarData(iso: string): string {
 
 function diaDoMes(iso: string): string {
   return iso.slice(8, 10);
+}
+
+function diaDaSemanaDe(iso: string): number {
+  const ano = Number(iso.slice(0, 4));
+  const mes = Number(iso.slice(5, 7));
+  const dia = Number(iso.slice(8, 10));
+  return new Date(Date.UTC(ano, mes - 1, dia)).getUTCDay();
+}
+
+function fimDeSemana(iso: string): boolean {
+  const dow = diaDaSemanaDe(iso);
+  return dow === 0 || dow === 6;
 }
 
 export default function Farol(): ReactElement {
@@ -154,16 +176,29 @@ export default function Farol(): ReactElement {
             <p className="table-empty">Carregando…</p>
           ) : (
             <div className="panel">
+              <div className="farol-legenda-bar">
+                {RDO_LEGENDA.map((item) => (
+                  <span className="farol-legenda-item" key={item.classe}>
+                    <span className={`farol-dot ${item.classe}`} />
+                    {item.texto}
+                  </span>
+                ))}
+                <span className="farol-legenda-item farol-legenda-item--vazio">
+                  <span className="farol-dot farol-dot--vazio" />
+                  Sem RDO lançado
+                </span>
+              </div>
               <div className="farol-scroll">
-                <table className="table">
+                <table className="table farol-tabela-rdo">
                   <thead>
                     <tr>
                       <th>Equipe</th>
                       <th>Distrito</th>
                       <th>Encarregado</th>
                       {dadosRdo.dias.map((dia) => (
-                        <th key={dia} style={{ textAlign: "center" }}>
-                          {diaDoMes(dia)}
+                        <th key={dia} className={fimDeSemana(dia) ? "farol-coluna-fds" : undefined}>
+                          <span className="farol-cabecalho-dia">{diaDoMes(dia)}</span>
+                          <span className="farol-cabecalho-semana">{DIAS_SEMANA_ABREV[diaDaSemanaDe(dia)]}</span>
                         </th>
                       ))}
                     </tr>
@@ -178,7 +213,9 @@ export default function Farol(): ReactElement {
                     ) : (
                       dadosRdo.linhas.map((linha) => (
                         <tr key={linha.equipeId}>
-                          <td>{linha.equipe}</td>
+                          <td>
+                            <strong>{linha.equipe}</strong>
+                          </td>
                           <td>{linha.distrito}</td>
                           <td>{linha.encarregado ?? "—"}</td>
                           {dadosRdo.dias.map((dia) => {
@@ -186,9 +223,12 @@ export default function Farol(): ReactElement {
                             return (
                               <td
                                 key={dia}
-                                className={`farol-celula ${status ? RDO_STATUS_CLASSE[status] : "farol-celula--pendente"}`}
+                                className={fimDeSemana(dia) ? "farol-coluna-fds" : undefined}
+                                title={status ? RDO_STATUS_LABEL[status] : "Sem RDO lançado"}
                               >
-                                {status ? (RDO_STATUS_ROTULO[status] ?? status) : "—"}
+                                <span
+                                  className={`farol-dot ${status ? RDO_STATUS_DOT_CLASSE[status] : "farol-dot--vazio"}`}
+                                />
                               </td>
                             );
                           })}
@@ -198,13 +238,6 @@ export default function Farol(): ReactElement {
                   </tbody>
                 </table>
               </div>
-              <p className="farol-legenda">
-                <span className="farol-celula farol-celula--realizada">OK</span> aprovado ·{" "}
-                <span className="farol-celula farol-celula--aguardando">AGD</span> aguardando assinatura do fiscal ·{" "}
-                <span className="farol-celula farol-celula--reprovada">REP</span> reprovado ·{" "}
-                <span className="farol-celula farol-celula--pendente">RASC/CORR</span> rascunho ou em correção · —
-                sem RDO lançado
-              </p>
             </div>
           )
         ) : !dados ? (
