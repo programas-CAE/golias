@@ -246,7 +246,8 @@ export default function DistritoDetalhe(): ReactElement {
                         )}
                       </span>
                       <span className="encarregado-matricula">
-                        {nomeColaborador(equipe.encarregadoId)} · {equipe.membros.length} membro(s)
+                        {nomeColaborador(equipe.encarregadoId)} ·{" "}
+                        {equipe.membros.reduce((soma, membro) => soma + membro.quantidade, 0)} membro(s)
                       </span>
                     </button>
                   </li>
@@ -580,9 +581,11 @@ function MembrosSection({
     }
   }
 
+  const totalPessoas = equipe.membros.reduce((soma, membro) => soma + membro.quantidade, 0);
+
   return (
     <div className="membros-section">
-      <h3 className="membros-title">Membros ({equipe.membros.length})</h3>
+      <h3 className="membros-title">Membros ({totalPessoas})</h3>
 
       {equipe.membros.length === 0 ? (
         <p className="table-empty">Nenhum membro adicionado ainda.</p>
