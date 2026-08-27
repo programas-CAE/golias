@@ -272,8 +272,6 @@ model RdoLocal {
   rdoId             String
   rdo               Rdo              @relation(fields: [rdoId], references: [id])
   descricao         String
-  kmInicial         Decimal?         @db.Decimal(10, 3)
-  kmFinal           Decimal?         @db.Decimal(10, 3)
   lado              String?
   ordem             Int              @default(0)
   atividades        RdoAtividade[]
@@ -287,9 +285,11 @@ model RdoAtividade {
   atividadeCatalogo   AtividadeCatalogo @relation(fields: [atividadeCatalogoId], references: [id])
   // Cada atividade é autorizada por uma OM própria — um mesmo local/trecho
   // pode ter atividades diferentes cobertas por OMs diferentes, por isso a
-  // OM fica aqui, não em RdoLocal.
+  // OM (e o km, que vem da OM) ficam aqui, não em RdoLocal.
   ordemManutencaoId   String?
   ordemManutencao     OrdemManutencao?  @relation(fields: [ordemManutencaoId], references: [id])
+  kmInicial           Decimal?          @db.Decimal(10, 3)
+  kmFinal             Decimal?          @db.Decimal(10, 3)
   altura              Decimal?          @db.Decimal(10, 3)
   largura             Decimal?          @db.Decimal(10, 3)
   larguraFinal        Decimal?          @db.Decimal(10, 3)

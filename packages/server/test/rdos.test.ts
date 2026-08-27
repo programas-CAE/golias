@@ -117,6 +117,63 @@ describe("POST /rdos/completo", () => {
 
     expect(response.statusCode).toBe(400);
   });
+
+  it("guarda km e OM por atividade — duas atividades do mesmo local podem ter OMs e kms diferentes", async () => {
+    const { frente, equipe, atividade } = await criarCenario();
+    const omA = await prisma.ordemManutencao.create({
+      data: { numero: "OM-KM-A", frenteId: frente.id, dataEmissao: new Date("2026-07-01") },
+    });
+    const omB = await prisma.ordemManutencao.create({
+      data: { numero: "OM-KM-B", frenteId: frente.id, dataEmissao: new Date("2026-07-01") },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        locais: [
+          {
+            descricao: "Trecho único com duas OMs",
+            ordem: 0,
+            atividades: [
+              {
+                atividadeCatalogoId: atividade.id,
+                ordemManutencaoId: omA.id,
+                kmInicial: 10,
+                kmFinal: 11,
+                comprimento: 5,
+                unidade: "M",
+              },
+              {
+                atividadeCatalogoId: atividade.id,
+                ordemManutencaoId: omB.id,
+                kmInicial: 20,
+                kmFinal: 21,
+                comprimento: 8,
+                unidade: "M",
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as {
+      locais: Array<{ atividades: Array<{ ordemManutencaoId: string; kmInicial: string; kmFinal: string }> }>;
+    };
+    const atividades = body.locais[0]?.atividades ?? [];
+    const daOmA = atividades.find((a) => a.ordemManutencaoId === omA.id);
+    const daOmB = atividades.find((a) => a.ordemManutencaoId === omB.id);
+    expect(Number(daOmA?.kmInicial)).toBe(10);
+    expect(Number(daOmA?.kmFinal)).toBe(11);
+    expect(Number(daOmB?.kmInicial)).toBe(20);
+    expect(Number(daOmB?.kmFinal)).toBe(21);
+  });
 });
 
 describe("GET /rdos/campo/:token", () => {
@@ -190,7 +247,16 @@ describe("PATCH /rdos/campo/:token", () => {
             descricao: "Km 767+520 ao 770+480",
             ordem: 0,
             atividades: [
-              { atividadeCatalogoId: atividade.id, largura: 12, comprimento: 264, unidade: "M2" },
+              {
+                atividadeCatalogoId: atividade.id,
+                largura: 12,
+                comprimento: 264,
+                unidade: "M2",
+                kmInicial: 767.52,
+                kmFinal: 770.48,
+                horasTrabalhadas: 6,
+                maoObraDireta: 4,
+              },
             ],
           },
         ],
@@ -202,13 +268,26 @@ describe("PATCH /rdos/campo/:token", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json() as {
       blocosHorario: unknown[];
-      locais: Array<{ atividades: Array<{ totalCalculado: string }> }>;
+      locais: Array<{
+        atividades: Array<{
+          totalCalculado: string;
+          kmInicial: string;
+          kmFinal: string;
+          horasTrabalhadas: string;
+          maoObraDireta: number;
+        }>;
+      }>;
       maoDeObra: unknown[];
       equipamentos: unknown[];
     };
     expect(body.blocosHorario).toHaveLength(1);
     expect(body.locais).toHaveLength(1);
-    expect(Number(body.locais[0]?.atividades[0]?.totalCalculado)).toBe(3168);
+    const salva = body.locais[0]?.atividades[0];
+    expect(Number(salva?.totalCalculado)).toBe(3168);
+    expect(Number(salva?.kmInicial)).toBe(767.52);
+    expect(Number(salva?.kmFinal)).toBe(770.48);
+    expect(Number(salva?.horasTrabalhadas)).toBe(6);
+    expect(salva?.maoObraDireta).toBe(4);
     expect(body.maoDeObra).toHaveLength(1);
     expect(body.equipamentos).toHaveLength(1);
   });

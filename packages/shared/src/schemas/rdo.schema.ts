@@ -38,8 +38,12 @@ export const rdoAtividadeInputSchema = z
   .object({
     atividadeCatalogoId: z.string().cuid(),
     // Cada atividade é autorizada por uma OM própria — ver comentário no
-    // model RdoAtividade em packages/server/prisma/schema.prisma.
+    // model RdoAtividade em packages/server/prisma/schema.prisma. O km vem
+    // junto, pela mesma razão: um mesmo local pode ter atividades com OMs
+    // (e kms) diferentes.
     ordemManutencaoId: z.string().cuid().nullable().optional(),
+    kmInicial: z.number().nonnegative().nullable().optional(),
+    kmFinal: z.number().nonnegative().nullable().optional(),
     altura: z.number().positive().nullable().optional(),
     largura: z.number().positive().nullable().optional(),
     larguraFinal: z.number().positive().nullable().optional(),
@@ -87,8 +91,6 @@ export type RdoAtividadeInput = z.infer<typeof rdoAtividadeInputSchema>;
 
 export const rdoLocalInputSchema = z.object({
   descricao: z.string().min(1, "Descrição do local é obrigatória"),
-  kmInicial: z.number().nonnegative().nullable().optional(),
-  kmFinal: z.number().nonnegative().nullable().optional(),
   lado: z.string().nullable().optional(),
   ordem: z.number().int().nonnegative().default(0),
   atividades: z.array(rdoAtividadeInputSchema).min(1, "Informe ao menos uma atividade para o local"),

@@ -10,13 +10,13 @@ interface AtividadeDetalhe {
   totalCalculado: string;
   unidade: string;
   ordemManutencaoId: string | null;
+  kmInicial: string | null;
+  kmFinal: string | null;
 }
 
 interface LocalDetalhe {
   id: string;
   descricao: string;
-  kmInicial: string | null;
-  kmFinal: string | null;
   lado: string | null;
   atividades: AtividadeDetalhe[];
 }
@@ -175,9 +175,7 @@ export default function RdoDetalhe(): ReactElement {
                 <div key={local.id} style={{ marginBottom: 16 }}>
                   <p className="list-subtitle">
                     {local.descricao}
-                    {local.kmInicial != null && local.kmFinal != null
-                      ? ` (Km ${local.kmInicial} ao ${local.kmFinal}${local.lado ? ` ${local.lado}` : ""})`
-                      : ""}
+                    {local.lado ? ` (${local.lado})` : ""}
                   </p>
                   <table className="table">
                     <thead>
@@ -186,6 +184,7 @@ export default function RdoDetalhe(): ReactElement {
                         <th>Descrição</th>
                         <th>Unidade</th>
                         <th>Quantidade</th>
+                        <th>Km</th>
                         <th>Ordem de manutenção</th>
                       </tr>
                     </thead>
@@ -196,6 +195,11 @@ export default function RdoDetalhe(): ReactElement {
                           <td>{atividade.atividadeCatalogo.descricao}</td>
                           <td>{atividade.unidade}</td>
                           <td>{Number(atividade.totalCalculado).toLocaleString("pt-BR")}</td>
+                          <td>
+                            {atividade.kmInicial != null && atividade.kmFinal != null
+                              ? `${atividade.kmInicial} ao ${atividade.kmFinal}`
+                              : "—"}
+                          </td>
                           <td>{atividade.ordemManutencaoId ? "Vinculada" : "—"}</td>
                         </tr>
                       ))}

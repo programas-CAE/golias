@@ -55,12 +55,16 @@ interface OrdemManutencao {
   numero: string;
   frenteId: string;
   detalhes: string | null;
+  kmInicial: string | null;
+  kmFinal: string | null;
 }
 
 interface AtividadeDraft {
   atividadeCatalogoId: string;
   ordemManutencaoId: string;
   unidade: string;
+  kmInicial: string;
+  kmFinal: string;
   altura: string;
   largura: string;
   larguraFinal: string;
@@ -72,8 +76,6 @@ interface AtividadeDraft {
 
 interface LocalDraft {
   descricao: string;
-  kmInicial: string;
-  kmFinal: string;
   lado: string;
   atividades: AtividadeDraft[];
 }
@@ -111,6 +113,8 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     atividadeCatalogoId: primeira?.id ?? "",
     ordemManutencaoId: "",
     unidade: primeira?.unidade ?? "UND",
+    kmInicial: "",
+    kmFinal: "",
     altura: "",
     largura: "",
     larguraFinal: "",
@@ -124,8 +128,6 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
 function novoLocal(atividadesCatalogo: AtividadeCatalogo[]): LocalDraft {
   return {
     descricao: "",
-    kmInicial: "",
-    kmFinal: "",
     lado: "",
     atividades: [novaAtividade(atividadesCatalogo)],
   };
@@ -288,6 +290,33 @@ export default function RdoCompleto(): ReactElement {
     );
   }
 
+  /**
+   * Ao escolher a OM, preenche o km da atividade com o km cadastrado nela
+   * (ainda editável — o trecho realmente trabalhado pode diferir um pouco
+   * do km oficial da OM).
+   */
+  function selecionarOrdemManutencao(localIndice: number, atividadeIndice: number, ordemManutencaoId: string): void {
+    const om = ordensManutencao.find((o) => o.id === ordemManutencaoId);
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? {
+                  ...atividade,
+                  ordemManutencaoId,
+                  kmInicial: om?.kmInicial ?? atividade.kmInicial,
+                  kmFinal: om?.kmFinal ?? atividade.kmFinal,
+                }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
   function adicionarOutraMaoDeObra(): void {
     setOutrasMaoDeObra((atual) => [
       ...atual,
@@ -332,13 +361,13 @@ export default function RdoCompleto(): ReactElement {
         .filter((local) => local.descricao.trim() !== "" && local.atividades.length > 0)
         .map((local, ordem) => ({
           descricao: local.descricao,
-          kmInicial: local.kmInicial === "" ? null : Number(local.kmInicial),
-          kmFinal: local.kmFinal === "" ? null : Number(local.kmFinal),
           lado: local.lado || null,
           ordem,
           atividades: local.atividades.map((atividade) => ({
             atividadeCatalogoId: atividade.atividadeCatalogoId,
             ordemManutencaoId: atividade.ordemManutencaoId || null,
+            kmInicial: atividade.kmInicial === "" ? null : Number(atividade.kmInicial),
+            kmFinal: atividade.kmFinal === "" ? null : Number(atividade.kmFinal),
             unidade: atividade.unidade,
             altura: atividade.altura === "" ? null : Number(atividade.altura),
             largura: atividade.largura === "" ? null : Number(atividade.largura),
@@ -593,36 +622,14 @@ export default function RdoCompleto(): ReactElement {
                 onChange={(event) => atualizarLocal(localIndice, "descricao", event.target.value)}
               />
 
-              <div className="grid-3" style={{ marginTop: 8 }}>
-                <div>
-                  <label className="field-label">Lado</label>
-                  <input
-                    className="field-input"
-                    placeholder="LE / LD"
-                    value={local.lado}
-                    onChange={(event) => atualizarLocal(localIndice, "lado", event.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Km inicial</label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    className="field-input"
-                    value={local.kmInicial}
-                    onChange={(event) => atualizarLocal(localIndice, "kmInicial", event.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="field-label">Km final</label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    className="field-input"
-                    value={local.kmFinal}
-                    onChange={(event) => atualizarLocal(localIndice, "kmFinal", event.target.value)}
-                  />
-                </div>
+              <div style={{ marginTop: 8, maxWidth: 200 }}>
+                <label className="field-label">Lado</label>
+                <input
+                  className="field-input"
+                  placeholder="LE / LD"
+                  value={local.lado}
+                  onChange={(event) => atualizarLocal(localIndice, "lado", event.target.value)}
+                />
               </div>
 
               <h3 className="field-label" style={{ marginTop: 16 }}>
@@ -683,9 +690,34 @@ export default function RdoCompleto(): ReactElement {
                         getSublabel={(om) => om.detalhes}
                         placeholder="Digite o número da OM…"
                         onChange={(ordemManutencaoId) =>
-                          atualizarAtividade(localIndice, atividadeIndice, "ordemManutencaoId", ordemManutencaoId)
+                          selecionarOrdemManutencao(localIndice, atividadeIndice, ordemManutencaoId)
                         }
                       />
+                    </div>
+
+                    <div className="grid-2" style={{ marginTop: 12 }}>
+                      <div>
+                        <label className="field-label">Km inicial</label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder="Preenchido pela OM, se houver"
+                          value={atividade.kmInicial}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="field-label">Km final</label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder="Preenchido pela OM, se houver"
+                          value={atividade.kmFinal}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
+                        />
+                      </div>
                     </div>
 
                     {atividade.unidade === "M3" && (

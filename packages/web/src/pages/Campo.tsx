@@ -32,6 +32,8 @@ interface OrdemManutencaoRef {
   id: string;
   numero: string;
   detalhes?: string | null;
+  kmInicial?: string | null;
+  kmFinal?: string | null;
 }
 
 interface RdoAnexo {
@@ -44,6 +46,8 @@ interface RdoAnexo {
 interface RdoAtividadeSalva {
   atividadeCatalogoId: string;
   ordemManutencaoId: string | null;
+  kmInicial: string | null;
+  kmFinal: string | null;
   altura: string | null;
   largura: string | null;
   larguraFinal: string | null;
@@ -56,8 +60,6 @@ interface RdoAtividadeSalva {
 
 interface RdoLocalSalvo {
   descricao: string;
-  kmInicial: string | null;
-  kmFinal: string | null;
   lado: string | null;
   atividades: RdoAtividadeSalva[];
 }
@@ -129,6 +131,8 @@ interface AtividadeDraft {
   atividadeCatalogoId: string;
   ordemManutencaoId: string;
   unidade: string;
+  kmInicial: string;
+  kmFinal: string;
   altura: string;
   largura: string;
   larguraFinal: string;
@@ -140,8 +144,6 @@ interface AtividadeDraft {
 
 interface LocalDraft {
   descricao: string;
-  kmInicial: string;
-  kmFinal: string;
   lado: string;
   atividades: AtividadeDraft[];
 }
@@ -163,6 +165,8 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     atividadeCatalogoId: primeira?.id ?? "",
     ordemManutencaoId: "",
     unidade: primeira?.unidade ?? "UND",
+    kmInicial: "",
+    kmFinal: "",
     altura: "",
     largura: "",
     larguraFinal: "",
@@ -176,8 +180,6 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
 function novoLocal(atividadesCatalogo: AtividadeCatalogo[]): LocalDraft {
   return {
     descricao: "",
-    kmInicial: "",
-    kmFinal: "",
     lado: "",
     atividades: [novaAtividade(atividadesCatalogo)],
   };
@@ -259,12 +261,12 @@ export default function Campo(): ReactElement {
           resposta.rdo.locais.length > 0
             ? resposta.rdo.locais.map((local) => ({
                 descricao: local.descricao,
-                kmInicial: local.kmInicial ?? "",
-                kmFinal: local.kmFinal ?? "",
                 lado: local.lado ?? "",
                 atividades: local.atividades.map((atividade) => ({
                   atividadeCatalogoId: atividade.atividadeCatalogoId,
                   ordemManutencaoId: atividade.ordemManutencaoId ?? "",
+                  kmInicial: atividade.kmInicial ?? "",
+                  kmFinal: atividade.kmFinal ?? "",
                   unidade: atividade.unidade,
                   altura: atividade.altura ?? "",
                   largura: atividade.largura ?? "",
@@ -349,6 +351,33 @@ export default function Campo(): ReactElement {
     );
   }
 
+  /**
+   * Ao escolher a OM, preenche o km da atividade com o km cadastrado nela
+   * (ainda editável — o trecho realmente trabalhado pode diferir um pouco
+   * do km oficial da OM).
+   */
+  function selecionarOrdemManutencao(localIndice: number, atividadeIndice: number, ordemManutencaoId: string): void {
+    const om = dados?.ordensManutencao.find((o) => o.id === ordemManutencaoId);
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? {
+                  ...atividade,
+                  ordemManutencaoId,
+                  kmInicial: om?.kmInicial ?? atividade.kmInicial,
+                  kmFinal: om?.kmFinal ?? atividade.kmFinal,
+                }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
   function adicionarMaterial(): void {
     setMateriais((atual) => [...atual, { materialCatalogoId: materiaisCatalogo[0]?.id ?? "", quantidade: "1" }]);
   }
@@ -386,13 +415,13 @@ export default function Campo(): ReactElement {
         .filter((local) => local.descricao.trim() !== "" && local.atividades.length > 0)
         .map((local, ordem) => ({
           descricao: local.descricao,
-          kmInicial: local.kmInicial === "" ? null : Number(local.kmInicial),
-          kmFinal: local.kmFinal === "" ? null : Number(local.kmFinal),
           lado: local.lado || null,
           ordem,
           atividades: local.atividades.map((atividade) => ({
             atividadeCatalogoId: atividade.atividadeCatalogoId,
             ordemManutencaoId: atividade.ordemManutencaoId || null,
+            kmInicial: atividade.kmInicial === "" ? null : Number(atividade.kmInicial),
+            kmFinal: atividade.kmFinal === "" ? null : Number(atividade.kmFinal),
             unidade: atividade.unidade,
             altura: atividade.altura === "" ? null : Number(atividade.altura),
             largura: atividade.largura === "" ? null : Number(atividade.largura),
@@ -603,36 +632,14 @@ export default function Campo(): ReactElement {
               onChange={(event) => atualizarLocal(localIndice, "descricao", event.target.value)}
             />
 
-            <div className="campo-grid-3">
-              <div>
-                <label className="field-label">Km inicial</label>
-                <input
-                  type="number"
-                  step="0.001"
-                  className="field-input"
-                  value={local.kmInicial}
-                  onChange={(event) => atualizarLocal(localIndice, "kmInicial", event.target.value)}
-                />
-              </div>
-              <div>
-                <label className="field-label">Km final</label>
-                <input
-                  type="number"
-                  step="0.001"
-                  className="field-input"
-                  value={local.kmFinal}
-                  onChange={(event) => atualizarLocal(localIndice, "kmFinal", event.target.value)}
-                />
-              </div>
-              <div>
-                <label className="field-label">Lado</label>
-                <input
-                  className="field-input"
-                  placeholder="LE / LD"
-                  value={local.lado}
-                  onChange={(event) => atualizarLocal(localIndice, "lado", event.target.value)}
-                />
-              </div>
+            <div>
+              <label className="field-label">Lado</label>
+              <input
+                className="field-input"
+                placeholder="LE / LD"
+                value={local.lado}
+                onChange={(event) => atualizarLocal(localIndice, "lado", event.target.value)}
+              />
             </div>
 
             <h3 className="campo-subtitulo">Atividades neste local</h3>
@@ -657,11 +664,34 @@ export default function Campo(): ReactElement {
                     items={ordensManutencao}
                     getLabel={(om) => om.numero}
                     getSublabel={(om) => om.detalhes}
-                    onChange={(ordemManutencaoId) =>
-                      atualizarAtividade(localIndice, atividadeIndice, "ordemManutencaoId", ordemManutencaoId)
-                    }
+                    onChange={(ordemManutencaoId) => selecionarOrdemManutencao(localIndice, atividadeIndice, ordemManutencaoId)}
                     placeholder="Ordem de manutenção (opcional)"
                   />
+
+                  <div className="campo-grid-2">
+                    <div>
+                      <label className="field-label">Km inicial</label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="field-input"
+                        placeholder="Da OM, se houver"
+                        value={atividade.kmInicial}
+                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label">Km final</label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="field-input"
+                        placeholder="Da OM, se houver"
+                        value={atividade.kmFinal}
+                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
+                      />
+                    </div>
+                  </div>
 
                   {atividade.unidade === "M3" && (
                     <div className="campo-grid-3">

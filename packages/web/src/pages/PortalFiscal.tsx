@@ -22,13 +22,13 @@ interface AtividadeDetalhe {
   atividadeCatalogo: { codigo: string; descricao: string; unidade: string };
   totalCalculado: string;
   unidade: string;
+  kmInicial: string | null;
+  kmFinal: string | null;
 }
 
 interface LocalDetalhe {
   id: string;
   descricao: string;
-  kmInicial: string | null;
-  kmFinal: string | null;
   lado: string | null;
   atividades: AtividadeDetalhe[];
 }

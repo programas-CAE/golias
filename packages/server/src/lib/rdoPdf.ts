@@ -16,12 +16,12 @@ export interface RdoPdfAtividade {
   descricao: string;
   unidade: string;
   quantidade: number;
+  kmInicial: number | null;
+  kmFinal: number | null;
 }
 
 export interface RdoPdfLocal {
   descricao: string;
-  kmInicial: number | null;
-  kmFinal: number | null;
   lado: string | null;
   atividades: RdoPdfAtividade[];
 }
@@ -154,10 +154,7 @@ function desenharIdentificacao(doc: PDFKit.PDFDocument, dados: RdoPdfDados): voi
   y = desenharLinhaDupla(doc, y, colLargura, ["DISTRITO", dados.frenteNome], ["HORA EXTRA", horaExtra]);
 
   const locaisTexto = dados.locais
-    .map((local) => {
-      const km = local.kmInicial != null && local.kmFinal != null ? ` (Km ${local.kmInicial} ao ${local.kmFinal}${local.lado ? ` ${local.lado}` : ""})` : "";
-      return `${local.descricao}${km}`;
-    })
+    .map((local) => `${local.descricao}${local.lado ? ` ${local.lado}` : ""}`)
     .join("; ");
   y = desenharCampo(doc, MARGEM, y, LARGURA_UTIL, "LOCAL DA ATIVIDADE", locaisTexto || "—") + 8;
 
@@ -188,8 +185,11 @@ function montarLinhasTabela(dados: RdoPdfDados): LinhaTabela[] {
     }));
 
   for (const local of dados.locais) {
-    const km = local.kmInicial != null && local.kmFinal != null ? ` Km ${local.kmInicial} ao ${local.kmFinal}${local.lado ? ` ${local.lado}` : ""}` : "";
     for (const atividade of local.atividades) {
+      const km =
+        atividade.kmInicial != null && atividade.kmFinal != null
+          ? ` Km ${atividade.kmInicial} ao ${atividade.kmFinal}${local.lado ? ` ${local.lado}` : ""}`
+          : "";
       linhas.push({
         inicial: "",
         final: "",

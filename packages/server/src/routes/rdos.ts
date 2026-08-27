@@ -66,8 +66,6 @@ export const rdoCampoSelect = {
     select: {
       id: true,
       descricao: true,
-      kmInicial: true,
-      kmFinal: true,
       lado: true,
       ordem: true,
       atividades: {
@@ -76,6 +74,8 @@ export const rdoCampoSelect = {
           atividadeCatalogoId: true,
           atividadeCatalogo: { select: { id: true, codigo: true, descricao: true, unidade: true, usaDimensoes: true } },
           ordemManutencaoId: true,
+          kmInicial: true,
+          kmFinal: true,
           altura: true,
           largura: true,
           larguraFinal: true,
@@ -200,14 +200,14 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
     blocosHorario: rdo.blocosHorario,
     locais: rdo.locais.map((local) => ({
       descricao: local.descricao,
-      kmInicial: local.kmInicial != null ? Number(local.kmInicial) : null,
-      kmFinal: local.kmFinal != null ? Number(local.kmFinal) : null,
       lado: local.lado,
       atividades: local.atividades.map((atividade) => ({
         item: atividade.atividadeCatalogo.codigo,
         descricao: atividade.atividadeCatalogo.descricao,
         unidade: atividade.unidade,
         quantidade: Number(atividade.totalCalculado),
+        kmInicial: atividade.kmInicial != null ? Number(atividade.kmInicial) : null,
+        kmFinal: atividade.kmFinal != null ? Number(atividade.kmFinal) : null,
       })),
     })),
     maoDeObra: rdo.maoDeObra
@@ -356,14 +356,14 @@ export function registerRdosRoutes(app: FastifyInstance): void {
             data: {
               rdoId: rdo.id,
               descricao: local.descricao,
-              kmInicial: local.kmInicial,
-              kmFinal: local.kmFinal,
               lado: local.lado,
               ordem: local.ordem,
               atividades: {
                 create: local.atividades.map((atividade) => ({
                   atividadeCatalogoId: atividade.atividadeCatalogoId,
                   ordemManutencaoId: atividade.ordemManutencaoId,
+                  kmInicial: atividade.kmInicial,
+                  kmFinal: atividade.kmFinal,
                   altura: atividade.altura,
                   largura: atividade.largura,
                   larguraFinal: atividade.larguraFinal,
@@ -402,7 +402,10 @@ export function registerRdosRoutes(app: FastifyInstance): void {
     }
 
     const [ordensManutencao, atividadesCatalogo, ultimaReprovacao] = await Promise.all([
-      prisma.ordemManutencao.findMany({ where: { frenteId: rdo.frenteId }, select: { id: true, numero: true, detalhes: true } }),
+      prisma.ordemManutencao.findMany({
+        where: { frenteId: rdo.frenteId },
+        select: { id: true, numero: true, detalhes: true, kmInicial: true, kmFinal: true },
+      }),
       prisma.atividadeCatalogo.findMany({
         where: { ativo: true },
         orderBy: { ordem: "asc" },
@@ -475,17 +478,20 @@ export function registerRdosRoutes(app: FastifyInstance): void {
               data: {
                 rdoId,
                 descricao: local.descricao,
-                kmInicial: local.kmInicial,
-                kmFinal: local.kmFinal,
                 lado: local.lado,
                 ordem: local.ordem,
                 atividades: {
                   create: local.atividades.map((atividade) => ({
                     atividadeCatalogoId: atividade.atividadeCatalogoId,
                     ordemManutencaoId: atividade.ordemManutencaoId,
+                    kmInicial: atividade.kmInicial,
+                    kmFinal: atividade.kmFinal,
                     altura: atividade.altura,
                     largura: atividade.largura,
+                    larguraFinal: atividade.larguraFinal,
                     comprimento: atividade.comprimento,
+                    horasTrabalhadas: atividade.horasTrabalhadas,
+                    maoObraDireta: atividade.maoObraDireta,
                     quantidadeDireta: atividade.quantidadeDireta,
                     unidade: atividade.unidade,
                     totalCalculado: calcularTotalAtividade(atividade.unidade, atividade),
