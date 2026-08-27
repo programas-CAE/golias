@@ -474,7 +474,7 @@ textarea.field-input {
    coluna 1fr e engole a linha inteira (grid blowout). */
 .material-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 100px 150px auto;
+  grid-template-columns: minmax(0, 1fr) 100px auto;
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
@@ -485,9 +485,33 @@ textarea.field-input {
   min-width: 0;
 }
 
-.material-row .section-total {
-  text-align: right;
-  white-space: nowrap;
+.farol-linha-vazia {
+  color: #8a9c90;
+}
+
+.farol-celula {
+  text-align: center;
+  font-weight: 600;
+}
+
+.farol-celula--realizada {
+  color: #16a34a;
+}
+
+.farol-celula--aguardando {
+  color: #ca8a04;
+}
+
+.farol-celula--reprovada {
+  color: #dc2626;
+}
+
+.farol-celula--pendente {
+  color: #64748b;
+}
+
+.farol-celula--nao-executada {
+  color: #d97706;
 }
 
 .checkbox-row {

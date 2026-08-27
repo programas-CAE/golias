@@ -291,7 +291,7 @@ export default function RdoCompleto(): ReactElement {
   function adicionarOutraMaoDeObra(): void {
     setOutrasMaoDeObra((atual) => [
       ...atual,
-      { funcaoId: funcoes[0]?.id ?? "", colaboradorId: colaboradores[0]?.id ?? "", quantidade: "1" },
+      { funcaoId: funcoes[0]?.id ?? "", colaboradorId: "", quantidade: "1" },
     ]);
   }
 
@@ -905,17 +905,6 @@ export default function RdoCompleto(): ReactElement {
                   </option>
                 ))}
               </select>
-              <select
-                className="field-input"
-                value={item.colaboradorId}
-                onChange={(event) => atualizarOutraMaoDeObra(indice, "colaboradorId", event.target.value)}
-              >
-                {colaboradores.map((colaborador) => (
-                  <option key={colaborador.id} value={colaborador.id}>
-                    {colaborador.nome}
-                  </option>
-                ))}
-              </select>
               <input
                 type="number"
                 min={1}
@@ -960,9 +949,8 @@ export default function RdoCompleto(): ReactElement {
 
         <section className="form-section">
           <h2 className="form-section-title">Materiais</h2>
-          <p className="form-section-subtitle">Catálogo oficial do contrato (Price List), com preço unitário</p>
+          <p className="form-section-subtitle">Catálogo oficial do contrato (Price List)</p>
           {materiais.map((material, indice) => {
-            const catalogoDoMaterial = materiaisCatalogo.find((item) => item.id === material.materialCatalogoId);
             return (
               <div className="material-row" key={indice}>
                 <Autocomplete
@@ -981,11 +969,6 @@ export default function RdoCompleto(): ReactElement {
                   value={material.quantidade}
                   onChange={(event) => atualizarMaterial(indice, "quantidade", event.target.value)}
                 />
-                <span className="section-total">
-                  {catalogoDoMaterial?.precoUnitario != null
-                    ? `R$ ${(Number(catalogoDoMaterial.precoUnitario) * Number(material.quantidade || 0)).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
-                    : ""}
-                </span>
                 <button
                   type="button"
                   className="button button--ghost button--small"

@@ -6,6 +6,7 @@ const LINKS: Array<{ to: string; label: string }> = [
   { to: "/rdos", label: "RDOs" },
   { to: "/frentes", label: "Frentes" },
   { to: "/ordens-manutencao", label: "Ordens de Manutenção" },
+  { to: "/farol", label: "Farol" },
   { to: "/atividades", label: "Catálogo de Atividades" },
   { to: "/medicoes", label: "Medição Mensal" },
 ];
