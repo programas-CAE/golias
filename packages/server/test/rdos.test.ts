@@ -105,6 +105,80 @@ describe("POST /rdos/completo", () => {
     expect(body.materiais[0]?.materialCatalogo.descricao).toBe("Cimento");
   });
 
+  it("soma pontos extras da mesma atividade/OM no totalCalculado, cada um com seu próprio memorial", async () => {
+    const { frente, equipe, atividade } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        locais: [
+          {
+            descricao: "Trecho com dois pontos",
+            ordem: 0,
+            atividades: [
+              {
+                atividadeCatalogoId: atividade.id,
+                largura: 2,
+                comprimento: 20,
+                unidade: "M2",
+                pontosExtras: [{ ordem: 0, largura: 5, comprimento: 4 }],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as {
+      locais: Array<{
+        atividades: Array<{ totalCalculado: string; pontosExtras: Array<{ largura: string; comprimento: string; totalCalculado: string }> }>;
+      }>;
+    };
+    const salva = body.locais[0]?.atividades[0];
+    // Ponto 1 (2 × 20 = 40) + Ponto 2 (5 × 4 = 20) = 60.
+    expect(Number(salva?.totalCalculado)).toBe(60);
+    expect(salva?.pontosExtras).toHaveLength(1);
+    expect(Number(salva?.pontosExtras[0]?.totalCalculado)).toBe(20);
+  });
+
+  it("retorna 400 quando um ponto extra não informa as dimensões exigidas pela unidade", async () => {
+    const { frente, equipe, atividade } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        locais: [
+          {
+            descricao: "Trecho com ponto incompleto",
+            ordem: 0,
+            atividades: [
+              {
+                atividadeCatalogoId: atividade.id,
+                largura: 2,
+                comprimento: 20,
+                unidade: "M2",
+                pontosExtras: [{ ordem: 0, largura: 5 }],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
   it("retorna 400 quando nenhum local é informado", async () => {
     const { frente, equipe } = await criarCenario();
 
@@ -558,7 +632,7 @@ describe("POST /rdos/campo/:token/enviar", () => {
     return rdo;
   }
 
-  it("finaliza o RDO, salva a assinatura e muda o status para aguardando aprovação", async () => {
+  it("finaliza o RDO, salva a assinatura e muda o status para aguardando validação do escritório", async () => {
     const rdo = await criarRdoComAtividade("token-enviar");
 
     const app = buildApp();
@@ -572,7 +646,9 @@ describe("POST /rdos/campo/:token/enviar", () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json() as { status: string };
-    expect(body.status).toBe("AGUARDANDO_APROVACAO");
+    // Não vai direto pro fiscal — passa pelo escritório primeiro (ver
+    // POST /rdos/:id/enviar-fiscal).
+    expect(body.status).toBe("AGUARDANDO_VALIDACAO_ESCRITORIO");
 
     const atualizado = await prisma.rdo.findUniqueOrThrow({ where: { id: rdo.id } });
     expect(atualizado.assinaturaEncarregadoPath).toBeTruthy();
@@ -581,7 +657,7 @@ describe("POST /rdos/campo/:token/enviar", () => {
 
     const historico = await prisma.rdoHistorico.findMany({ where: { rdoId: rdo.id } });
     expect(historico).toHaveLength(1);
-    expect(historico[0]?.paraStatus).toBe("AGUARDANDO_APROVACAO");
+    expect(historico[0]?.paraStatus).toBe("AGUARDANDO_VALIDACAO_ESCRITORIO");
   });
 
   it("retorna 400 quando não há nenhum local com atividade", async () => {
@@ -649,6 +725,130 @@ describe("POST /rdos/campo/:token/enviar", () => {
     });
 
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("PATCH /rdos/:id (edição pelo escritório)", () => {
+  it("permite o escritório corrigir o conteúdo de um RDO aguardando validação", async () => {
+    const { frente, equipe, atividade } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-08-06"), status: "AGUARDANDO_VALIDACAO_ESCRITORIO" },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/rdos/${rdo.id}`,
+      payload: {
+        locais: [
+          {
+            descricao: "Km 10 ao 12",
+            ordem: 0,
+            atividades: [{ atividadeCatalogoId: atividade.id, largura: 2, comprimento: 100, unidade: "M2" }],
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { status: string; locais: Array<{ descricao: string }> };
+    // Edição do escritório não muda o status por si só — só o conteúdo.
+    expect(body.status).toBe("AGUARDANDO_VALIDACAO_ESCRITORIO");
+    expect(body.locais[0]?.descricao).toBe("Km 10 ao 12");
+  });
+
+  it("retorna 409 ao tentar editar um RDO que já foi para o fiscal", async () => {
+    const { frente, equipe } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-08-06"), status: "AGUARDANDO_APROVACAO" },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "PATCH", url: `/rdos/${rdo.id}`, payload: { locais: [] } });
+
+    expect(response.statusCode).toBe(409);
+  });
+
+  it("retorna 404 para RDO inexistente", async () => {
+    const app = buildApp();
+    const response = await app.inject({ method: "PATCH", url: "/rdos/nao-existe", payload: { locais: [] } });
+    expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("POST /rdos/:id/enviar-fiscal", () => {
+  async function criarRdoAguardandoValidacao() {
+    const { frente, equipe, atividade } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-08-06"), status: "AGUARDANDO_VALIDACAO_ESCRITORIO" },
+    });
+    await prisma.rdoLocal.create({
+      data: {
+        rdoId: rdo.id,
+        descricao: "Trecho A",
+        ordem: 0,
+        atividades: { create: [{ atividadeCatalogoId: atividade.id, comprimento: 10, unidade: "M", totalCalculado: 10 }] },
+      },
+    });
+    return rdo;
+  }
+
+  it("manda o RDO pro fiscal — muda o status pra aguardando aprovação", async () => {
+    const rdo = await criarRdoAguardandoValidacao();
+
+    const app = buildApp();
+    const response = await app.inject({ method: "POST", url: `/rdos/${rdo.id}/enviar-fiscal` });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { status: string };
+    expect(body.status).toBe("AGUARDANDO_APROVACAO");
+
+    const historico = await prisma.rdoHistorico.findMany({ where: { rdoId: rdo.id } });
+    expect(historico.map((h) => h.paraStatus)).toContain("AGUARDANDO_APROVACAO");
+  });
+
+  it("não aparece no portal do fiscal antes de ser enviado, e aparece depois", async () => {
+    const rdo = await criarRdoAguardandoValidacao();
+    const frente = await prisma.frente.update({
+      where: { id: rdo.frenteId },
+      data: { portalFiscalToken: "token-portal-validacao" },
+    });
+
+    const app = buildApp();
+    const antes = await app.inject({ method: "GET", url: "/portal-fiscal/token-portal-validacao" });
+    const corpoAntes = antes.json() as { pendentes: Array<{ id: string }> };
+    expect(corpoAntes.pendentes.find((p) => p.id === rdo.id)).toBeUndefined();
+
+    await app.inject({ method: "POST", url: `/rdos/${rdo.id}/enviar-fiscal` });
+
+    const depois = await app.inject({ method: "GET", url: "/portal-fiscal/token-portal-validacao" });
+    const corpoDepois = depois.json() as { pendentes: Array<{ id: string }> };
+    expect(corpoDepois.pendentes.find((p) => p.id === rdo.id)).toBeTruthy();
+    void frente;
+  });
+
+  it("retorna 409 se o RDO não está aguardando validação do escritório", async () => {
+    const { frente, equipe } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-08-06"), status: "RASCUNHO" },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "POST", url: `/rdos/${rdo.id}/enviar-fiscal` });
+
+    expect(response.statusCode).toBe(409);
+  });
+
+  it("retorna 400 quando não há nenhum local com atividade", async () => {
+    const { frente, equipe } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-08-06"), status: "AGUARDANDO_VALIDACAO_ESCRITORIO" },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "POST", url: `/rdos/${rdo.id}/enviar-fiscal` });
+
+    expect(response.statusCode).toBe(400);
   });
 });
 

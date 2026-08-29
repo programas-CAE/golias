@@ -29,6 +29,7 @@ export default function App(): ReactElement {
         <Route path="/medicoes" element={<MedicaoMensal />} />
         <Route path="/rdos" element={<Rdos />} />
         <Route path="/rdos/completo/novo" element={<RdoCompleto />} />
+        <Route path="/rdos/:id/editar" element={<RdoCompleto />} />
         <Route path="/rdos/:id" element={<RdoDetalhe />} />
       </Routes>
     </HashRouter>

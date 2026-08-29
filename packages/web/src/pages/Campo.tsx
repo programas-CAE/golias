@@ -49,6 +49,14 @@ interface RdoAtividadeMaoDeObraSalva {
   quantidade: number;
 }
 
+interface RdoAtividadePontoSalvo {
+  altura: string | null;
+  largura: string | null;
+  larguraFinal: string | null;
+  comprimento: string | null;
+  quantidadeDireta: string | null;
+}
+
 interface RdoAtividadeSalva {
   atividadeCatalogoId: string;
   ordemManutencaoId: string | null;
@@ -65,6 +73,7 @@ interface RdoAtividadeSalva {
   horasTrabalhadas: string | null;
   maoDeObra: RdoAtividadeMaoDeObraSalva[];
   unidade: string;
+  pontosExtras: RdoAtividadePontoSalvo[];
 }
 
 interface RdoLocalSalvo {
@@ -141,6 +150,19 @@ interface AtividadeMaoDeObraDraft {
   quantidade: string;
 }
 
+/** Ponto de medição extra da atividade (Ponto 2, 3...) — mesma atividade/OM, outro trecho medido no mesmo dia. */
+interface PontoExtraDraft {
+  altura: string;
+  largura: string;
+  larguraFinal: string;
+  comprimento: string;
+  quantidadeDireta: string;
+}
+
+function novoPontoExtra(): PontoExtraDraft {
+  return { altura: "", largura: "", larguraFinal: "", comprimento: "", quantidadeDireta: "" };
+}
+
 interface AtividadeDraft {
   atividadeCatalogoId: string;
   ordemManutencaoId: string;
@@ -157,6 +179,7 @@ interface AtividadeDraft {
   horarioFinal: string;
   horasTrabalhadas: string;
   maoDeObra: AtividadeMaoDeObraDraft[];
+  pontosExtras: PontoExtraDraft[];
 }
 
 interface LocalDraft {
@@ -194,6 +217,7 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     horarioFinal: "",
     horasTrabalhadas: "",
     maoDeObra: [],
+    pontosExtras: [],
   };
 }
 
@@ -251,6 +275,7 @@ const JORNADA_REFERENCIA_HORAS = 10;
 
 const RDO_EDITAVEL = new Set(["RASCUNHO", "EM_CORRECAO", "REPROVADO"]);
 const STATUS_MENSAGEM: Record<string, string> = {
+  AGUARDANDO_VALIDACAO_ESCRITORIO: "RDO assinado — aguardando o escritório revisar e enviar para o fiscal.",
   AGUARDANDO_APROVACAO: "RDO enviado — aguardando o fiscal assinar ou reprovar.",
   APROVADO: "RDO aprovado e assinado pelo fiscal.",
   EM_CORRECAO: "RDO em correção — salve e envie novamente para o fiscal.",
@@ -347,6 +372,13 @@ export default function Campo(): ReactElement {
                   maoDeObra: atividade.maoDeObra.map((item) => ({
                     funcaoId: item.funcaoId,
                     quantidade: String(item.quantidade),
+                  })),
+                  pontosExtras: atividade.pontosExtras.map((ponto) => ({
+                    altura: ponto.altura ?? "",
+                    largura: ponto.largura ?? "",
+                    larguraFinal: ponto.larguraFinal ?? "",
+                    comprimento: ponto.comprimento ?? "",
+                    quantidadeDireta: ponto.quantidadeDireta ?? "",
                   })),
                 })),
               }))
@@ -521,6 +553,61 @@ export default function Campo(): ReactElement {
     );
   }
 
+  function adicionarPontoExtra(localIndice: number, atividadeIndice: number): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice ? { ...atividade, pontosExtras: [...atividade.pontosExtras, novoPontoExtra()] } : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
+  function atualizarPontoExtra(
+    localIndice: number,
+    atividadeIndice: number,
+    pontoIndice: number,
+    campo: keyof PontoExtraDraft,
+    valor: string,
+  ): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? {
+                  ...atividade,
+                  pontosExtras: atividade.pontosExtras.map((ponto, k) => (k === pontoIndice ? { ...ponto, [campo]: valor } : ponto)),
+                }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
+  function removerPontoExtra(localIndice: number, atividadeIndice: number, pontoIndice: number): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? { ...atividade, pontosExtras: atividade.pontosExtras.filter((_, k) => k !== pontoIndice) }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
   function adicionarMaterial(): void {
     setMateriais((atual) => [...atual, { materialCatalogoId: materiaisCatalogo[0]?.id ?? "", quantidade: "1" }]);
   }
@@ -578,6 +665,14 @@ export default function Campo(): ReactElement {
             maoDeObra: atividade.maoDeObra
               .filter((item) => item.funcaoId && Number(item.quantidade) > 0)
               .map((item) => ({ funcaoId: item.funcaoId, quantidade: Number(item.quantidade) })),
+            pontosExtras: atividade.pontosExtras.map((ponto, ordem) => ({
+              ordem,
+              altura: ponto.altura === "" ? null : Number(ponto.altura),
+              largura: ponto.largura === "" ? null : Number(ponto.largura),
+              larguraFinal: ponto.larguraFinal === "" ? null : Number(ponto.larguraFinal),
+              comprimento: ponto.comprimento === "" ? null : Number(ponto.comprimento),
+              quantidadeDireta: ponto.quantidadeDireta === "" ? null : Number(ponto.quantidadeDireta),
+            })),
           })),
         })),
       maoDeObra: [
@@ -675,6 +770,10 @@ export default function Campo(): ReactElement {
 
   return (
     <div className="campo-page">
+      <div className="campo-brand">
+        <p className="campo-brand-title">GOLIAS</p>
+        <p className="campo-brand-subtitle">Gestão de contratos</p>
+      </div>
       <div className="campo-header">
         <h1>RDO — {rdo.frente.nome}</h1>
         <p>
@@ -907,6 +1006,106 @@ export default function Campo(): ReactElement {
                       onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
                     />
                   )}
+
+                  {usaDimensoes &&
+                    atividade.pontosExtras.map((ponto, pontoIndice) => (
+                      <div className="campo-item" key={pontoIndice}>
+                        <div className="campo-checklist-row">
+                          <strong>Ponto {pontoIndice + 2}</strong>
+                          <button
+                            type="button"
+                            className="button button--ghost button--small"
+                            onClick={() => removerPontoExtra(localIndice, atividadeIndice, pontoIndice)}
+                          >
+                            Remover ponto
+                          </button>
+                        </div>
+                        {atividade.unidade === "M3" && (
+                          <div className="campo-grid-3">
+                            <input
+                              type="number"
+                              step="0.001"
+                              className="field-input"
+                              placeholder="Altura"
+                              value={ponto.altura}
+                              onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "altura", event.target.value)}
+                            />
+                            <input
+                              type="number"
+                              step="0.001"
+                              className="field-input"
+                              placeholder="Largura"
+                              value={ponto.largura}
+                              onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "largura", event.target.value)}
+                            />
+                            <input
+                              type="number"
+                              step="0.001"
+                              className="field-input"
+                              placeholder="Comprimento"
+                              value={ponto.comprimento}
+                              onChange={(event) =>
+                                atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "comprimento", event.target.value)
+                              }
+                            />
+                          </div>
+                        )}
+                        {atividade.unidade === "M2" && (
+                          <div className="campo-grid-3">
+                            <input
+                              type="number"
+                              step="0.001"
+                              className="field-input"
+                              placeholder="Largura inicial"
+                              value={ponto.largura}
+                              onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "largura", event.target.value)}
+                            />
+                            <input
+                              type="number"
+                              step="0.001"
+                              className="field-input"
+                              placeholder="Largura final (se afunilar)"
+                              value={ponto.larguraFinal}
+                              onChange={(event) =>
+                                atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "larguraFinal", event.target.value)
+                              }
+                            />
+                            <input
+                              type="number"
+                              step="0.001"
+                              className="field-input"
+                              placeholder="Comprimento"
+                              value={ponto.comprimento}
+                              onChange={(event) =>
+                                atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "comprimento", event.target.value)
+                              }
+                            />
+                          </div>
+                        )}
+                        {atividade.unidade === "M" && (
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="Comprimento"
+                            value={ponto.comprimento}
+                            onChange={(event) =>
+                              atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "comprimento", event.target.value)
+                            }
+                          />
+                        )}
+                      </div>
+                    ))}
+                  {usaDimensoes && (
+                    <button
+                      type="button"
+                      className="button button--secondary button--small"
+                      onClick={() => adicionarPontoExtra(localIndice, atividadeIndice)}
+                    >
+                      + Adicionar ponto de medição
+                    </button>
+                  )}
+
                   {!usaDimensoes && (
                     <input
                       type="number"

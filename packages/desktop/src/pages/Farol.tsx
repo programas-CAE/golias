@@ -101,12 +101,21 @@ interface RespostaFarolRdo {
   itens: ItemFarolRdo[];
 }
 
-// Ordem de "o que precisa de atenção primeiro": aguardando o fiscal e
-// reprovado pedem uma ação de alguém agora; aprovado é o fim da linha.
-const RDO_GRUPOS_ORDEM = ["AGUARDANDO_APROVACAO", "REPROVADO", "EM_CORRECAO", "RASCUNHO", "APROVADO"];
+// Ordem de "o que precisa de atenção primeiro": aguardando o escritório ou
+// o fiscal, e reprovado, pedem uma ação de alguém agora; aprovado é o fim
+// da linha.
+const RDO_GRUPOS_ORDEM = [
+  "AGUARDANDO_VALIDACAO_ESCRITORIO",
+  "AGUARDANDO_APROVACAO",
+  "REPROVADO",
+  "EM_CORRECAO",
+  "RASCUNHO",
+  "APROVADO",
+];
 
 const RDO_STATUS_DOT_CLASSE: Record<string, string> = {
   APROVADO: "farol-dot--aprovado",
+  AGUARDANDO_VALIDACAO_ESCRITORIO: "farol-dot--validacao",
   AGUARDANDO_APROVACAO: "farol-dot--aguardando",
   REPROVADO: "farol-dot--reprovado",
   EM_CORRECAO: "farol-dot--correcao",
@@ -115,6 +124,7 @@ const RDO_STATUS_DOT_CLASSE: Record<string, string> = {
 
 const RDO_STATUS_LABEL: Record<string, string> = {
   APROVADO: "Aprovado",
+  AGUARDANDO_VALIDACAO_ESCRITORIO: "Aguardando validação do escritório",
   AGUARDANDO_APROVACAO: "Aguardando aprovação do fiscal",
   REPROVADO: "Reprovado pelo fiscal",
   EM_CORRECAO: "Em correção",
@@ -123,6 +133,7 @@ const RDO_STATUS_LABEL: Record<string, string> = {
 
 const RDO_LEGENDA: Array<{ classe: string; texto: string }> = [
   { classe: "farol-dot--aprovado", texto: "Aprovado" },
+  { classe: "farol-dot--validacao", texto: "Aguardando o escritório" },
   { classe: "farol-dot--aguardando", texto: "Aguardando o fiscal" },
   { classe: "farol-dot--reprovado", texto: "Reprovado" },
   { classe: "farol-dot--correcao", texto: "Em correção" },

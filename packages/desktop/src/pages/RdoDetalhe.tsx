@@ -1,8 +1,14 @@
 import { useEffect, useState, type ReactElement } from "react";
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
 import { abrirExterno, getSettings } from "../lib/settingsStore";
+
+interface AtividadeMaoDeObraDetalhe {
+  id: string;
+  funcao: { nome: string };
+  quantidade: number;
+}
 
 interface AtividadeDetalhe {
   id: string;
@@ -10,8 +16,12 @@ interface AtividadeDetalhe {
   totalCalculado: string;
   unidade: string;
   ordemManutencaoId: string | null;
+  statusOm: string | null;
   kmInicial: string | null;
   kmFinal: string | null;
+  horarioInicial: string | null;
+  horarioFinal: string | null;
+  maoDeObra: AtividadeMaoDeObraDetalhe[];
 }
 
 interface LocalDetalhe {
@@ -77,19 +87,27 @@ interface RdoDetalheResponse {
 const STATUS_LABEL: Record<string, string> = {
   RASCUNHO: "Rascunho",
   EM_CORRECAO: "Em correção",
+  AGUARDANDO_VALIDACAO_ESCRITORIO: "Aguardando validação do escritório",
   AGUARDANDO_APROVACAO: "Aguardando aprovação",
   APROVADO: "Aprovado",
   REPROVADO: "Reprovado",
 };
 
+const STATUS_OM_LABEL: Record<string, string> = {
+  EM_ANDAMENTO: "Em andamento",
+  CONCLUIDA: "Concluída",
+};
+
 export default function RdoDetalhe(): ReactElement {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [rdo, setRdo] = useState<RdoDetalheResponse | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [gerando, setGerando] = useState(false);
   const [pdfGerado, setPdfGerado] = useState(false);
   const [webUrl, setWebUrl] = useState("");
   const [linkCopiado, setLinkCopiado] = useState(false);
+  const [enviandoFiscal, setEnviandoFiscal] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -128,6 +146,20 @@ export default function RdoDetalhe(): ReactElement {
     await abrirExterno(`${settings.apiUrl.replace(/\/$/, "")}/rdos/${id}/pdf`);
   }
 
+  async function enviarParaFiscal(): Promise<void> {
+    if (!id) return;
+    setEnviandoFiscal(true);
+    setErro(null);
+    try {
+      const atualizado = await api.post<RdoDetalheResponse>(`/rdos/${id}/enviar-fiscal`, {});
+      setRdo(atualizado);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível enviar o RDO para o fiscal.");
+    } finally {
+      setEnviandoFiscal(false);
+    }
+  }
+
   return (
     <div className="app-shell">
       <Nav />
@@ -152,6 +184,20 @@ export default function RdoDetalhe(): ReactElement {
                     {linkCopiado ? "Copiado!" : "Copiar link de campo"}
                   </button>
                 )}
+                {rdo.status === "AGUARDANDO_VALIDACAO_ESCRITORIO" && (
+                  <>
+                    <button
+                      type="button"
+                      className="button button--secondary"
+                      onClick={() => navigate(`/rdos/${id}/editar`)}
+                    >
+                      Editar RDO
+                    </button>
+                    <button type="button" className="button" onClick={() => void enviarParaFiscal()} disabled={enviandoFiscal}>
+                      {enviandoFiscal ? "Enviando…" : "Enviar para o fiscal"}
+                    </button>
+                  </>
+                )}
                 <button type="button" className="button button--secondary" onClick={() => void gerarPdf()} disabled={gerando}>
                   {gerando ? "Gerando…" : "Gerar PDF"}
                 </button>
@@ -166,6 +212,13 @@ export default function RdoDetalhe(): ReactElement {
                 </button>
               </div>
             </div>
+
+            {rdo.status === "AGUARDANDO_VALIDACAO_ESCRITORIO" && (
+              <p className="feedback feedback--ok" style={{ marginBottom: 16 }}>
+                O encarregado já assinou no celular — revise (edite se precisar) e clique em "Enviar para o fiscal" pra
+                liberar no portal dele.
+              </p>
+            )}
 
             {(rdo.status === "REPROVADO" || rdo.status === "EM_CORRECAO") && (
               <p className="feedback feedback--erro" style={{ marginBottom: 16 }}>
@@ -220,7 +273,9 @@ export default function RdoDetalhe(): ReactElement {
                         <th>Unidade</th>
                         <th>Quantidade</th>
                         <th>Km</th>
+                        <th>Horário</th>
                         <th>Ordem de manutenção</th>
+                        <th>Mão de obra</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -235,7 +290,21 @@ export default function RdoDetalhe(): ReactElement {
                               ? `${atividade.kmInicial} ao ${atividade.kmFinal}`
                               : "—"}
                           </td>
-                          <td>{atividade.ordemManutencaoId ? "Vinculada" : "—"}</td>
+                          <td>
+                            {atividade.horarioInicial && atividade.horarioFinal
+                              ? `${atividade.horarioInicial} – ${atividade.horarioFinal}`
+                              : "—"}
+                          </td>
+                          <td>
+                            {atividade.ordemManutencaoId
+                              ? `Vinculada${atividade.statusOm ? ` (${STATUS_OM_LABEL[atividade.statusOm] ?? atividade.statusOm})` : ""}`
+                              : "—"}
+                          </td>
+                          <td>
+                            {atividade.maoDeObra.length > 0
+                              ? atividade.maoDeObra.map((item) => `${item.quantidade} ${item.funcao.nome}`).join(", ")
+                              : "—"}
+                          </td>
                         </tr>
                       ))}
                     </tbody>

@@ -29,7 +29,11 @@ const STATUS_FAROL_ZERADO: Record<StatusFarol, number> = {
  */
 function derivarStatusFarol(statusDosRdos: string[], dataEmissao: Date, hoje: Date): StatusFarol {
   if (statusDosRdos.includes("APROVADO")) return "realizada";
-  if (statusDosRdos.some((s) => s === "RASCUNHO" || s === "EM_CORRECAO" || s === "AGUARDANDO_APROVACAO")) {
+  if (
+    statusDosRdos.some(
+      (s) => s === "RASCUNHO" || s === "EM_CORRECAO" || s === "AGUARDANDO_VALIDACAO_ESCRITORIO" || s === "AGUARDANDO_APROVACAO",
+    )
+  ) {
     return "aguardandoValidacao";
   }
   if (statusDosRdos.includes("REPROVADO")) return "reprovada";

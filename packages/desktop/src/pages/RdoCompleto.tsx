@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactElement } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Nav from "../components/Nav";
 import CroquiAtividade from "../components/CroquiAtividade";
 import Autocomplete from "../components/Autocomplete";
@@ -65,6 +65,19 @@ interface AtividadeMaoDeObraDraft {
   quantidade: string;
 }
 
+/** Ponto de medição extra da atividade (Ponto 2, 3...) — mesma atividade/OM, outro trecho medido no mesmo dia. */
+interface PontoExtraDraft {
+  altura: string;
+  largura: string;
+  larguraFinal: string;
+  comprimento: string;
+  quantidadeDireta: string;
+}
+
+function novoPontoExtra(): PontoExtraDraft {
+  return { altura: "", largura: "", larguraFinal: "", comprimento: "", quantidadeDireta: "" };
+}
+
 interface AtividadeDraft {
   atividadeCatalogoId: string;
   ordemManutencaoId: string;
@@ -81,6 +94,10 @@ interface AtividadeDraft {
   horarioFinal: string;
   horasTrabalhadas: string;
   maoDeObra: AtividadeMaoDeObraDraft[];
+  // Ponto 1 é sempre os campos de dimensão acima — pontosExtras só existe
+  // quando a mesma atividade/OM foi medida em mais de um trecho no mesmo
+  // dia (ex.: "ponto 1 rocei 1x5x20, ponto 2 rocei 2x5x4").
+  pontosExtras: PontoExtraDraft[];
 }
 
 interface LocalDraft {
@@ -114,6 +131,51 @@ interface MaterialDraft {
   quantidade: string;
 }
 
+/** Formato retornado por `GET /rdos/:id` — usado só quando a tela abre em modo de edição. */
+interface RdoExistente {
+  frenteId: string;
+  equipeId: string;
+  data: string;
+  encarregadoId: string | null;
+  clima: string | null;
+  totalDesvios: number | null;
+  horaExtraInicio: string | null;
+  horaExtraFim: string | null;
+  observacoesContratada: string | null;
+  blocosHorario: BlocoDraft[];
+  locais: Array<{
+    descricao: string;
+    lado: string | null;
+    atividades: Array<{
+      atividadeCatalogoId: string;
+      ordemManutencaoId: string | null;
+      statusOm: string | null;
+      kmInicial: string | null;
+      kmFinal: string | null;
+      altura: string | null;
+      largura: string | null;
+      larguraFinal: string | null;
+      comprimento: string | null;
+      quantidadeDireta: string | null;
+      horarioInicial: string | null;
+      horarioFinal: string | null;
+      horasTrabalhadas: string | null;
+      maoDeObra: Array<{ funcaoId: string; quantidade: number }>;
+      unidade: string;
+      pontosExtras: Array<{
+        altura: string | null;
+        largura: string | null;
+        larguraFinal: string | null;
+        comprimento: string | null;
+        quantidadeDireta: string | null;
+      }>;
+    }>;
+  }>;
+  maoDeObra: Array<{ funcaoId: string; colaboradorId: string | null; quantidade: number }>;
+  equipamentos: Array<{ equipamentoCatalogoId: string; quantidade: number }>;
+  materiais: Array<{ materialCatalogoId: string; quantidade: string }>;
+}
+
 const CLIMA_OPCOES = ["SOL", "CHUVA", "NUBLADO"];
 /** Jornada de referência pra o fechamento do dia (07:00 às 17:00) — não bloqueia o salvamento, só avisa. */
 const JORNADA_REFERENCIA_HORAS = 10;
@@ -136,6 +198,7 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     horarioFinal: "",
     horasTrabalhadas: "",
     maoDeObra: [],
+    pontosExtras: [],
   };
 }
 
@@ -206,6 +269,8 @@ function formatarHoras(horas: number): string {
 
 export default function RdoCompleto(): ReactElement {
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
+  const emEdicao = Boolean(id);
 
   const [frentes, setFrentes] = useState<Frente[]>([]);
   const [equipes, setEquipes] = useState<Equipe[]>([]);
@@ -269,10 +334,91 @@ export default function RdoCompleto(): ReactElement {
         setMateriaisCatalogo(listaMateriais);
         setOrdensManutencao(listaOrdens);
 
-        const primeiraFrente = listaFrentes[0]?.id ?? "";
-        setFrenteId(primeiraFrente);
-        setEquipeId(listaEquipes.find((equipe) => equipe.distrito.frenteId === primeiraFrente)?.id ?? "");
-        setLocais([novoLocal(listaAtividades)]);
+        if (id) {
+          const rdo = await api.get<RdoExistente>(`/rdos/${id}`);
+          setFrenteId(rdo.frenteId);
+          setEquipeId(rdo.equipeId);
+          setData(rdo.data.slice(0, 10));
+          setEncarregadoId(rdo.encarregadoId ?? "");
+          setClima(rdo.clima ?? "");
+          setTotalDesvios(rdo.totalDesvios != null ? String(rdo.totalDesvios) : "");
+          setHoraExtraInicio(rdo.horaExtraInicio ?? "");
+          setHoraExtraFim(rdo.horaExtraFim ?? "");
+          setObservacoes(rdo.observacoesContratada ?? "");
+          setBlocos(
+            rdo.blocosHorario.length > 0
+              ? rdo.blocosHorario.map((b) => ({ ...b }))
+              : [{ horarioInicial: "", horarioFinal: "", descricao: "" }],
+          );
+          setLocais(
+            rdo.locais.length > 0
+              ? rdo.locais.map((local) => ({
+                  descricao: local.descricao,
+                  lado: local.lado ?? "",
+                  atividades: local.atividades.map((atividade) => ({
+                    atividadeCatalogoId: atividade.atividadeCatalogoId,
+                    ordemManutencaoId: atividade.ordemManutencaoId ?? "",
+                    statusOm: atividade.statusOm ?? "",
+                    unidade: atividade.unidade,
+                    kmInicial: atividade.kmInicial ?? "",
+                    kmFinal: atividade.kmFinal ?? "",
+                    altura: atividade.altura ?? "",
+                    largura: atividade.largura ?? "",
+                    larguraFinal: atividade.larguraFinal ?? "",
+                    comprimento: atividade.comprimento ?? "",
+                    quantidadeDireta: atividade.quantidadeDireta ?? "",
+                    horarioInicial: atividade.horarioInicial ?? "",
+                    horarioFinal: atividade.horarioFinal ?? "",
+                    horasTrabalhadas: atividade.horasTrabalhadas ?? "",
+                    maoDeObra: atividade.maoDeObra.map((item) => ({
+                      funcaoId: item.funcaoId,
+                      quantidade: String(item.quantidade),
+                    })),
+                    pontosExtras: atividade.pontosExtras.map((ponto) => ({
+                      altura: ponto.altura ?? "",
+                      largura: ponto.largura ?? "",
+                      larguraFinal: ponto.larguraFinal ?? "",
+                      comprimento: ponto.comprimento ?? "",
+                      quantidadeDireta: ponto.quantidadeDireta ?? "",
+                    })),
+                  })),
+                }))
+              : [novoLocal(listaAtividades)],
+          );
+          setMaoDeObra(
+            Object.fromEntries(
+              rdo.maoDeObra
+                .map((mdo) => {
+                  const membro = listaEquipes
+                    .find((equipe) => equipe.id === rdo.equipeId)
+                    ?.membros.find((m) =>
+                      mdo.colaboradorId != null ? m.colaboradorId === mdo.colaboradorId : m.funcaoId === mdo.funcaoId && !m.colaboradorId,
+                    );
+                  return membro ? ([membro.id, String(mdo.quantidade)] as const) : null;
+                })
+                .filter((par): par is readonly [string, string] => par != null),
+            ),
+          );
+          setOutrasMaoDeObra(
+            rdo.maoDeObra
+              .filter((mdo) => {
+                const membro = listaEquipes
+                  .find((equipe) => equipe.id === rdo.equipeId)
+                  ?.membros.find((m) =>
+                    mdo.colaboradorId != null ? m.colaboradorId === mdo.colaboradorId : m.funcaoId === mdo.funcaoId && !m.colaboradorId,
+                  );
+                return membro == null;
+              })
+              .map((mdo) => ({ funcaoId: mdo.funcaoId, colaboradorId: mdo.colaboradorId ?? "", quantidade: String(mdo.quantidade) })),
+          );
+          setEquipamentos(Object.fromEntries(rdo.equipamentos.map((eq) => [eq.equipamentoCatalogoId, String(eq.quantidade)])));
+          setMateriais(rdo.materiais.map((m) => ({ materialCatalogoId: m.materialCatalogoId, quantidade: String(m.quantidade) })));
+        } else {
+          const primeiraFrente = listaFrentes[0]?.id ?? "";
+          setFrenteId(primeiraFrente);
+          setEquipeId(listaEquipes.find((equipe) => equipe.distrito.frenteId === primeiraFrente)?.id ?? "");
+          setLocais([novoLocal(listaAtividades)]);
+        }
       } catch (error) {
         setErroCarga(error instanceof ApiError ? error.message : "Não foi possível carregar os dados de apoio.");
       } finally {
@@ -281,7 +427,7 @@ export default function RdoCompleto(): ReactElement {
     }
 
     void carregar();
-  }, []);
+  }, [id]);
 
   const frenteSelecionada = frentes.find((frente) => frente.id === frenteId) ?? null;
   const equipesDaFrente = equipes.filter((equipe) => equipe.distrito.frenteId === frenteId);
@@ -427,6 +573,61 @@ export default function RdoCompleto(): ReactElement {
     );
   }
 
+  function adicionarPontoExtra(localIndice: number, atividadeIndice: number): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice ? { ...atividade, pontosExtras: [...atividade.pontosExtras, novoPontoExtra()] } : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
+  function atualizarPontoExtra(
+    localIndice: number,
+    atividadeIndice: number,
+    pontoIndice: number,
+    campo: keyof PontoExtraDraft,
+    valor: string,
+  ): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? {
+                  ...atividade,
+                  pontosExtras: atividade.pontosExtras.map((ponto, k) => (k === pontoIndice ? { ...ponto, [campo]: valor } : ponto)),
+                }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
+  function removerPontoExtra(localIndice: number, atividadeIndice: number, pontoIndice: number): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? { ...atividade, pontosExtras: atividade.pontosExtras.filter((_, k) => k !== pontoIndice) }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
   function adicionarOutraMaoDeObra(): void {
     setOutrasMaoDeObra((atual) => [
       ...atual,
@@ -491,6 +692,14 @@ export default function RdoCompleto(): ReactElement {
             maoDeObra: atividade.maoDeObra
               .filter((item) => item.funcaoId && Number(item.quantidade) > 0)
               .map((item) => ({ funcaoId: item.funcaoId, quantidade: Number(item.quantidade) })),
+            pontosExtras: atividade.pontosExtras.map((ponto, ordem) => ({
+              ordem,
+              altura: ponto.altura === "" ? null : Number(ponto.altura),
+              largura: ponto.largura === "" ? null : Number(ponto.largura),
+              larguraFinal: ponto.larguraFinal === "" ? null : Number(ponto.larguraFinal),
+              comprimento: ponto.comprimento === "" ? null : Number(ponto.comprimento),
+              quantidadeDireta: ponto.quantidadeDireta === "" ? null : Number(ponto.quantidadeDireta),
+            })),
           })),
         })),
       maoDeObra: [
@@ -522,8 +731,13 @@ export default function RdoCompleto(): ReactElement {
     };
 
     try {
-      await api.post("/rdos/completo", payload);
-      navigate("/rdos");
+      if (emEdicao && id) {
+        await api.patch(`/rdos/${id}`, payload);
+        navigate(`/rdos/${id}`);
+      } else {
+        await api.post("/rdos/completo", payload);
+        navigate("/rdos");
+      }
     } catch (error) {
       setErroSalvar(error instanceof ApiError ? error.message : "Não foi possível salvar o RDO.");
     } finally {
@@ -548,8 +762,12 @@ export default function RdoCompleto(): ReactElement {
       <div className="list-page form-page">
         <div className="list-header">
           <div>
-            <h1 className="list-title">Cadastrar RDO completo</h1>
-            <p className="list-subtitle">Preencha o RDO inteiro de uma vez, como no relatório em papel.</p>
+            <h1 className="list-title">{emEdicao ? "Editar RDO" : "Cadastrar RDO completo"}</h1>
+            <p className="list-subtitle">
+              {emEdicao
+                ? "Revise e corrija o RDO que o encarregado assinou no celular antes de enviar para o fiscal."
+                : "Preencha o RDO inteiro de uma vez, como no relatório em papel."}
+            </p>
           </div>
         </div>
 
@@ -568,6 +786,7 @@ export default function RdoCompleto(): ReactElement {
                 className="field-input"
                 value={frenteId}
                 onChange={(event) => handleFrenteChange(event.target.value)}
+                disabled={emEdicao}
               >
                 {frentes.map((frente) => (
                   <option key={frente.id} value={frente.id}>
@@ -592,6 +811,7 @@ export default function RdoCompleto(): ReactElement {
                 className="field-input"
                 value={equipeId}
                 onChange={(event) => setEquipeId(event.target.value)}
+                disabled={emEdicao}
               >
                 {equipesDaFrente.length === 0 && <option value="">Nenhuma equipe cadastrada para esta frente</option>}
                 {equipesDaFrente.map((equipe) => (
@@ -611,6 +831,7 @@ export default function RdoCompleto(): ReactElement {
                 className="field-input"
                 value={data}
                 onChange={(event) => setData(event.target.value)}
+                disabled={emEdicao}
               />
             </div>
           </div>
@@ -1055,10 +1276,140 @@ export default function RdoCompleto(): ReactElement {
                       largura={atividade.largura}
                       larguraFinal={atividade.larguraFinal}
                       comprimento={atividade.comprimento}
-                      descricaoAtividade={catalogoDaAtividade?.descricao}
+                      descricaoAtividade={
+                        atividade.pontosExtras.length > 0
+                          ? `${catalogoDaAtividade?.descricao ?? ""} — Ponto 1`
+                          : catalogoDaAtividade?.descricao
+                      }
                     />
                   )}
                   </div>
+
+                  {usaDimensoes &&
+                    atividade.pontosExtras.map((ponto, pontoIndice) => (
+                      <div className="atividade-com-croqui" key={pontoIndice} style={{ marginTop: 12 }}>
+                        <div>
+                          <div className="repeatable-item-header">
+                            <span className="repeatable-item-titulo">Ponto {pontoIndice + 2}</span>
+                            <button
+                              type="button"
+                              className="button button--ghost button--small"
+                              onClick={() => removerPontoExtra(localIndice, atividadeIndice, pontoIndice)}
+                            >
+                              Remover ponto
+                            </button>
+                          </div>
+                          {atividade.unidade === "M3" && (
+                            <div className="grid-3">
+                              <div>
+                                <label className="field-label">Altura (m)</label>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  className="field-input"
+                                  placeholder="0,00"
+                                  value={ponto.altura}
+                                  onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "altura", event.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="field-label">Largura (m)</label>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  className="field-input"
+                                  placeholder="0,00"
+                                  value={ponto.largura}
+                                  onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "largura", event.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="field-label">Comprimento (m)</label>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  className="field-input"
+                                  placeholder="0,00"
+                                  value={ponto.comprimento}
+                                  onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "comprimento", event.target.value)}
+                                />
+                              </div>
+                            </div>
+                          )}
+                          {atividade.unidade === "M2" && (
+                            <div className="grid-3">
+                              <div>
+                                <label className="field-label">Largura inicial (m)</label>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  className="field-input"
+                                  placeholder="0,00"
+                                  value={ponto.largura}
+                                  onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "largura", event.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="field-label">Largura final (m) — opcional</label>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  className="field-input"
+                                  placeholder="se afunilar/alargar"
+                                  value={ponto.larguraFinal}
+                                  onChange={(event) =>
+                                    atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "larguraFinal", event.target.value)
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <label className="field-label">Comprimento (m)</label>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  className="field-input"
+                                  placeholder="0,00"
+                                  value={ponto.comprimento}
+                                  onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "comprimento", event.target.value)}
+                                />
+                              </div>
+                            </div>
+                          )}
+                          {atividade.unidade === "M" && (
+                            <div>
+                              <label className="field-label">Comprimento (m)</label>
+                              <input
+                                type="number"
+                                step="0.001"
+                                className="field-input"
+                                placeholder="0,00"
+                                value={ponto.comprimento}
+                                onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "comprimento", event.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <CroquiAtividade
+                          unidade={atividade.unidade}
+                          altura={ponto.altura}
+                          largura={ponto.largura}
+                          larguraFinal={ponto.larguraFinal}
+                          comprimento={ponto.comprimento}
+                          descricaoAtividade={`${catalogoDaAtividade?.descricao ?? ""} — Ponto ${pontoIndice + 2}`}
+                        />
+                      </div>
+                    ))}
+
+                  {usaDimensoes && (
+                    <button
+                      type="button"
+                      className="button button--secondary button--small"
+                      style={{ marginTop: 12 }}
+                      onClick={() => adicionarPontoExtra(localIndice, atividadeIndice)}
+                    >
+                      + Adicionar ponto de medição
+                    </button>
+                  )}
                   </div>
                 );
               })}
@@ -1230,9 +1581,13 @@ export default function RdoCompleto(): ReactElement {
 
         <div className="form-actions">
           <button type="button" className="button" disabled={salvando} onClick={() => void handleSalvar()}>
-            {salvando ? "Salvando…" : "Salvar RDO"}
+            {salvando ? "Salvando…" : emEdicao ? "Salvar correções" : "Salvar RDO"}
           </button>
-          <button type="button" className="button button--secondary" onClick={() => navigate("/rdos")}>
+          <button
+            type="button"
+            className="button button--secondary"
+            onClick={() => navigate(emEdicao && id ? `/rdos/${id}` : "/rdos")}
+          >
             Cancelar
           </button>
         </div>

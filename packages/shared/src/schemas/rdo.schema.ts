@@ -46,6 +46,71 @@ export const rdoAtividadeMaoDeObraInputSchema = z.object({
 
 export type RdoAtividadeMaoDeObraInput = z.infer<typeof rdoAtividadeMaoDeObraInputSchema>;
 
+/**
+ * Ponto de medição adicional de uma atividade — mesma atividade/OM, outro
+ * trecho medido no mesmo dia (ex.: "ponto 1 rocei 1x5x20, ponto 2 rocei
+ * 2x5x4"). Sem OM/km/horário/mão de obra próprios porque continua sendo a
+ * mesma atividade, só outras dimensões — ver RdoAtividade.pontosExtras em
+ * packages/server/prisma/schema.prisma.
+ */
+export const rdoAtividadePontoInputSchema = z.object({
+  ordem: z.number().int().nonnegative().default(0),
+  altura: z.number().positive().nullable().optional(),
+  largura: z.number().positive().nullable().optional(),
+  larguraFinal: z.number().positive().nullable().optional(),
+  comprimento: z.number().positive().nullable().optional(),
+  quantidadeDireta: z.number().positive().nullable().optional(),
+});
+
+export type RdoAtividadePontoInput = z.infer<typeof rdoAtividadePontoInputSchema>;
+
+interface DimensoesInput {
+  altura?: number | null;
+  largura?: number | null;
+  comprimento?: number | null;
+  quantidadeDireta?: number | null;
+}
+
+/** Mesma regra de "que dimensão essa unidade exige" aplicada ao Ponto 1 (a atividade) e a cada ponto extra. */
+function validarDimensoesPorUnidade(
+  unidade: UnidadeMedidaSchema,
+  dados: DimensoesInput,
+  ctx: z.RefinementCtx,
+  path: (string | number)[],
+) {
+  const usaDimensoes = unidade === "M" || unidade === "M2" || unidade === "M3";
+
+  if (usaDimensoes) {
+    if (unidade === "M3" && (dados.altura == null || dados.largura == null || dados.comprimento == null)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Atividades em M3 exigem altura, largura e comprimento",
+        path: [...path, "altura"],
+      });
+    }
+    if (unidade === "M2" && (dados.largura == null || dados.comprimento == null)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Atividades em M2 exigem largura e comprimento",
+        path: [...path, "largura"],
+      });
+    }
+    if (unidade === "M" && dados.comprimento == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Atividades em M exigem comprimento",
+        path: [...path, "comprimento"],
+      });
+    }
+  } else if (dados.quantidadeDireta == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Informe a quantidade diretamente para esta unidade",
+      path: [...path, "quantidadeDireta"],
+    });
+  }
+}
+
 export const rdoAtividadeInputSchema = z
   .object({
     atividadeCatalogoId: z.string().cuid(),
@@ -72,39 +137,16 @@ export const rdoAtividadeInputSchema = z
     maoObraDireta: z.number().int().positive().nullable().optional(),
     maoDeObra: z.array(rdoAtividadeMaoDeObraInputSchema).default([]),
     unidade: unidadeMedidaSchema,
+    // Ponto 1 é sempre os campos acima (altura/largura/.../quantidadeDireta)
+    // — pontosExtras só existe quando a mesma atividade/OM foi medida em
+    // mais de um trecho no mesmo dia. Ver rdoAtividadePontoInputSchema.
+    pontosExtras: z.array(rdoAtividadePontoInputSchema).default([]),
   })
   .superRefine((data, ctx) => {
-    const usaDimensoes = data.unidade === "M" || data.unidade === "M2" || data.unidade === "M3";
-
-    if (usaDimensoes) {
-      if (data.unidade === "M3" && (data.altura == null || data.largura == null || data.comprimento == null)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Atividades em M3 exigem altura, largura e comprimento",
-          path: ["altura"],
-        });
-      }
-      if (data.unidade === "M2" && (data.largura == null || data.comprimento == null)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Atividades em M2 exigem largura e comprimento",
-          path: ["largura"],
-        });
-      }
-      if (data.unidade === "M" && data.comprimento == null) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Atividades em M exigem comprimento",
-          path: ["comprimento"],
-        });
-      }
-    } else if (data.quantidadeDireta == null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Informe a quantidade diretamente para esta unidade",
-        path: ["quantidadeDireta"],
-      });
-    }
+    validarDimensoesPorUnidade(data.unidade, data, ctx, []);
+    data.pontosExtras.forEach((ponto, indice) => {
+      validarDimensoesPorUnidade(data.unidade, ponto, ctx, ["pontosExtras", indice]);
+    });
   });
 
 export type RdoAtividadeInput = z.infer<typeof rdoAtividadeInputSchema>;

@@ -604,6 +604,11 @@ textarea.field-input {
   box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.18);
 }
 
+.farol-dot--validacao {
+  background: #9333ea;
+  box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.18);
+}
+
 .farol-dot--reprovado {
   background: #dc2626;
   box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);

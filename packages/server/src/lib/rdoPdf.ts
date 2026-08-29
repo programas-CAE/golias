@@ -1,3 +1,4 @@
+import { calcularTotalAtividade } from "@golias/shared";
 import { createHash } from "node:crypto";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
@@ -13,6 +14,15 @@ export interface RdoPdfBlocoHorario {
 
 export interface RdoPdfAtividadeMaoDeObraItem {
   funcao: string;
+  quantidade: number;
+}
+
+/** Ponto de medição extra da atividade (Ponto 2, 3...) — ver RdoAtividade.pontosExtras em schema.prisma. */
+export interface RdoPdfPontoExtra {
+  altura: number | null;
+  largura: number | null;
+  larguraFinal: number | null;
+  comprimento: number | null;
   quantidade: number;
 }
 
@@ -32,6 +42,10 @@ export interface RdoPdfAtividade {
   horarioFinal: string | null;
   statusOm: "EM_ANDAMENTO" | "CONCLUIDA" | null;
   maoDeObra: RdoPdfAtividadeMaoDeObraItem[];
+  // Ponto 1 é sempre os campos de dimensão acima (altura/largura/.../
+  // quantidade) — pontosExtras só existe quando a mesma atividade/OM foi
+  // medida em mais de um trecho no mesmo dia.
+  pontosExtras: RdoPdfPontoExtra[];
 }
 
 export interface RdoPdfLocal {
@@ -362,8 +376,18 @@ function desenharBlocoAssinatura(
 }
 
 /** Texto do memorial de cálculo (fórmula = resultado), mesma matemática de `calcularTotalAtividade` (packages/shared) e do croqui exibido no formulário (CroquiAtividade.tsx). */
-function montarMemorialCalculo(atividade: RdoPdfAtividade): string | null {
-  const { unidade, altura: a, largura: l, larguraFinal: lFim, comprimento: c, quantidade } = atividade;
+/** Dados de dimensão de um cartão de croqui — o Ponto 1 (a própria atividade) ou um ponto extra. */
+interface CroquiDados {
+  unidade: string;
+  altura: number | null;
+  largura: number | null;
+  larguraFinal: number | null;
+  comprimento: number | null;
+  quantidade: number;
+}
+
+function montarMemorialCalculo(dados: CroquiDados): string | null {
+  const { unidade, altura: a, largura: l, larguraFinal: lFim, comprimento: c, quantidade } = dados;
   if (unidade === "M3" && a != null && l != null && c != null) {
     return `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)} = ${formatarNumero(quantidade)} m³`;
   }
@@ -492,25 +516,21 @@ function desenharCroquiCaixa(
   doc.text(rotuloDimensao(comprimento), (fbr.x + bbr.x) / 2 + 4, (fbr.y + bbr.y) / 2 - 4, { width: 70 });
 }
 
-/** Uma "carta" de croqui + memorial de cálculo para uma atividade, dentro de `largura`. Devolve a altura ocupada. */
-function desenharCartaoCroqui(doc: PDFKit.PDFDocument, x: number, y: number, atividade: RdoPdfAtividade): number {
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(8)
-    .fillColor("#000000")
-    .text(`${atividade.item} — ${atividade.descricao}`, x, y, { width: CROQUI_LARGURA });
+/** Uma "carta" de croqui + memorial de cálculo para um ponto de medição, dentro de `largura`. Devolve a altura ocupada. */
+function desenharCartaoCroqui(doc: PDFKit.PDFDocument, x: number, y: number, titulo: string, dados: CroquiDados): number {
+  doc.font("Helvetica-Bold").fontSize(8).fillColor("#000000").text(titulo, x, y, { width: CROQUI_LARGURA });
   const yDesenho = doc.y + 4;
 
-  if (atividade.unidade === "M3") {
-    desenharCroquiCaixa(doc, x, yDesenho, atividade.altura, atividade.largura, atividade.comprimento);
-  } else if (atividade.unidade === "M2") {
-    desenharCroquiRetangulo(doc, x, yDesenho, atividade.largura, atividade.larguraFinal, atividade.comprimento);
+  if (dados.unidade === "M3") {
+    desenharCroquiCaixa(doc, x, yDesenho, dados.altura, dados.largura, dados.comprimento);
+  } else if (dados.unidade === "M2") {
+    desenharCroquiRetangulo(doc, x, yDesenho, dados.largura, dados.larguraFinal, dados.comprimento);
   } else {
-    desenharCroquiLinha(doc, x, yDesenho, atividade.comprimento);
+    desenharCroquiLinha(doc, x, yDesenho, dados.comprimento);
   }
 
   const yFormula = yDesenho + CROQUI_ALTURA_DESENHO + 4;
-  const memorial = montarMemorialCalculo(atividade);
+  const memorial = montarMemorialCalculo(dados);
   doc
     .font("Helvetica")
     .fontSize(7.5)
@@ -520,10 +540,53 @@ function desenharCartaoCroqui(doc: PDFKit.PDFDocument, x: number, y: number, ati
   return doc.y - y;
 }
 
-/** Croquis e memorial de cálculo de cada atividade que usa dimensões (M/M2/M3) — página própria, 2 por linha. */
+interface CartaoCroqui {
+  titulo: string;
+  dados: CroquiDados;
+}
+
+/**
+ * Achata atividades × pontos em uma lista de cartões — Ponto 1 é sempre a
+ * própria atividade (altura/largura/.../quantidade), pontosExtras vira um
+ * cartão a mais cada. Só rotula "Ponto N" quando há mais de um cartão para
+ * a mesma atividade — RDO com uma dimensão só por atividade (o caso comum)
+ * continua saindo igual a antes.
+ */
+function montarCartoesCroqui(atividade: RdoPdfAtividade): CartaoCroqui[] {
+  const titulo = `${atividade.item} — ${atividade.descricao}`;
+  // atividade.quantidade é o total JÁ SOMADO com os pontosExtras (o que a
+  // tabela principal mostra) — o memorial do Ponto 1 precisa do total só
+  // dele, recalculado das próprias dimensões, senão a fórmula do Ponto 1
+  // aparece batendo com um resultado que não é dela.
+  const ponto1: CroquiDados = {
+    unidade: atividade.unidade,
+    altura: atividade.altura,
+    largura: atividade.largura,
+    larguraFinal: atividade.larguraFinal,
+    comprimento: atividade.comprimento,
+    quantidade: calcularTotalAtividade(atividade.unidade as Parameters<typeof calcularTotalAtividade>[0], atividade),
+  };
+
+  if (atividade.pontosExtras.length === 0) {
+    return [{ titulo, dados: ponto1 }];
+  }
+
+  return [
+    { titulo: `${titulo} — Ponto 1`, dados: ponto1 },
+    ...atividade.pontosExtras.map((ponto, indice) => ({
+      titulo: `${titulo} — Ponto ${indice + 2}`,
+      dados: { unidade: atividade.unidade, ...ponto },
+    })),
+  ];
+}
+
+/** Croquis e memorial de cálculo de cada atividade/ponto que usa dimensões (M/M2/M3) — página própria, 2 por linha. */
 function desenharCroquis(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
-  const atividades = dados.locais.flatMap((local) => local.atividades).filter((atividade) => atividade.usaDimensoes);
-  if (atividades.length === 0) return;
+  const cartoes = dados.locais
+    .flatMap((local) => local.atividades)
+    .filter((atividade) => atividade.usaDimensoes)
+    .flatMap((atividade) => montarCartoesCroqui(atividade));
+  if (cartoes.length === 0) return;
 
   doc.addPage();
   doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000").text("CROQUIS E MEMORIAL DE CÁLCULO", MARGEM, MARGEM);
@@ -535,13 +598,13 @@ function desenharCroquis(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   let y = doc.y + 16;
   const alturaCartao = CROQUI_ALTURA_DESENHO + 44;
 
-  for (const atividade of atividades) {
+  for (const cartao of cartoes) {
     if (y + alturaCartao > ALTURA_PAGINA - MARGEM) {
       doc.addPage();
       y = MARGEM;
       coluna = 0;
     }
-    desenharCartaoCroqui(doc, colX[coluna]!, y, atividade);
+    desenharCartaoCroqui(doc, colX[coluna]!, y, cartao.titulo, cartao.dados);
     if (coluna === 0) {
       coluna = 1;
     } else {
@@ -592,8 +655,15 @@ export async function gerarPdfRdo(dados: RdoPdfDados): Promise<Buffer> {
 
   const yTabelas = doc.y;
   desenharTabelaAtividades(doc, dados, yTabelas);
+  // `desenharColunaDireita` também escreve texto com y explícito, o que
+  // faz o pdfkit sobrescrever `doc.y` com a altura DELA — precisa capturar
+  // a altura real da tabela de atividades (que pode ser bem maior, com
+  // descrições longas — MO/status da OM/km) antes que isso aconteça, senão
+  // a seção de observações logo abaixo é desenhada por cima do fim da
+  // tabela em vez de depois dela.
+  const yFimTabelaAtividades = doc.y;
   desenharColunaDireita(doc, dados, yTabelas);
-  doc.y = Math.max(doc.y, yTabelas + 40);
+  doc.y = Math.max(doc.y, yFimTabelaAtividades, yTabelas + 40);
 
   desenharObservacoes(doc, dados);
   await desenharRodape(doc, dados);

@@ -15,6 +15,11 @@ enum FrenteCodigo {
 enum RdoStatus {
   RASCUNHO
   EM_CORRECAO
+  // Encarregado assinou no celular — antes de ir pro fiscal, o RDO passa
+  // pelo escritório pra revisão/correção. Só depois que o escritório
+  // aciona "enviar pro fiscal" é que o status muda pra
+  // AGUARDANDO_APROVACAO e o RDO aparece no portal do fiscal.
+  AGUARDANDO_VALIDACAO_ESCRITORIO
   AGUARDANDO_APROVACAO
   APROVADO
   REPROVADO
@@ -244,6 +249,11 @@ model Rdo {
 
   corrigidoPorId            String?
   corrigidoEm               DateTime?
+  // Nome mantido por compatibilidade: na prática marca quando o
+  // encarregado finalizou e assinou no celular — não necessariamente
+  // quando o RDO chegou ao fiscal (que só acontece depois que o
+  // escritório revisa e aciona `POST /rdos/:id/enviar-fiscal`, ver
+  // AGUARDANDO_VALIDACAO_ESCRITORIO no enum RdoStatus).
   enviadoParaFiscalEm       DateTime?
   // Imagem (PNG) da assinatura desenhada pelo encarregado ao finalizar e
   // enviar o RDO para aprovação — sem tabela própria porque é só 1 por RDO
@@ -337,6 +347,29 @@ model RdoAtividade {
   maoObraDireta       Int?
   maoDeObra           RdoAtividadeMaoDeObra[]
   unidade             UnidadeMedida
+  // As dimensões acima (altura/largura/.../totalCalculado) são o "Ponto 1",
+  // sempre presente — pontos extras (2, 3...) só existem quando a mesma
+  // atividade/OM foi medida em mais de um trecho/ponto no mesmo dia (ex.:
+  // "ponto 1 rocei 1x5x20, ponto 2 rocei 2x5x4"). O totalCalculado da
+  // atividade soma o Ponto 1 com todos os pontosExtras.
+  pontosExtras        RdoAtividadePonto[]
+}
+
+// Ponto de medição adicional de uma atividade (ver comentário em
+// RdoAtividade.pontosExtras) — mesmas dimensões possíveis que a atividade,
+// mas sem OM/km/horário/mão de obra próprios, porque ainda é a mesma
+// atividade/OM, só outro trecho medido no mesmo dia.
+model RdoAtividadePonto {
+  id               String       @id @default(cuid())
+  rdoAtividadeId   String
+  rdoAtividade     RdoAtividade @relation(fields: [rdoAtividadeId], references: [id])
+  ordem            Int          @default(0)
+  altura           Decimal?     @db.Decimal(10, 3)
+  largura          Decimal?     @db.Decimal(10, 3)
+  larguraFinal     Decimal?     @db.Decimal(10, 3)
+  comprimento      Decimal?     @db.Decimal(10, 3)
+  quantidadeDireta Decimal?     @db.Decimal(12, 3)
+  totalCalculado   Decimal      @db.Decimal(12, 3)
 }
 
 // Mão de obra por função dedicada a UMA atividade específica (ex.: "1

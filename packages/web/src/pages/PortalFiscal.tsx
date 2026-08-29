@@ -184,6 +184,10 @@ export default function PortalFiscal(): ReactElement {
 
   return (
     <div className="campo-page">
+      <div className="campo-brand">
+        <p className="campo-brand-title">GOLIAS</p>
+        <p className="campo-brand-subtitle">Gestão de contratos</p>
+      </div>
       <div className="campo-card" style={{ maxWidth: 720 }}>
         <h1>Portal do fiscal</h1>
         <p className="subtitle">{lista.frente.nome}</p>

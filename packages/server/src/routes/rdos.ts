@@ -55,6 +55,107 @@ function resolverMaoObraDireta(
   return maoObraDiretaManual ?? null;
 }
 
+/**
+ * Monta os dados de criação de uma RdoAtividade (incluindo os pontosExtras
+ * aninhados) a partir de um input validado — reaproveitado por
+ * `POST /rdos/completo` e por `substituirConteudoRdo`. O totalCalculado da
+ * atividade soma o Ponto 1 (os campos diretos: altura/largura/.../
+ * quantidadeDireta) com o de cada ponto extra — ver comentário em
+ * RdoAtividade.pontosExtras em schema.prisma.
+ */
+function montarDadosCriacaoAtividade(atividade: import("@golias/shared").RdoAtividadeInput) {
+  const totalPonto1 = calcularTotalAtividade(atividade.unidade, atividade);
+  const totalPontosExtras = atividade.pontosExtras.reduce(
+    (soma, ponto) => soma + calcularTotalAtividade(atividade.unidade, ponto),
+    0,
+  );
+
+  return {
+    atividadeCatalogoId: atividade.atividadeCatalogoId,
+    ordemManutencaoId: atividade.ordemManutencaoId,
+    statusOm: atividade.statusOm,
+    kmInicial: atividade.kmInicial,
+    kmFinal: atividade.kmFinal,
+    altura: atividade.altura,
+    largura: atividade.largura,
+    larguraFinal: atividade.larguraFinal,
+    comprimento: atividade.comprimento,
+    horarioInicial: atividade.horarioInicial,
+    horarioFinal: atividade.horarioFinal,
+    horasTrabalhadas: resolverHorasTrabalhadas(atividade.horarioInicial, atividade.horarioFinal, atividade.horasTrabalhadas),
+    maoObraDireta: resolverMaoObraDireta(atividade.maoDeObra, atividade.maoObraDireta),
+    maoDeObra: { create: atividade.maoDeObra },
+    quantidadeDireta: atividade.quantidadeDireta,
+    unidade: atividade.unidade,
+    totalCalculado: totalPonto1 + totalPontosExtras,
+    pontosExtras: {
+      create: atividade.pontosExtras.map((ponto, indice) => ({
+        ordem: ponto.ordem ?? indice,
+        altura: ponto.altura,
+        largura: ponto.largura,
+        larguraFinal: ponto.larguraFinal,
+        comprimento: ponto.comprimento,
+        quantidadeDireta: ponto.quantidadeDireta,
+        totalCalculado: calcularTotalAtividade(atividade.unidade, ponto),
+      })),
+    },
+  };
+}
+
+/**
+ * Apaga e recria todo o conteúdo "de formulário" de um RDO (locais,
+ * atividades, mão de obra, equipamentos, materiais, blocos de horário) a
+ * partir de um payload validado por `rdoCampoUpdateInputSchema` —
+ * reaproveitado tanto por `PATCH /rdos/campo/:token` (encarregado, via
+ * link público) quanto por `PATCH /rdos/:id` (escritório, revisando antes
+ * de mandar pro fiscal). Não mexe em status — cada rota decide a transição
+ * de status que faz sentido pra quem está chamando.
+ */
+async function substituirConteudoRdo(
+  tx: Prisma.TransactionClient,
+  rdoId: string,
+  data: import("@golias/shared").RdoCampoUpdateInput,
+): Promise<void> {
+  await tx.rdoBlocoHorario.deleteMany({ where: { rdoId } });
+  await tx.rdoAtividadeMaoDeObra.deleteMany({ where: { rdoAtividade: { rdoLocal: { rdoId } } } });
+  await tx.rdoAtividadePonto.deleteMany({ where: { rdoAtividade: { rdoLocal: { rdoId } } } });
+  await tx.rdoAtividade.deleteMany({ where: { rdoLocal: { rdoId } } });
+  await tx.rdoLocal.deleteMany({ where: { rdoId } });
+  await tx.rdoMaoDeObra.deleteMany({ where: { rdoId } });
+  await tx.rdoEquipamento.deleteMany({ where: { rdoId } });
+  await tx.rdoMaterial.deleteMany({ where: { rdoId } });
+
+  await tx.rdo.update({
+    where: { id: rdoId },
+    data: {
+      horaExtraInicio: data.horaExtraInicio,
+      horaExtraFim: data.horaExtraFim,
+      clima: data.clima,
+      encarregadoId: data.encarregadoId,
+      totalDesvios: data.totalDesvios,
+      observacoesContratada: data.observacoesContratada,
+      blocosHorario: { create: data.blocosHorario },
+      maoDeObra: { create: data.maoDeObra },
+      equipamentos: { create: data.equipamentos },
+      materiais: { create: data.materiais },
+    },
+  });
+
+  for (const local of data.locais) {
+    await tx.rdoLocal.create({
+      data: {
+        rdoId,
+        descricao: local.descricao,
+        lado: local.lado,
+        ordem: local.ordem,
+        atividades: {
+          create: local.atividades.map((atividade) => montarDadosCriacaoAtividade(atividade)),
+        },
+      },
+    });
+  }
+}
+
 const rdoListSelect = {
   id: true,
   data: true,
@@ -129,6 +230,19 @@ export const rdoCampoSelect = {
           maoDeObra: { select: { id: true, funcaoId: true, funcao: { select: { id: true, nome: true } }, quantidade: true } },
           totalCalculado: true,
           unidade: true,
+          pontosExtras: {
+            orderBy: { ordem: "asc" },
+            select: {
+              id: true,
+              ordem: true,
+              altura: true,
+              largura: true,
+              larguraFinal: true,
+              comprimento: true,
+              quantidadeDireta: true,
+              totalCalculado: true,
+            },
+          },
         },
       },
     },
@@ -263,6 +377,13 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
         maoDeObra: atividade.maoDeObra
           .filter((item) => item.quantidade > 0)
           .map((item) => ({ funcao: item.funcao.nome, quantidade: item.quantidade })),
+        pontosExtras: atividade.pontosExtras.map((ponto) => ({
+          altura: ponto.altura != null ? Number(ponto.altura) : null,
+          largura: ponto.largura != null ? Number(ponto.largura) : null,
+          larguraFinal: ponto.larguraFinal != null ? Number(ponto.larguraFinal) : null,
+          comprimento: ponto.comprimento != null ? Number(ponto.comprimento) : null,
+          quantidade: Number(ponto.totalCalculado),
+        })),
       })),
     })),
     maoDeObra: rdo.maoDeObra
@@ -414,29 +535,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
               lado: local.lado,
               ordem: local.ordem,
               atividades: {
-                create: local.atividades.map((atividade) => ({
-                  atividadeCatalogoId: atividade.atividadeCatalogoId,
-                  ordemManutencaoId: atividade.ordemManutencaoId,
-                  statusOm: atividade.statusOm,
-                  kmInicial: atividade.kmInicial,
-                  kmFinal: atividade.kmFinal,
-                  altura: atividade.altura,
-                  largura: atividade.largura,
-                  larguraFinal: atividade.larguraFinal,
-                  comprimento: atividade.comprimento,
-                  horarioInicial: atividade.horarioInicial,
-                  horarioFinal: atividade.horarioFinal,
-                  horasTrabalhadas: resolverHorasTrabalhadas(
-                    atividade.horarioInicial,
-                    atividade.horarioFinal,
-                    atividade.horasTrabalhadas,
-                  ),
-                  maoObraDireta: resolverMaoObraDireta(atividade.maoDeObra, atividade.maoObraDireta),
-                  maoDeObra: { create: atividade.maoDeObra },
-                  quantidadeDireta: atividade.quantidadeDireta,
-                  unidade: atividade.unidade,
-                  totalCalculado: calcularTotalAtividade(atividade.unidade, atividade),
-                })),
+                create: local.atividades.map((atividade) => montarDadosCriacaoAtividade(atividade)),
               },
             },
           });
@@ -512,68 +611,10 @@ export function registerRdosRoutes(app: FastifyInstance): void {
 
       try {
         await prisma.$transaction(async (tx) => {
-          await tx.rdoBlocoHorario.deleteMany({ where: { rdoId } });
-          await tx.rdoAtividadeMaoDeObra.deleteMany({ where: { rdoAtividade: { rdoLocal: { rdoId } } } });
-          await tx.rdoAtividade.deleteMany({ where: { rdoLocal: { rdoId } } });
-          await tx.rdoLocal.deleteMany({ where: { rdoId } });
-          await tx.rdoMaoDeObra.deleteMany({ where: { rdoId } });
-          await tx.rdoEquipamento.deleteMany({ where: { rdoId } });
-          await tx.rdoMaterial.deleteMany({ where: { rdoId } });
-
-          await tx.rdo.update({
-            where: { id: rdoId },
-            data: {
-              horaExtraInicio: data.horaExtraInicio,
-              horaExtraFim: data.horaExtraFim,
-              clima: data.clima,
-              encarregadoId: data.encarregadoId,
-              totalDesvios: data.totalDesvios,
-              observacoesContratada: data.observacoesContratada,
-              blocosHorario: { create: data.blocosHorario },
-              maoDeObra: { create: data.maoDeObra },
-              equipamentos: { create: data.equipamentos },
-              materiais: { create: data.materiais },
-              ...(reabrindoAposReprovacao ? { status: "EM_CORRECAO" as const } : {}),
-            },
-          });
-
-          for (const local of data.locais) {
-            await tx.rdoLocal.create({
-              data: {
-                rdoId,
-                descricao: local.descricao,
-                lado: local.lado,
-                ordem: local.ordem,
-                atividades: {
-                  create: local.atividades.map((atividade) => ({
-                    atividadeCatalogoId: atividade.atividadeCatalogoId,
-                    ordemManutencaoId: atividade.ordemManutencaoId,
-                    statusOm: atividade.statusOm,
-                    kmInicial: atividade.kmInicial,
-                    kmFinal: atividade.kmFinal,
-                    altura: atividade.altura,
-                    largura: atividade.largura,
-                    larguraFinal: atividade.larguraFinal,
-                    comprimento: atividade.comprimento,
-                    horarioInicial: atividade.horarioInicial,
-                    horarioFinal: atividade.horarioFinal,
-                    horasTrabalhadas: resolverHorasTrabalhadas(
-                      atividade.horarioInicial,
-                      atividade.horarioFinal,
-                      atividade.horasTrabalhadas,
-                    ),
-                    maoObraDireta: resolverMaoObraDireta(atividade.maoDeObra, atividade.maoObraDireta),
-                    maoDeObra: { create: atividade.maoDeObra },
-                    quantidadeDireta: atividade.quantidadeDireta,
-                    unidade: atividade.unidade,
-                    totalCalculado: calcularTotalAtividade(atividade.unidade, atividade),
-                  })),
-                },
-              },
-            });
-          }
+          await substituirConteudoRdo(tx, rdoId, data);
 
           if (reabrindoAposReprovacao) {
+            await tx.rdo.update({ where: { id: rdoId }, data: { status: "EM_CORRECAO" } });
             const encarregado = data.encarregadoId
               ? await tx.colaborador.findUnique({ where: { id: data.encarregadoId }, select: { nome: true } })
               : null;
@@ -666,10 +707,14 @@ export function registerRdosRoutes(app: FastifyInstance): void {
   );
 
   /**
-   * O encarregado finaliza o preenchimento e envia para aprovação —
-   * diferente do PATCH acima, que só salva o rascunho em progresso. Exige
-   * assinatura desenhada (canvas) e pelo menos 1 local com atividade,
-   * mesma regra de "RDO completo" (`rdoCreateInputSchema`).
+   * O encarregado finaliza o preenchimento e assina — diferente do PATCH
+   * acima, que só salva o rascunho em progresso. Exige assinatura desenhada
+   * (canvas) e pelo menos 1 local com atividade, mesma regra de "RDO
+   * completo" (`rdoCreateInputSchema`).
+   *
+   * Não vai direto pro fiscal: fica em AGUARDANDO_VALIDACAO_ESCRITORIO até
+   * o escritório revisar (e opcionalmente corrigir via `PATCH /rdos/:id`)
+   * e acionar `POST /rdos/:id/enviar-fiscal`.
    */
   app.post<{ Params: { token: string } }>(
     "/rdos/campo/:token/enviar",
@@ -724,7 +769,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         prisma.rdo.update({
           where: { id: rdo.id },
           data: {
-            status: "AGUARDANDO_APROVACAO",
+            status: "AGUARDANDO_VALIDACAO_ESCRITORIO",
             assinaturaEncarregadoPath: caminhoAssinatura,
             enviadoParaFiscalEm: new Date(),
           },
@@ -733,7 +778,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
           data: {
             rdoId: rdo.id,
             deStatus: rdo.status,
-            paraStatus: "AGUARDANDO_APROVACAO",
+            paraStatus: "AGUARDANDO_VALIDACAO_ESCRITORIO",
             ator: encarregado?.nome ?? "Encarregado",
           },
         }),
@@ -846,6 +891,75 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         : null;
 
     return { ...rdo, ultimaReprovacao };
+  });
+
+  // Status em que o escritório ainda pode corrigir o conteúdo do RDO pelo
+  // desktop — depois de AGUARDANDO_APROVACAO, quem edita é o fiscal
+  // (aprovando/reprovando) ou, se reprovado, o encarregado de novo (via
+  // link de campo, que reabre em EM_CORRECAO).
+  const STATUS_EDITAVEL_ESCRITORIO = new Set(["RASCUNHO", "AGUARDANDO_VALIDACAO_ESCRITORIO", "EM_CORRECAO"]);
+
+  /**
+   * Edição do conteúdo de um RDO pelo escritório (desktop) — mesma forma
+   * de salvar que `PATCH /rdos/campo/:token`, mas identificado pelo id (sem
+   * token de link, sem expiração) e só permitido enquanto o RDO ainda não
+   * foi pro fiscal. Usado principalmente pra revisar/corrigir o que o
+   * encarregado mandou do celular antes de `POST /rdos/:id/enviar-fiscal`.
+   */
+  app.patch<{ Params: { id: string } }>("/rdos/:id", async (request, reply) => {
+    const data = parseBody(rdoCampoUpdateInputSchema, request.body, reply);
+    if (!data) return;
+
+    const existente = await prisma.rdo.findUnique({ where: { id: request.params.id }, select: { id: true, status: true } });
+    if (!existente) return reply.status(404).send({ error: "RDO não encontrado" });
+    if (!STATUS_EDITAVEL_ESCRITORIO.has(existente.status)) {
+      return reply.status(409).send({ error: "Este RDO não pode mais ser editado pelo escritório" });
+    }
+
+    try {
+      await prisma.$transaction((tx) => substituirConteudoRdo(tx, existente.id, data));
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
+        return reply.status(400).send({ error: "Ordem de manutenção, função, colaborador, equipamento ou material inválido" });
+      }
+      throw error;
+    }
+
+    if (existente.status !== "RASCUNHO") {
+      await gerarEArmazenarPdf(existente.id);
+    }
+
+    return prisma.rdo.findUnique({ where: { id: existente.id }, select: rdoCampoSelect });
+  });
+
+  /**
+   * O escritório revisou (e opcionalmente corrigiu via PATCH acima) o RDO
+   * que o encarregado assinou no celular, e agora manda pro fiscal —
+   * transição AGUARDANDO_VALIDACAO_ESCRITORIO -> AGUARDANDO_APROVACAO.
+   * Antes disso o RDO não aparece no portal do fiscal.
+   */
+  app.post<{ Params: { id: string } }>("/rdos/:id/enviar-fiscal", async (request, reply) => {
+    const rdo = await prisma.rdo.findUnique({
+      where: { id: request.params.id },
+      select: { id: true, status: true, locais: { select: { atividades: { select: { id: true } } } } },
+    });
+    if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
+    if (rdo.status !== "AGUARDANDO_VALIDACAO_ESCRITORIO") {
+      return reply.status(409).send({ error: "Este RDO não está aguardando validação do escritório" });
+    }
+    if (!rdo.locais.some((local) => local.atividades.length > 0)) {
+      return reply.status(400).send({ error: "Informe ao menos um local com atividade antes de enviar" });
+    }
+
+    await prisma.$transaction([
+      prisma.rdo.update({ where: { id: rdo.id }, data: { status: "AGUARDANDO_APROVACAO" } }),
+      prisma.rdoHistorico.create({
+        data: { rdoId: rdo.id, deStatus: "AGUARDANDO_VALIDACAO_ESCRITORIO", paraStatus: "AGUARDANDO_APROVACAO", ator: "Escritório" },
+      }),
+    ]);
+
+    await gerarEArmazenarPdf(rdo.id);
+    return prisma.rdo.findUnique({ where: { id: rdo.id }, select: rdoCampoSelect });
   });
 
   app.post<{ Params: { id: string } }>("/rdos/:id/pdf", async (request, reply) => {

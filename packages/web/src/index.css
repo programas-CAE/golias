@@ -1,5 +1,5 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
@@ -10,8 +10,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: #0f172a;
-  color: #e2e8f0;
+  background: radial-gradient(circle at top, #eefaf1 0%, #ffffff 60%);
+  color: #16281c;
 }
 
 .placeholder-page {
@@ -28,30 +28,31 @@ body {
   text-align: center;
   padding: 40px 32px;
   border-radius: 16px;
-  background: #111c34;
-  border: 1px solid #1f2c4c;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  background: #ffffff;
+  border: 1px solid #dbe8de;
+  box-shadow: 0 24px 70px rgba(20, 40, 28, 0.12);
 }
 
 .placeholder-card h1 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   font-size: 2rem;
+  font-weight: 700;
   letter-spacing: 0.08em;
-  color: #f97316;
+  color: #15803d;
 }
 
 .placeholder-card .subtitle {
   margin: 0 0 16px;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #16281c;
 }
 
 .placeholder-card .description {
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.5;
-  color: #94a3b8;
+  color: #5b7268;
 }
 
 /* Formulário de captura de RDO em campo — mobile-first. */
@@ -70,59 +71,92 @@ body {
   text-align: center;
   padding: 32px 24px;
   border-radius: 16px;
-  background: #111c34;
-  border: 1px solid #1f2c4c;
+  background: #ffffff;
+  border: 1px solid #dbe8de;
+  box-shadow: 0 24px 70px rgba(20, 40, 28, 0.12);
 }
 
 .campo-card h1 {
   margin: 0 0 8px;
-  color: #f97316;
+  font-weight: 800;
   letter-spacing: 0.08em;
+  color: #15803d;
 }
 
 .campo-card .subtitle {
   margin: 0 0 12px;
   font-weight: 700;
+  color: #16281c;
 }
 
 .campo-card .description {
-  color: #94a3b8;
+  color: #5b7268;
+}
+
+.campo-brand {
+  padding: 4px 4px 0;
+  text-align: center;
+}
+
+.campo-brand-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #15803d;
+}
+
+.campo-brand-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #8a9c90;
+  text-transform: uppercase;
 }
 
 .campo-header {
-  padding: 8px 4px 20px;
+  padding: 14px 4px 20px;
+  border-bottom: 1px solid #dbe8de;
+  margin-bottom: 20px;
 }
 
 .campo-header h1 {
   margin: 0 0 4px;
   font-size: 1.3rem;
-  color: #f97316;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #15803d;
 }
 
 .campo-header p {
   margin: 0;
-  color: #94a3b8;
+  color: #5b7268;
   font-size: 0.9rem;
 }
 
 .campo-secao {
-  background: #111c34;
-  border: 1px solid #1f2c4c;
+  background: #ffffff;
+  border: 1px solid #dbe8de;
   border-radius: 14px;
   padding: 16px;
   margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(20, 40, 28, 0.05);
 }
 
 .campo-secao h2 {
   margin: 0 0 14px;
-  font-size: 1rem;
-  color: #e2e8f0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #15803d;
 }
 
 .campo-subtitulo {
   margin: 12px 0 8px;
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: #5b7268;
 }
 
 .campo-radios {
@@ -158,8 +192,9 @@ body {
   gap: 8px;
   padding: 12px;
   margin-bottom: 12px;
-  border: 1px solid #23304f;
+  border: 1px solid #dbe8de;
   border-radius: 10px;
+  background: #fafffc;
 }
 
 .campo-atividade {
@@ -168,8 +203,9 @@ body {
   gap: 8px;
   padding: 10px;
   margin-bottom: 8px;
-  border: 1px dashed #2a3a5f;
+  border: 1px dashed #b9d6bf;
   border-radius: 8px;
+  background: #fafffc;
 }
 
 .campo-checklist-row {
@@ -178,7 +214,7 @@ body {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 0;
-  border-bottom: 1px solid #1b2740;
+  border-bottom: 1px solid #e3ece5;
   font-size: 0.9rem;
 }
 
@@ -204,7 +240,7 @@ body {
   margin: 12px 0 0;
   padding: 0;
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: #5b7268;
 }
 
 .campo-textarea {
@@ -217,7 +253,7 @@ body {
   position: sticky;
   bottom: 0;
   padding: 12px 0;
-  background: linear-gradient(to top, #0f172a 60%, transparent);
+  background: linear-gradient(to top, #ffffff 70%, transparent);
 }
 
 .campo-acoes .button {
@@ -229,7 +265,7 @@ body {
 .field-label {
   display: block;
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: #5b7268;
   font-weight: 600;
   margin: 8px 0 4px;
 }
@@ -238,15 +274,20 @@ body {
   width: 100%;
   padding: 12px 14px;
   border-radius: 10px;
-  border: 1px solid #2a3a5f;
-  background: #0b1120;
-  color: #e2e8f0;
+  border: 1px solid #c9dccd;
+  background: #ffffff;
+  color: #16281c;
   font-size: 0.95rem;
+  font-family: inherit;
   outline: none;
+  transition-property: border-color, box-shadow;
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
 }
 
 .field-input:focus {
-  border-color: #f97316;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
 }
 
 .assinatura-canvas-wrapper {
@@ -258,7 +299,7 @@ body {
 .assinatura-canvas {
   width: 100%;
   border-radius: 10px;
-  border: 1px solid #2a3a5f;
+  border: 1px solid #c9dccd;
   background: #ffffff;
   touch-action: none;
   cursor: crosshair;
@@ -286,10 +327,10 @@ body {
   list-style: none;
   max-height: 260px;
   overflow-y: auto;
-  background: #111c34;
-  border: 1px solid #2a3a5f;
+  background: #ffffff;
+  border: 1px solid #dbe8de;
   border-radius: 10px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 30px rgba(20, 40, 28, 0.16);
 }
 
 .om-autocomplete-lista li + li {
@@ -313,17 +354,17 @@ body {
 
 .om-autocomplete-lista button:hover,
 .om-autocomplete-lista button:focus-visible {
-  background: #1f2c4c;
+  background: #eaf5ec;
 }
 
 .om-autocomplete-numero {
   font-weight: 600;
-  color: #e2e8f0;
+  color: #16281c;
 }
 
 .om-autocomplete-detalhes {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: #5b7268;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -333,7 +374,7 @@ body {
 .om-autocomplete-vazio {
   padding: 8px 10px;
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: #5b7268;
 }
 
 .button {
@@ -343,11 +384,16 @@ body {
   padding: 12px 28px;
   border-radius: 10px;
   border: none;
-  background: #f97316;
-  color: #0b1120;
+  background: #16a34a;
+  color: #ffffff;
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.button:hover {
+  filter: brightness(1.08);
 }
 
 .button:disabled {
@@ -357,14 +403,14 @@ body {
 
 .button--secondary {
   background: transparent;
-  color: #cbd5e1;
-  border: 1px solid #2a3a5f;
+  color: #2c3d33;
+  border: 1px solid #c9dccd;
 }
 
 .button--ghost {
   background: transparent;
-  color: #94a3b8;
-  border: 1px solid #2a3a5f;
+  color: #5b7268;
+  border: 1px solid #c9dccd;
 }
 
 .button--small {
@@ -375,18 +421,45 @@ body {
 .feedback {
   margin: 8px 0;
   font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .feedback--ok {
-  color: #22c55e;
+  color: #15803d;
 }
 
 .feedback--erro {
-  color: #ef4444;
+  color: #dc2626;
 }
 
 .loading-text {
-  color: #94a3b8;
+  color: #5b7268;
   text-align: center;
   padding: 40px 0;
+}
+
+.list-subtitle {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  color: #5b7268;
+}
+
+.causa-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.causa-lista li {
+  padding: 10px 0;
+  border-bottom: 1px solid #e3ece5;
+  font-size: 0.9rem;
+  color: #2c3d33;
+}
+
+.causa-lista li:last-child {
+  border-bottom: none;
 }

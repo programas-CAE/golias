@@ -28,6 +28,7 @@ interface Rdo {
 const STATUS_LABEL: Record<string, string> = {
   RASCUNHO: "Rascunho",
   EM_CORRECAO: "Em correção",
+  AGUARDANDO_VALIDACAO_ESCRITORIO: "Aguardando validação",
   AGUARDANDO_APROVACAO: "Aguardando aprovação",
   APROVADO: "Aprovado",
   REPROVADO: "Reprovado",
