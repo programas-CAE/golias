@@ -30,7 +30,13 @@ export function buildApp(): FastifyInstance {
   // A API é consumida tanto pelo app desktop (Electron) quanto pelo app web
   // público (packages/web, origem diferente) — nenhum dos dois usa cookies
   // de sessão hoje, então refletir a origem da requisição é seguro.
-  void app.register(cors, { origin: true });
+  //
+  // methods: o default do @fastify/cors é só "GET,HEAD,POST" — sem isso
+  // aqui, todo PATCH/DELETE (salvar RDO em campo, editar distrito, remover
+  // membro de equipe etc.) falha no preflight em qualquer navegador de
+  // verdade (desktop Electron ou web), mesmo com a rota funcionando
+  // perfeitamente quando chamada direto (curl, testes com app.inject).
+  void app.register(cors, { origin: true, methods: ["GET", "HEAD", "POST", "PATCH", "DELETE"] });
 
   // global: false — só se aplica nas rotas que explicitamente definirem
   // `config.rateLimit` (as rotas públicas /rdos/campo/:token), sem afetar
