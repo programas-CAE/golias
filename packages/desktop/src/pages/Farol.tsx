@@ -142,8 +142,19 @@ const RDO_LEGENDA: Array<{ classe: string; texto: string }> = [
 
 const DIAS_SEMANA_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
+/**
+ * Período (rótulo do ciclo de medição, dia 19 do mês anterior ao dia 20 do
+ * mês rotulado) que contém a data de hoje — não é sempre o mês civil
+ * corrente: do dia 21 em diante, o ciclo vigente já "pertence" ao mês
+ * seguinte (só fecha no dia 20 dele). Sem essa conta, o Farol abria por
+ * padrão num ciclo que já fechou, escondendo qualquer RDO novo criado nos
+ * últimos ~10 dias do mês até a pessoa trocar o seletor manualmente.
+ */
 function mesAtual(): string {
-  return new Date().toISOString().slice(0, 7);
+  const hoje = new Date();
+  const mesCiclo = hoje.getDate() > 20 ? hoje.getMonth() + 1 : hoje.getMonth();
+  const data = new Date(hoje.getFullYear(), mesCiclo, 1);
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function formatarData(iso: string): string {
