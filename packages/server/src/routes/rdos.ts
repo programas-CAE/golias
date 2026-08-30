@@ -392,6 +392,13 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
     equipamentos: rdo.equipamentos
       .filter((item) => item.quantidade > 0)
       .map((item) => ({ nome: item.equipamentoCatalogo.nome, quantidade: item.quantidade })),
+    materiais: rdo.materiais
+      .filter((item) => Number(item.quantidade) > 0)
+      .map((item) => ({
+        nome: item.materialCatalogo.descricao,
+        unidade: item.materialCatalogo.unidade,
+        quantidade: Number(item.quantidade),
+      })),
     observacoesContratada: rdo.observacoesContratada,
     observacoesCliente: rdo.observacoesCliente,
   };

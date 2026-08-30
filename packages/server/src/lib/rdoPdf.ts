@@ -64,6 +64,12 @@ export interface RdoPdfEquipamentoItem {
   quantidade: number;
 }
 
+export interface RdoPdfMaterialItem {
+  nome: string;
+  unidade: string;
+  quantidade: number;
+}
+
 /**
  * Dados já resolvidos (nomes prontos, não IDs) que descrevem o conteúdo do
  * RDO — ver montarDadosRdo em rdos.ts. Não inclui a URL de verificação: o
@@ -84,6 +90,7 @@ export interface RdoConteudo {
   locais: RdoPdfLocal[];
   maoDeObra: RdoPdfMaoDeObraItem[];
   equipamentos: RdoPdfEquipamentoItem[];
+  materiais: RdoPdfMaterialItem[];
   observacoesContratada: string | null;
   observacoesCliente: string | null;
 }
@@ -329,12 +336,20 @@ function desenharColunaDireita(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yIni
     dados.maoDeObra.map((item) => ({ nome: item.funcao, quantidade: item.quantidade })),
   );
   y += 8;
-  desenharListaChecklist(
+  y = desenharListaChecklist(
     doc,
     "OUTROS CUSTOS INDIRETOS",
     X_COLUNA_DIREITA,
     y,
     dados.equipamentos.map((item) => ({ nome: item.nome, quantidade: item.quantidade })),
+  );
+  y += 8;
+  desenharListaChecklist(
+    doc,
+    "MATERIAIS UTILIZADOS",
+    X_COLUNA_DIREITA,
+    y,
+    dados.materiais.map((item) => ({ nome: `${item.nome} (${item.unidade})`, quantidade: item.quantidade })),
   );
 }
 

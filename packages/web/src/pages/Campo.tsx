@@ -199,6 +199,11 @@ interface MaterialDraft {
   quantidade: string;
 }
 
+interface EquipamentoDraft {
+  equipamentoCatalogoId: string;
+  quantidade: string;
+}
+
 function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft {
   const primeira = atividadesCatalogo[0];
   return {
@@ -305,7 +310,7 @@ export default function Campo(): ReactElement {
   // grade abaixo só edita membros da equipe, então preservamos esses à parte
   // para reenviá-los intactos, em vez de perdê-los no próximo salvamento.
   const [outrasMaoDeObra, setOutrasMaoDeObra] = useState<RdoMaoDeObraSalva[]>([]);
-  const [equipamentos, setEquipamentos] = useState<Record<string, string>>({});
+  const [equipamentos, setEquipamentos] = useState<EquipamentoDraft[]>([]);
 
   const [salvando, setSalvando] = useState(false);
   const [salvarStatus, setSalvarStatus] = useState<"idle" | "salvo" | "erro">("idle");
@@ -405,7 +410,7 @@ export default function Campo(): ReactElement {
         );
         setOutrasMaoDeObra(paresMaoDeObra.filter((par) => par.membro == null).map((par) => par.mdo));
         setEquipamentos(
-          Object.fromEntries(resposta.rdo.equipamentos.map((eq) => [eq.equipamentoCatalogoId, String(eq.quantidade)])),
+          resposta.rdo.equipamentos.map((eq) => ({ equipamentoCatalogoId: eq.equipamentoCatalogoId, quantidade: String(eq.quantidade) })),
         );
       } catch (error) {
         if (error instanceof ApiError) {
@@ -609,7 +614,19 @@ export default function Campo(): ReactElement {
   }
 
   function adicionarMaterial(): void {
-    setMateriais((atual) => [...atual, { materialCatalogoId: materiaisCatalogo[0]?.id ?? "", quantidade: "1" }]);
+    setMateriais((atual) => [...atual, { materialCatalogoId: "", quantidade: "" }]);
+  }
+
+  function adicionarEquipamento(): void {
+    setEquipamentos((atual) => [...atual, { equipamentoCatalogoId: "", quantidade: "" }]);
+  }
+
+  function atualizarEquipamento(indice: number, campo: keyof EquipamentoDraft, valor: string): void {
+    setEquipamentos((atual) => atual.map((equipamento, i) => (i === indice ? { ...equipamento, [campo]: valor } : equipamento)));
+  }
+
+  function removerEquipamento(indice: number): void {
+    setEquipamentos((atual) => atual.filter((_, i) => i !== indice));
   }
 
   function atualizarMaterial(indice: number, campo: keyof MaterialDraft, valor: string): void {
@@ -685,9 +702,9 @@ export default function Campo(): ReactElement {
           })),
         ...outrasMaoDeObra,
       ],
-      equipamentos: equipamentosCatalogo
-        .filter((equipamento) => Number(equipamentos[equipamento.id] ?? "0") > 0)
-        .map((equipamento) => ({ equipamentoCatalogoId: equipamento.id, quantidade: Number(equipamentos[equipamento.id]) })),
+      equipamentos: equipamentos
+        .filter((equipamento) => equipamento.equipamentoCatalogoId !== "" && Number(equipamento.quantidade) > 0)
+        .map((equipamento) => ({ equipamentoCatalogoId: equipamento.equipamentoCatalogoId, quantidade: Number(equipamento.quantidade) })),
       materiais: materiais
         .filter((material) => material.materialCatalogoId !== "" && Number(material.quantidade) > 0)
         .map((material, ordem) => ({
@@ -1294,18 +1311,31 @@ export default function Campo(): ReactElement {
 
       <section className="campo-secao">
         <h2>Equipamentos / outros custos indiretos</h2>
-        {equipamentosCatalogo.map((equipamento) => (
-          <div className="campo-checklist-row" key={equipamento.id}>
-            <span>{equipamento.nome}</span>
+        {equipamentos.map((equipamento, indice) => (
+          <div className="campo-item" key={indice}>
+            <Autocomplete
+              value={equipamento.equipamentoCatalogoId}
+              items={equipamentosCatalogo}
+              getLabel={(item) => item.nome}
+              placeholder="Digite o nome do equipamento…"
+              onChange={(equipamentoCatalogoId) => atualizarEquipamento(indice, "equipamentoCatalogoId", equipamentoCatalogoId)}
+            />
             <input
               type="number"
-              min={0}
-              className="field-input campo-qtd"
-              value={equipamentos[equipamento.id] ?? "0"}
-              onChange={(event) => setEquipamentos((atual) => ({ ...atual, [equipamento.id]: event.target.value }))}
+              min={1}
+              className="field-input"
+              placeholder="Quantidade"
+              value={equipamento.quantidade}
+              onChange={(event) => atualizarEquipamento(indice, "quantidade", event.target.value)}
             />
+            <button type="button" className="button button--ghost button--small" onClick={() => removerEquipamento(indice)}>
+              Remover equipamento
+            </button>
           </div>
         ))}
+        <button type="button" className="button button--secondary button--small" onClick={adicionarEquipamento}>
+          + Adicionar equipamento
+        </button>
       </section>
 
       <section className="campo-secao">
