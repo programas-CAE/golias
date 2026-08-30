@@ -28,9 +28,24 @@ interface ItemFarolOm {
   status: string;
 }
 
+interface CelulaFarolOm {
+  quantidade: number;
+  status: string;
+}
+
+interface LinhaFarolOm {
+  equipeId: string;
+  equipe: string;
+  distrito: string;
+  encarregado: string | null;
+  porDia: Record<string, CelulaFarolOm | null>;
+}
+
 interface RespostaFarol {
   periodo: { inicio: string; fim: string };
-  dias: DiaFarol[];
+  dias: string[];
+  diasResumo: DiaFarol[];
+  linhas: LinhaFarolOm[];
   itens: ItemFarolOm[];
 }
 
@@ -419,6 +434,83 @@ export default function Farol(): ReactElement {
                   vazio={(contagemPorStatus[kpi.chave] ?? 0) === 0}
                 />
               ))}
+            </div>
+
+            <div className="panel">
+              <div className="farol-legenda-bar">
+                {OM_LEGENDA.map((item) => (
+                  <span className="farol-legenda-item" key={item.classe}>
+                    <span className={`farol-dot ${item.classe}`} />
+                    {item.texto}
+                  </span>
+                ))}
+                <span className="farol-legenda-item farol-legenda-item--vazio">
+                  <span className="farol-dot farol-dot--vazio" />
+                  Sem OM no dia
+                </span>
+              </div>
+              <p className="list-subtitle" style={{ padding: "0 18px", marginTop: 14 }}>
+                Quantas OMs cada equipe tem por dia — uma equipe pode ter mais de uma no mesmo dia. A cor da célula é a
+                que mais precisa de atenção entre elas (atrasada &gt; reprovada &gt; aguardando aprovação &gt; ainda não
+                venceu &gt; realizada). Clique numa célula para ver quais são.
+              </p>
+              <div className="farol-scroll">
+                <table className="table farol-tabela-rdo">
+                  <thead>
+                    <tr>
+                      <th>Equipe</th>
+                      <th>Distrito</th>
+                      <th>Encarregado</th>
+                      {dados.dias.map((dia) => (
+                        <th key={dia} className={fimDeSemana(dia) ? "farol-coluna-fds" : undefined}>
+                          <span className="farol-cabecalho-dia">{diaDoMes(dia)}</span>
+                          <span className="farol-cabecalho-semana">{DIAS_SEMANA_ABREV[diaDaSemanaDe(dia)]}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dados.linhas.length === 0 ? (
+                      <tr>
+                        <td colSpan={3 + dados.dias.length} className="table-empty">
+                          Nenhuma equipe ativa cadastrada.
+                        </td>
+                      </tr>
+                    ) : (
+                      dados.linhas.map((linha) => (
+                        <tr key={linha.equipeId}>
+                          <td>
+                            <strong>{linha.equipe}</strong>
+                          </td>
+                          <td>{linha.distrito}</td>
+                          <td>{linha.encarregado ?? "—"}</td>
+                          {dados.dias.map((dia) => {
+                            const celula = linha.porDia[dia];
+                            return (
+                              <td
+                                key={dia}
+                                className={fimDeSemana(dia) ? "farol-coluna-fds" : undefined}
+                                title={
+                                  celula
+                                    ? `${celula.quantidade} OM(s) — ${OM_STATUS_LABEL[celula.status] ?? celula.status}`
+                                    : "Sem OM no dia"
+                                }
+                              >
+                                <span className="farol-status-linha">
+                                  <span className={`farol-dot ${celula ? OM_STATUS_DOT_CLASSE[celula.status] : "farol-dot--vazio"}`} />
+                                  {celula && celula.quantidade > 1 && (
+                                    <span className="farol-lista-contagem">{celula.quantidade}</span>
+                                  )}
+                                </span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="panel">

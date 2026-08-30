@@ -243,18 +243,77 @@ describe("GET /ordens-manutencao/farol", () => {
     expect(response.statusCode).toBe(200);
     const body = response.json() as {
       periodo: { inicio: string; fim: string };
-      dias: Array<{ data: string; realizada: number; naoExecutada: number; total: number }>;
+      diasResumo: Array<{ data: string; realizada: number; naoExecutada: number; total: number }>;
+      linhas: Array<{ equipeId: string; equipe: string; porDia: Record<string, { quantidade: number; status: string } | null> }>;
       itens: Array<{ numero: string; dataRealizada: string | null }>;
     };
     expect(body.periodo).toEqual({ inicio: "2019-12-19", fim: "2020-01-20" });
 
-    const dia = body.dias.find((d) => d.data === "2020-01-10");
+    const dia = body.diasResumo.find((d) => d.data === "2020-01-10");
     expect(dia?.realizada).toBe(1);
     expect(dia?.naoExecutada).toBe(1);
     expect(dia?.total).toBe(2);
 
     expect(body.itens.find((i) => i.numero === "OM-FAROL-2")?.dataRealizada).toBe("2020-01-10");
     expect(body.itens.find((i) => i.numero === "OM-FAROL-1")?.dataRealizada).toBeNull();
+
+    // A OM realizada tem RDO vinculado (equipe "Preventiva") — aparece na
+    // grade dessa equipe no dia certo. A OM sem RDO nenhum não entra em
+    // nenhuma linha (não dá pra saber a equipe), só no resumo/itens gerais.
+    const linhaPreventiva = body.linhas.find((l) => l.equipe === "Preventiva");
+    expect(linhaPreventiva?.porDia["2020-01-10"]).toEqual({ quantidade: 1, status: "realizada" });
+  });
+
+  it("mostra mais de uma OM no dia na mesma célula, com o status que mais precisa de atenção", async () => {
+    const frente = await criarFrente();
+    const distrito = await prisma.distrito.create({ data: { nome: "Marabá Centro", frenteId: frente.id } });
+    const equipe = await prisma.equipe.create({ data: { nome: "Preventiva", distritoId: distrito.id } });
+    const atividadeCatalogo = await prisma.atividadeCatalogo.create({
+      data: { codigo: "2.2.1", descricao: "Roçada", unidade: "M2", usaDimensoes: true, ordem: 1 },
+    });
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2020-01-10"), status: "REPROVADO" },
+    });
+    const local = await prisma.rdoLocal.create({ data: { rdoId: rdo.id, descricao: "Trecho A" } });
+
+    const omAprovada = await prisma.ordemManutencao.create({
+      data: { numero: "OM-DUPLA-1", frenteId: frente.id, dataEmissao: new Date("2020-01-10") },
+    });
+    const omReprovada = await prisma.ordemManutencao.create({
+      data: { numero: "OM-DUPLA-2", frenteId: frente.id, dataEmissao: new Date("2020-01-10") },
+    });
+    const rdoAprovado = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2020-01-10"), status: "APROVADO" },
+    });
+    const localAprovado = await prisma.rdoLocal.create({ data: { rdoId: rdoAprovado.id, descricao: "Trecho B" } });
+    await prisma.rdoAtividade.create({
+      data: {
+        rdoLocalId: localAprovado.id,
+        atividadeCatalogoId: atividadeCatalogo.id,
+        ordemManutencaoId: omAprovada.id,
+        unidade: "M2",
+        totalCalculado: 10,
+      },
+    });
+    await prisma.rdoAtividade.create({
+      data: {
+        rdoLocalId: local.id,
+        atividadeCatalogoId: atividadeCatalogo.id,
+        ordemManutencaoId: omReprovada.id,
+        unidade: "M2",
+        totalCalculado: 5,
+      },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: "/ordens-manutencao/farol?mes=2020-01" });
+
+    const body = response.json() as {
+      linhas: Array<{ equipe: string; porDia: Record<string, { quantidade: number; status: string } | null> }>;
+    };
+    const linha = body.linhas.find((l) => l.equipe === "Preventiva");
+    // Reprovada tem prioridade de atenção sobre realizada.
+    expect(linha?.porDia["2020-01-10"]).toEqual({ quantidade: 2, status: "reprovada" });
   });
 
   it("retorna uma linha por OM (itens) com o status individual, para conferência", async () => {

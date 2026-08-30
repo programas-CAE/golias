@@ -40,6 +40,19 @@ function derivarStatusFarol(statusDosRdos: string[], dataEmissao: Date, hoje: Da
   return dataEmissao.getTime() <= hoje.getTime() ? "naoExecutada" : "pendente";
 }
 
+// Prioridade de "o que precisa de atenção primeiro" — usada tanto pra
+// escolher o status predominante de uma célula (equipe × dia) com mais de
+// uma OM quanto pra ordenar a legenda. Igual ao critério já usado no Farol
+// de RDO.
+const PRIORIDADE_STATUS_FAROL: StatusFarol[] = ["naoExecutada", "reprovada", "aguardandoValidacao", "pendente", "realizada"];
+
+function statusPredominante(statuses: StatusFarol[]): StatusFarol {
+  for (const candidato of PRIORIDADE_STATUS_FAROL) {
+    if (statuses.includes(candidato)) return candidato;
+  }
+  return "pendente";
+}
+
 const ordemSelect = {
   id: true,
   numero: true,
@@ -72,26 +85,56 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
     const inicio = new Date(Date.UTC(ano, mes - 2, 19));
     const fim = new Date(Date.UTC(ano, mes - 1, 20, 23, 59, 59, 999));
 
-    const ordens = await prisma.ordemManutencao.findMany({
-      where: { dataEmissao: { gte: inicio, lte: fim } },
-      orderBy: { dataEmissao: "asc" },
-      select: {
-        id: true,
-        numero: true,
-        dataEmissao: true,
-        lado: true,
-        detalhes: true,
-        frente: { select: { id: true, nome: true, codigo: true } },
-        atividades: { select: { rdoLocal: { select: { rdo: { select: { status: true, data: true } } } } } },
-      },
-    });
+    const [ordens, equipes] = await Promise.all([
+      prisma.ordemManutencao.findMany({
+        where: { dataEmissao: { gte: inicio, lte: fim } },
+        orderBy: { dataEmissao: "asc" },
+        select: {
+          id: true,
+          numero: true,
+          dataEmissao: true,
+          lado: true,
+          detalhes: true,
+          frente: { select: { id: true, nome: true, codigo: true } },
+          atividades: {
+            select: { rdoLocal: { select: { rdo: { select: { equipeId: true, status: true, data: true } } } } },
+          },
+        },
+      }),
+      prisma.equipe.findMany({
+        where: { ativo: true },
+        orderBy: { nome: "asc" },
+        select: { id: true, nome: true, encarregadoId: true, distrito: { select: { nome: true } } },
+      }),
+    ]);
+
+    const encarregadoIds = [...new Set(equipes.map((e) => e.encarregadoId).filter((id): id is string => id != null))];
+    const encarregados =
+      encarregadoIds.length > 0
+        ? await prisma.colaborador.findMany({ where: { id: { in: encarregadoIds } }, select: { id: true, nome: true } })
+        : [];
+    const nomePorEncarregadoId = new Map(encarregados.map((c) => [c.id, c.nome]));
 
     const hoje = new Date();
     hoje.setUTCHours(0, 0, 0, 0);
 
     const porDia = new Map<string, Record<StatusFarol, number>>();
+    const dias: string[] = [];
     for (const d = new Date(inicio); d <= fim; d.setUTCDate(d.getUTCDate() + 1)) {
-      porDia.set(d.toISOString().slice(0, 10), { ...STATUS_FAROL_ZERADO });
+      const chave = d.toISOString().slice(0, 10);
+      porDia.set(chave, { ...STATUS_FAROL_ZERADO });
+      dias.push(chave);
+    }
+
+    // Grade equipe × dia — cada célula junta as OMs daquele dia atribuídas
+    // àquela equipe (uma equipe pode, e costuma, ter mais de uma OM no
+    // mesmo dia). Uma OM só "pertence" a uma equipe depois que algum RDO
+    // lançou atividade nela — antes disso (pendente/atrasada, ninguém
+    // começou ainda) ela não aparece em nenhuma linha, só nos KPIs/itens
+    // gerais, porque o sistema não tem como saber quem vai fazer.
+    const porEquipeDia = new Map<string, Map<string, { quantidade: number; statuses: StatusFarol[] }>>();
+    for (const equipe of equipes) {
+      porEquipeDia.set(equipe.id, new Map(dias.map((dia) => [dia, { quantidade: 0, statuses: [] }])));
     }
 
     // Comparativo "OM programada x OM realizada" — uma linha por OM, com o
@@ -119,6 +162,17 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
 
       const rdoAprovado = rdosDaOrdem.find((rdo) => rdo.status === "APROVADO");
 
+      // A equipe "dona" da OM é a de quem já lançou atividade nela — usa o
+      // RDO mais recente quando há mais de um (retrabalho/correção).
+      const rdoMaisRecente = rdosDaOrdem.slice().sort((a, b) => b.data.getTime() - a.data.getTime())[0];
+      if (rdoMaisRecente) {
+        const celula = porEquipeDia.get(rdoMaisRecente.equipeId)?.get(chave);
+        if (celula) {
+          celula.quantidade += 1;
+          celula.statuses.push(status);
+        }
+      }
+
       itens.push({
         id: ordem.id,
         numero: ordem.numero,
@@ -133,16 +187,31 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
       });
     }
 
-    const dias = [...porDia.entries()].map(([data, contagem]) => ({
+    const diasResumo = [...porDia.entries()].map(([data, contagem]) => ({
       data,
       diaSemana: DIAS_SEMANA[new Date(`${data}T00:00:00Z`).getUTCDay()],
       ...contagem,
       total: Object.values(contagem).reduce((soma, valor) => soma + valor, 0),
     }));
 
+    const linhas = equipes.map((equipe) => ({
+      equipeId: equipe.id,
+      equipe: equipe.nome,
+      distrito: equipe.distrito.nome,
+      encarregado: equipe.encarregadoId ? (nomePorEncarregadoId.get(equipe.encarregadoId) ?? null) : null,
+      porDia: Object.fromEntries(
+        [...(porEquipeDia.get(equipe.id) ?? new Map())].map(([dia, celula]) => [
+          dia,
+          celula.quantidade === 0 ? null : { quantidade: celula.quantidade, status: statusPredominante(celula.statuses) },
+        ]),
+      ),
+    }));
+
     return {
       periodo: { inicio: inicio.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10) },
       dias,
+      diasResumo,
+      linhas,
       itens,
     };
   });
