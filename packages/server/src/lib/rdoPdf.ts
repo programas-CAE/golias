@@ -62,6 +62,9 @@ export interface RdoPdfMaoDeObraItem {
 export interface RdoPdfEquipamentoItem {
   nome: string;
   quantidade: number;
+  producaoDescricao: string | null;
+  producaoValor: number | null;
+  producaoUnidade: string | null;
 }
 
 export interface RdoPdfMaterialItem {
@@ -341,7 +344,13 @@ function desenharColunaDireita(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yIni
     "OUTROS CUSTOS INDIRETOS",
     X_COLUNA_DIREITA,
     y,
-    dados.equipamentos.map((item) => ({ nome: item.nome, quantidade: item.quantidade })),
+    dados.equipamentos.map((item) => ({
+      nome:
+        item.producaoValor != null
+          ? `${item.nome}${item.producaoDescricao ? ` — ${item.producaoDescricao}` : ""}: ${formatarNumero(item.producaoValor)}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`
+          : item.nome,
+      quantidade: item.quantidade,
+    })),
   );
   y += 8;
   desenharListaChecklist(

@@ -49,6 +49,9 @@ interface EquipamentoDetalhe {
   id: string;
   equipamentoCatalogo: { nome: string };
   quantidade: number;
+  producaoDescricao: string | null;
+  producaoValor: string | null;
+  producaoUnidade: string | null;
 }
 
 interface MaterialDetalhe {
@@ -352,6 +355,11 @@ export default function RdoDetalhe(): ReactElement {
                     <tr key={item.id}>
                       <td>{item.equipamentoCatalogo.nome}</td>
                       <td>{item.quantidade}</td>
+                      <td>
+                        {item.producaoValor != null
+                          ? `${item.producaoDescricao ? `${item.producaoDescricao}: ` : ""}${Number(item.producaoValor).toLocaleString("pt-BR")}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`
+                          : "—"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

@@ -105,6 +105,49 @@ describe("POST /rdos/completo", () => {
     expect(body.materiais[0]?.materialCatalogo.descricao).toBe("Cimento");
   });
 
+  it("salva a produção por equipamento (equipes de terraplenagem apontam por máquina, não por atividade)", async () => {
+    const { frente, equipe, atividade, equipamento } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        locais: [
+          {
+            descricao: "Ramal km 28+200 a 30+700",
+            ordem: 0,
+            atividades: [{ atividadeCatalogoId: atividade.id, largura: 2, comprimento: 20, unidade: "M2" }],
+          },
+        ],
+        equipamentos: [
+          {
+            equipamentoCatalogoId: equipamento.id,
+            quantidade: 1,
+            producaoDescricao: "Manutenção de Acesso",
+            producaoValor: 800,
+            producaoUnidade: "m",
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as { id: string; equipamentos: Array<{ producaoDescricao: string; producaoValor: string; producaoUnidade: string }> };
+    expect(body.equipamentos[0]).toMatchObject({
+      producaoDescricao: "Manutenção de Acesso",
+      producaoUnidade: "m",
+    });
+    expect(Number(body.equipamentos[0]?.producaoValor)).toBe(800);
+
+    const detalhe = await app.inject({ method: "GET", url: `/rdos/${body.id}` });
+    const detalheBody = detalhe.json() as { equipamentos: Array<{ producaoValor: string }> };
+    expect(Number(detalheBody.equipamentos[0]?.producaoValor)).toBe(800);
+  });
+
   it("soma pontos extras da mesma atividade/OM no totalCalculado, cada um com seu próprio memorial", async () => {
     const { frente, equipe, atividade } = await criarCenario();
 

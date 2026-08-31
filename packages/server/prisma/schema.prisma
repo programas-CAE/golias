@@ -409,6 +409,12 @@ model RdoEquipamento {
   equipamentoCatalogoId String
   equipamentoCatalogo   EquipamentoCatalogo @relation(fields: [equipamentoCatalogoId], references: [id])
   quantidade            Int                 @default(1)
+  // Produção do equipamento no dia (equipes de terraplenagem apontam por
+  // máquina, ex.: "MNE 104 — Manutenção de Acesso: 800m") — vazios quando o
+  // equipamento é só um item de checklist comum, sem produção associada.
+  producaoDescricao     String?
+  producaoValor         Decimal?            @db.Decimal(12, 3)
+  producaoUnidade       String?
 }
 
 // Catálogo oficial de materiais/serviços com preço unitário (Price List do

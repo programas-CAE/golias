@@ -299,6 +299,9 @@ export const rdoCampoSelect = {
       equipamentoCatalogoId: true,
       equipamentoCatalogo: { select: { id: true, nome: true } },
       quantidade: true,
+      producaoDescricao: true,
+      producaoValor: true,
+      producaoUnidade: true,
     },
   },
   materiais: {
@@ -425,7 +428,13 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
       .map((item) => ({ funcao: item.funcao.nome, quantidade: item.quantidade })),
     equipamentos: rdo.equipamentos
       .filter((item) => item.quantidade > 0)
-      .map((item) => ({ nome: item.equipamentoCatalogo.nome, quantidade: item.quantidade })),
+      .map((item) => ({
+        nome: item.equipamentoCatalogo.nome,
+        quantidade: item.quantidade,
+        producaoDescricao: item.producaoDescricao,
+        producaoValor: item.producaoValor != null ? Number(item.producaoValor) : null,
+        producaoUnidade: item.producaoUnidade,
+      })),
     materiais: rdo.materiais
       .filter((item) => Number(item.quantidade) > 0)
       .map((item) => ({

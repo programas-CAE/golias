@@ -170,9 +170,18 @@ export const rdoMaoDeObraInputSchema = z.object({
 
 export type RdoMaoDeObraInput = z.infer<typeof rdoMaoDeObraInputSchema>;
 
+/**
+ * Produção do equipamento no dia — equipes de terraplenagem apontam por
+ * máquina (ex.: "MNE 104 — Manutenção de Acesso: 800m"), diferente da
+ * Preventiva, que aponta por atividade com dimensões dentro de um local.
+ * Os três campos ficam vazios quando o equipamento é só item de checklist.
+ */
 export const rdoEquipamentoInputSchema = z.object({
   equipamentoCatalogoId: z.string().cuid(),
   quantidade: z.number().int().positive().default(1),
+  producaoDescricao: z.string().trim().max(200).nullable().optional(),
+  producaoValor: z.number().nonnegative().nullable().optional(),
+  producaoUnidade: z.string().trim().max(20).nullable().optional(),
 });
 
 export type RdoEquipamentoInput = z.infer<typeof rdoEquipamentoInputSchema>;

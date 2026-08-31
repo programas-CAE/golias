@@ -134,6 +134,9 @@ interface MaterialDraft {
 interface EquipamentoDraft {
   equipamentoCatalogoId: string;
   quantidade: string;
+  producaoDescricao: string;
+  producaoValor: string;
+  producaoUnidade: string;
 }
 
 /** Formato retornado por `GET /rdos/:id` — usado só quando a tela abre em modo de edição. */
@@ -186,7 +189,13 @@ interface RdoExistente {
     }>;
   }>;
   maoDeObra: Array<{ funcaoId: string; colaboradorId: string | null; quantidade: number }>;
-  equipamentos: Array<{ equipamentoCatalogoId: string; quantidade: number }>;
+  equipamentos: Array<{
+    equipamentoCatalogoId: string;
+    quantidade: number;
+    producaoDescricao: string | null;
+    producaoValor: string | null;
+    producaoUnidade: string | null;
+  }>;
   materiais: Array<{ materialCatalogoId: string; quantidade: string }>;
 }
 
@@ -426,7 +435,15 @@ export default function RdoCompleto(): ReactElement {
               })
               .map((mdo) => ({ funcaoId: mdo.funcaoId, colaboradorId: mdo.colaboradorId ?? "", quantidade: String(mdo.quantidade) })),
           );
-          setEquipamentos(rdo.equipamentos.map((eq) => ({ equipamentoCatalogoId: eq.equipamentoCatalogoId, quantidade: String(eq.quantidade) })));
+          setEquipamentos(
+            rdo.equipamentos.map((eq) => ({
+              equipamentoCatalogoId: eq.equipamentoCatalogoId,
+              quantidade: String(eq.quantidade),
+              producaoDescricao: eq.producaoDescricao ?? "",
+              producaoValor: eq.producaoValor ?? "",
+              producaoUnidade: eq.producaoUnidade ?? "",
+            })),
+          );
           setMateriais(rdo.materiais.map((m) => ({ materialCatalogoId: m.materialCatalogoId, quantidade: String(m.quantidade) })));
           setUltimaDecisaoFiscal(rdo.ultimaDecisaoFiscal);
         } else {
@@ -664,7 +681,10 @@ export default function RdoCompleto(): ReactElement {
   }
 
   function adicionarEquipamento(): void {
-    setEquipamentos((atual) => [...atual, { equipamentoCatalogoId: "", quantidade: "" }]);
+    setEquipamentos((atual) => [
+      ...atual,
+      { equipamentoCatalogoId: "", quantidade: "", producaoDescricao: "", producaoValor: "", producaoUnidade: "" },
+    ]);
   }
 
   function atualizarEquipamento(indice: number, campo: keyof EquipamentoDraft, valor: string): void {
@@ -748,7 +768,13 @@ export default function RdoCompleto(): ReactElement {
       ],
       equipamentos: equipamentos
         .filter((equipamento) => equipamento.equipamentoCatalogoId !== "" && Number(equipamento.quantidade) > 0)
-        .map((equipamento) => ({ equipamentoCatalogoId: equipamento.equipamentoCatalogoId, quantidade: Number(equipamento.quantidade) })),
+        .map((equipamento) => ({
+          equipamentoCatalogoId: equipamento.equipamentoCatalogoId,
+          quantidade: Number(equipamento.quantidade),
+          producaoDescricao: equipamento.producaoDescricao.trim() || null,
+          producaoValor: equipamento.producaoValor !== "" ? Number(equipamento.producaoValor) : null,
+          producaoUnidade: equipamento.producaoUnidade.trim() || null,
+        })),
       materiais: materiais
         .filter((material) => material.materialCatalogoId !== "" && Number(material.quantidade) > 0)
         .map((material, ordem) => ({
@@ -1543,26 +1569,54 @@ export default function RdoCompleto(): ReactElement {
 
         <section className="form-section">
           <h2 className="form-section-title">Equipamentos / outros custos indiretos</h2>
+          <p className="form-section-subtitle">
+            Produção é opcional — só preencha pra equipes que apontam por equipamento (ex.: terraplenagem), não pra um
+            item de checklist comum.
+          </p>
           {equipamentos.map((equipamento, indice) => (
-            <div className="material-row" key={indice}>
-              <Autocomplete
-                value={equipamento.equipamentoCatalogoId}
-                items={equipamentosCatalogo}
-                getLabel={(item) => item.nome}
-                placeholder="Digite o nome do equipamento…"
-                onChange={(equipamentoCatalogoId) => atualizarEquipamento(indice, "equipamentoCatalogoId", equipamentoCatalogoId)}
-              />
-              <input
-                type="number"
-                min={1}
-                className="field-input"
-                placeholder="Qtd."
-                value={equipamento.quantidade}
-                onChange={(event) => atualizarEquipamento(indice, "quantidade", event.target.value)}
-              />
-              <button type="button" className="button button--ghost button--small" onClick={() => removerEquipamento(indice)}>
-                Remover
-              </button>
+            <div key={indice} style={{ marginBottom: 12 }}>
+              <div className="material-row">
+                <Autocomplete
+                  value={equipamento.equipamentoCatalogoId}
+                  items={equipamentosCatalogo}
+                  getLabel={(item) => item.nome}
+                  placeholder="Digite o nome do equipamento…"
+                  onChange={(equipamentoCatalogoId) => atualizarEquipamento(indice, "equipamentoCatalogoId", equipamentoCatalogoId)}
+                />
+                <input
+                  type="number"
+                  min={1}
+                  className="field-input"
+                  placeholder="Qtd."
+                  value={equipamento.quantidade}
+                  onChange={(event) => atualizarEquipamento(indice, "quantidade", event.target.value)}
+                />
+                <button type="button" className="button button--ghost button--small" onClick={() => removerEquipamento(indice)}>
+                  Remover
+                </button>
+              </div>
+              <div className="grid-3">
+                <input
+                  className="field-input"
+                  placeholder="Produção (ex.: Manutenção de acesso)"
+                  value={equipamento.producaoDescricao}
+                  onChange={(event) => atualizarEquipamento(indice, "producaoDescricao", event.target.value)}
+                />
+                <input
+                  type="number"
+                  step="0.001"
+                  className="field-input"
+                  placeholder="Valor"
+                  value={equipamento.producaoValor}
+                  onChange={(event) => atualizarEquipamento(indice, "producaoValor", event.target.value)}
+                />
+                <input
+                  className="field-input"
+                  placeholder="Unidade (ex.: m, cargas, litros)"
+                  value={equipamento.producaoUnidade}
+                  onChange={(event) => atualizarEquipamento(indice, "producaoUnidade", event.target.value)}
+                />
+              </div>
             </div>
           ))}
           <button type="button" className="button button--secondary button--small" style={{ marginTop: 12 }} onClick={adicionarEquipamento}>
