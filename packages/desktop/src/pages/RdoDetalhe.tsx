@@ -57,8 +57,9 @@ interface MaterialDetalhe {
   quantidade: string;
 }
 
-interface UltimaReprovacao {
-  comentarioReprovacao: string | null;
+interface UltimaDecisaoFiscal {
+  status: "APROVADO" | "REPROVADO";
+  comentario: string | null;
   assinanteNome: string | null;
   assinadoEm: string | null;
 }
@@ -81,7 +82,7 @@ interface RdoDetalheResponse {
   maoDeObra: MaoDeObraDetalhe[];
   equipamentos: EquipamentoDetalhe[];
   materiais: MaterialDetalhe[];
-  ultimaReprovacao: UltimaReprovacao | null;
+  ultimaDecisaoFiscal: UltimaDecisaoFiscal | null;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -223,11 +224,19 @@ export default function RdoDetalhe(): ReactElement {
             {(rdo.status === "REPROVADO" || rdo.status === "EM_CORRECAO") && (
               <p className="feedback feedback--erro" style={{ marginBottom: 16 }}>
                 Reprovado pelo fiscal
-                {rdo.ultimaReprovacao?.assinanteNome ? ` (${rdo.ultimaReprovacao.assinanteNome})` : ""}
-                {rdo.ultimaReprovacao?.comentarioReprovacao ? `: ${rdo.ultimaReprovacao.comentarioReprovacao}` : ""}
+                {rdo.ultimaDecisaoFiscal?.assinanteNome ? ` (${rdo.ultimaDecisaoFiscal.assinanteNome})` : ""}
+                {rdo.ultimaDecisaoFiscal?.comentario ? `: ${rdo.ultimaDecisaoFiscal.comentario}` : ""}
                 {rdo.status === "EM_CORRECAO"
                   ? " — o encarregado já reabriu o RDO para correção pelo link de campo."
                   : " — envie o link de campo pro encarregado corrigir."}
+              </p>
+            )}
+
+            {rdo.status === "APROVADO" && rdo.ultimaDecisaoFiscal?.comentario && (
+              <p className="feedback feedback--ok" style={{ marginBottom: 16 }}>
+                Observação do fiscal
+                {rdo.ultimaDecisaoFiscal.assinanteNome ? ` (${rdo.ultimaDecisaoFiscal.assinanteNome})` : ""}:{" "}
+                {rdo.ultimaDecisaoFiscal.comentario}
               </p>
             )}
 

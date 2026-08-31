@@ -13,7 +13,7 @@ import { calcularHashConteudo, gerarPdfRdo, type RdoConteudo } from "../lib/rdoP
 import { generateToken } from "../lib/tokens.js";
 import { parseBody } from "../lib/validate.js";
 
-const LINK_CAMPO_DIAS_VALIDADE = 7;
+export const LINK_CAMPO_DIAS_VALIDADE = 7;
 
 function minutosDoHorario(horario: string): number {
   const [horaStr, minutoStr] = horario.split(":");
@@ -154,6 +154,40 @@ async function substituirConteudoRdo(
       },
     });
   }
+}
+
+interface UltimaDecisaoFiscal {
+  status: "APROVADO" | "REPROVADO";
+  comentario: string | null;
+  assinanteNome: string | null;
+  assinadoEm: Date | null;
+}
+
+/**
+ * Última decisão do fiscal sobre o RDO (aprovação ou reprovação), com o
+ * comentário dela — pra mostrar pro escritório tanto quando ele reabre em
+ * correção (o que o fiscal reprovou) quanto quando já foi aprovado (a
+ * observação que o fiscal deixou, se deixou). Só busca quando o status do
+ * RDO indica que já passou pelo fiscal; nos demais (rascunho, aguardando
+ * validação/aprovação) não há decisão ainda.
+ */
+async function buscarUltimaDecisaoFiscal(rdoId: string, status: string): Promise<UltimaDecisaoFiscal | null> {
+  const statusBusca = status === "APROVADO" ? "APROVADO" : status === "REPROVADO" || status === "EM_CORRECAO" ? "REPROVADO" : null;
+  if (!statusBusca) return null;
+
+  const decisao = await prisma.aprovacaoFiscal.findFirst({
+    where: { rdoId, status: statusBusca },
+    orderBy: { criadoEm: "desc" },
+    select: { status: true, comentarioReprovacao: true, observacao: true, assinanteNome: true, assinadoEm: true },
+  });
+  if (!decisao) return null;
+
+  return {
+    status: statusBusca,
+    comentario: statusBusca === "APROVADO" ? decisao.observacao : decisao.comentarioReprovacao,
+    assinanteNome: decisao.assinanteNome,
+    assinadoEm: decisao.assinadoEm,
+  };
 }
 
 const rdoListSelect = {
@@ -888,16 +922,9 @@ export function registerRdosRoutes(app: FastifyInstance): void {
     const rdo = await prisma.rdo.findUnique({ where: { id: request.params.id }, select: rdoCampoSelect });
     if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
 
-    const ultimaReprovacao =
-      rdo.status === "REPROVADO" || rdo.status === "EM_CORRECAO"
-        ? await prisma.aprovacaoFiscal.findFirst({
-            where: { rdoId: rdo.id, status: "REPROVADO" },
-            orderBy: { criadoEm: "desc" },
-            select: { comentarioReprovacao: true, assinanteNome: true, assinadoEm: true },
-          })
-        : null;
+    const ultimaDecisaoFiscal = await buscarUltimaDecisaoFiscal(rdo.id, rdo.status);
 
-    return { ...rdo, ultimaReprovacao };
+    return { ...rdo, ultimaDecisaoFiscal };
   });
 
   // Status em que o escritório ainda pode corrigir o conteúdo do RDO pelo

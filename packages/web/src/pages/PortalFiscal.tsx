@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useParams } from "react-router-dom";
-import { ApiError, api } from "../lib/apiClient";
+import { API_URL, ApiError, api } from "../lib/apiClient";
 import AssinaturaCanvas, { type AssinaturaCanvasHandle } from "../components/AssinaturaCanvas";
 
 interface RdoResumo {
@@ -71,6 +71,7 @@ export default function PortalFiscal(): ReactElement {
   const [fiscalNome, setFiscalNome] = useState("");
   const [fiscalEmail, setFiscalEmail] = useState("");
   const [comentario, setComentario] = useState("");
+  const [observacao, setObservacao] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const assinaturaRef = useRef<AssinaturaCanvasHandle>(null);
@@ -125,10 +126,12 @@ export default function PortalFiscal(): ReactElement {
       const form = new FormData();
       form.append("fiscalNome", fiscalNome.trim());
       form.append("fiscalEmail", fiscalEmail.trim());
+      if (observacao.trim()) form.append("observacao", observacao.trim());
       form.append("assinatura", blob, "assinatura.png");
       await api.postForm(`/portal-fiscal/${token}/rdos/${rdoAberto.id}/assinar`, form);
       setRdoAberto(null);
       setAcao(null);
+      setObservacao("");
       await carregarLista();
     } catch (error) {
       setErroAcao(error instanceof ApiError ? error.message : "Não foi possível assinar o RDO.");
@@ -243,6 +246,16 @@ export default function PortalFiscal(): ReactElement {
             RDO {rdoAberto.data.slice(0, 10)} — {rdoAberto.equipe.nome}
           </h2>
 
+          <a
+            className="button button--secondary"
+            style={{ display: "inline-flex", marginBottom: 12 }}
+            href={`${API_URL}/rdos/${rdoAberto.id}/pdf`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Ver PDF completo
+          </a>
+
           {rdoAberto.locais.map((local) => (
             <div key={local.id} style={{ marginBottom: 12 }}>
               <p className="list-subtitle">{local.descricao}</p>
@@ -293,6 +306,15 @@ export default function PortalFiscal(): ReactElement {
                 type="email"
                 value={fiscalEmail}
                 onChange={(event) => setFiscalEmail(event.target.value)}
+              />
+              <label className="field-label" style={{ marginTop: 8 }}>
+                Observações (opcional)
+              </label>
+              <textarea
+                className="field-input campo-textarea"
+                value={observacao}
+                onChange={(event) => setObservacao(event.target.value)}
+                placeholder="Alguma ressalva ou orientação para o próximo RDO?"
               />
               <label className="field-label" style={{ marginTop: 8 }}>
                 Assinatura

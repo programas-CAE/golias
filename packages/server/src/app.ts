@@ -14,6 +14,7 @@ import { registerIndicadoresRoutes } from "./routes/indicadores.js";
 import { registerMateriaisRoutes } from "./routes/materiais.js";
 import { registerMedicoesRoutes } from "./routes/medicoes.js";
 import { registerOrdensManutencaoRoutes } from "./routes/ordensManutencao.js";
+import { registerPortalEncarregadoRoutes } from "./routes/portalEncarregado.js";
 import { registerPortalFiscalRoutes } from "./routes/portalFiscal.js";
 import { registerPowerBiRoutes } from "./routes/powerbi.js";
 import { registerRdosRoutes } from "./routes/rdos.js";
@@ -63,6 +64,7 @@ export function buildApp(): FastifyInstance {
   registerMateriaisRoutes(app);
   registerRdosRoutes(app);
   registerPortalFiscalRoutes(app);
+  registerPortalEncarregadoRoutes(app);
   registerIndicadoresRoutes(app);
   registerMedicoesRoutes(app);
   registerPowerBiRoutes(app);

@@ -16,10 +16,18 @@ const PNG_BYTES = Buffer.from(
   "base64",
 );
 
-function multipartAssinar(nome: string, email: string, content: Buffer = PNG_BYTES): { headers: Record<string, string>; payload: Buffer } {
+function multipartAssinar(
+  nome: string,
+  email: string,
+  content: Buffer = PNG_BYTES,
+  observacao?: string,
+): { headers: Record<string, string>; payload: Buffer } {
   const partes = [
     Buffer.from(`--${BOUNDARY}\r\nContent-Disposition: form-data; name="fiscalNome"\r\n\r\n${nome}\r\n`),
     Buffer.from(`--${BOUNDARY}\r\nContent-Disposition: form-data; name="fiscalEmail"\r\n\r\n${email}\r\n`),
+    ...(observacao != null
+      ? [Buffer.from(`--${BOUNDARY}\r\nContent-Disposition: form-data; name="observacao"\r\n\r\n${observacao}\r\n`)]
+      : []),
     Buffer.from(
       `--${BOUNDARY}\r\nContent-Disposition: form-data; name="assinatura"; filename="assinatura.png"\r\nContent-Type: image/png\r\n\r\n`,
     ),
@@ -146,6 +154,37 @@ describe("POST /portal-fiscal/:token/rdos/:rdoId/assinar", () => {
     const historico = await prisma.rdoHistorico.findMany({ where: { rdoId: rdo.id } });
     expect(historico).toHaveLength(1);
     expect(historico[0]?.paraStatus).toBe("APROVADO");
+  });
+
+  it("salva a observação do fiscal na aprovação, e ela aparece em GET /rdos/:id", async () => {
+    const { frente, equipe, atividade } = await criarCenario();
+    const rdo = await criarRdoAguardandoAprovacao(frente.id, equipe.id, atividade.id);
+
+    const app = buildApp();
+    const { headers, payload } = multipartAssinar(
+      "Fiscal Vale",
+      "fiscal@vale.com",
+      PNG_BYTES,
+      "Atenção à sinalização no próximo RDO.",
+    );
+    const response = await app.inject({
+      method: "POST",
+      url: `/portal-fiscal/token-portal/rdos/${rdo.id}/assinar`,
+      headers,
+      payload,
+    });
+    expect(response.statusCode).toBe(200);
+
+    const aprovacao = await prisma.aprovacaoFiscal.findFirstOrThrow({ where: { rdoId: rdo.id } });
+    expect(aprovacao.observacao).toBe("Atenção à sinalização no próximo RDO.");
+
+    const detalhe = await app.inject({ method: "GET", url: `/rdos/${rdo.id}` });
+    expect(detalhe.statusCode).toBe(200);
+    const body = detalhe.json() as { ultimaDecisaoFiscal: { status: string; comentario: string | null } | null };
+    expect(body.ultimaDecisaoFiscal).toMatchObject({
+      status: "APROVADO",
+      comentario: "Atenção à sinalização no próximo RDO.",
+    });
   });
 
   it("retorna 409 quando o RDO não está aguardando aprovação", async () => {

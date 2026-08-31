@@ -9,6 +9,7 @@ interface Frente {
   nome: string;
   ativo: boolean;
   portalFiscalToken: string | null;
+  portalEncarregadoToken: string | null;
 }
 
 interface Rdo {
@@ -63,14 +64,30 @@ export default function Links(): ReactElement {
     return `${webUrl.replace(/\/$/, "")}/portal-fiscal/${token}`;
   }
 
+  function linkPortalEncarregado(token: string): string {
+    return `${webUrl.replace(/\/$/, "")}/encarregado/${token}`;
+  }
+
   function linkDeCampo(token: string): string {
     return `${webUrl.replace(/\/$/, "")}/campo/${token}`;
   }
 
   async function gerarLinkFiscal(frenteId: string): Promise<void> {
-    setGerandoToken(frenteId);
+    setGerandoToken(`fiscal-${frenteId}`);
     try {
       const atualizada = await api.post<Frente>(`/frentes/${frenteId}/portal-token`, {});
+      setFrentes((atual) => atual?.map((f) => (f.id === atualizada.id ? atualizada : f)) ?? atual);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível gerar o link.");
+    } finally {
+      setGerandoToken(null);
+    }
+  }
+
+  async function gerarLinkEncarregado(frenteId: string): Promise<void> {
+    setGerandoToken(`encarregado-${frenteId}`);
+    try {
+      const atualizada = await api.post<Frente>(`/frentes/${frenteId}/portal-encarregado-token`, {});
       setFrentes((atual) => atual?.map((f) => (f.id === atualizada.id ? atualizada : f)) ?? atual);
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível gerar o link.");
@@ -98,7 +115,8 @@ export default function Links(): ReactElement {
           <div>
             <h1 className="list-title">Links</h1>
             <p className="list-subtitle">
-              Link fixo do portal do fiscal (por frente) e links de campo pendentes de preenchimento pelo encarregado
+              Links fixos do portal do fiscal e do portal do encarregado (por frente), e links de campo pendentes de
+              preenchimento
             </p>
           </div>
         </div>
@@ -146,10 +164,69 @@ export default function Links(): ReactElement {
                           <button
                             type="button"
                             className="button button--ghost button--small"
-                            disabled={gerandoToken === frente.id}
+                            disabled={gerandoToken === `fiscal-${frente.id}`}
                             onClick={() => void gerarLinkFiscal(frente.id)}
                           >
-                            {gerandoToken === frente.id ? "Gerando…" : "Gerar link"}
+                            {gerandoToken === `fiscal-${frente.id}` ? "Gerando…" : "Gerar link"}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </section>
+
+        <section className="form-section">
+          <h2 className="form-section-title">Portal do encarregado</h2>
+          <p className="form-section-subtitle">
+            Link fixo por frente — o encarregado escolhe a equipe (o navegador lembra a última) e lança a produção do
+            dia, sem precisar que o escritório crie o RDO antes.
+          </p>
+          <div className="panel" style={{ marginTop: 12 }}>
+            {frentes === null ? (
+              <p className="table-empty">Carregando…</p>
+            ) : frentes.length === 0 ? (
+              <p className="table-empty">Nenhuma frente cadastrada.</p>
+            ) : (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Frente</th>
+                    <th>Status</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {frentes.map((frente) => (
+                    <tr key={frente.id}>
+                      <td>{frente.nome}</td>
+                      <td>
+                        <span className={`badge badge--${frente.ativo ? "ativo" : "inativo"}`}>
+                          {frente.ativo ? "Ativa" : "Inativa"}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        {frente.portalEncarregadoToken ? (
+                          <button
+                            type="button"
+                            className="button button--ghost button--small"
+                            onClick={() =>
+                              void copiar(`encarregado-${frente.id}`, linkPortalEncarregado(frente.portalEncarregadoToken!))
+                            }
+                          >
+                            {linkCopiado === `encarregado-${frente.id}` ? "Copiado!" : "Copiar link"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="button button--ghost button--small"
+                            disabled={gerandoToken === `encarregado-${frente.id}`}
+                            onClick={() => void gerarLinkEncarregado(frente.id)}
+                          >
+                            {gerandoToken === `encarregado-${frente.id}` ? "Gerando…" : "Gerar link"}
                           </button>
                         )}
                       </td>

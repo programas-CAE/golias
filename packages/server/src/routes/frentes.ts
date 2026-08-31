@@ -13,6 +13,7 @@ const frenteSelect = {
   contratoId: true,
   contrato: { select: { id: true, numero: true, nome: true } },
   portalFiscalToken: true,
+  portalEncarregadoToken: true,
 } as const;
 
 export function registerFrentesRoutes(app: FastifyInstance): void {
@@ -51,6 +52,25 @@ export function registerFrentesRoutes(app: FastifyInstance): void {
       return await prisma.frente.update({
         where: { id: request.params.id },
         data: { portalFiscalToken: generateToken() },
+        select: frenteSelect,
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
+        return reply.status(404).send({ error: "Frente não encontrada" });
+      }
+      throw error;
+    }
+  });
+
+  /**
+   * Gera (ou renova) o link fixo do portal do encarregado dessa frente —
+   * mesma lógica do portal do fiscal, ver comentário em `portal-token`.
+   */
+  app.post<{ Params: { id: string } }>("/frentes/:id/portal-encarregado-token", async (request, reply) => {
+    try {
+      return await prisma.frente.update({
+        where: { id: request.params.id },
+        data: { portalEncarregadoToken: generateToken() },
         select: frenteSelect,
       });
     } catch (error) {

@@ -116,25 +116,30 @@ model Contrato {
 }
 
 model Frente {
-  id                String            @id @default(cuid())
-  codigo            FrenteCodigo      @unique
-  nome              String
-  contratoId        String
-  contrato          Contrato          @relation(fields: [contratoId], references: [id])
-  ativo             Boolean           @default(true)
+  id                     String            @id @default(cuid())
+  codigo                 FrenteCodigo      @unique
+  nome                   String
+  contratoId             String
+  contrato               Contrato          @relation(fields: [contratoId], references: [id])
+  ativo                  Boolean           @default(true)
   // Meta de eficiência (%) usada como referência no gauge "PUS por frente"
   // da tela de início — ver packages/shared/src/constants/catalogo.ts.
-  metaEficienciaPct Decimal?          @db.Decimal(5, 2)
+  metaEficienciaPct      Decimal?          @db.Decimal(5, 2)
   // Meta de PUS geral da equipe (não por atividade) — só exibida como
   // referência, sem um "PUS geral" calculado para comparar.
-  metaPusGeral      Decimal?          @db.Decimal(6, 2)
+  metaPusGeral           Decimal?          @db.Decimal(6, 2)
   // Link fixo (sem expirar) do portal do fiscal dessa frente — gerado sob
   // demanda pela tela Frentes do escritório. Diferente de um token por RDO:
   // o fiscal salva/favorita esse link e vê todos os RDOs da frente nele.
-  portalFiscalToken String?           @unique
-  distritos         Distrito[]
-  ordensManutencao  OrdemManutencao[]
-  rdos              Rdo[]
+  portalFiscalToken      String?           @unique
+  // Link fixo (sem expirar) do portal do encarregado dessa frente — mesma
+  // lógica do portalFiscalToken, mas pro encarregado montar a equipe do dia
+  // e abrir o RDO de hoje sem precisar que o escritório crie um RDO e mande
+  // o link de campo antes.
+  portalEncarregadoToken String?           @unique
+  distritos              Distrito[]
+  ordensManutencao       OrdemManutencao[]
+  rdos                   Rdo[]
 }
 
 // Subdivisão geográfica de uma Frente (ex.: Marabá, Bom Jesus das Selvas).
@@ -463,6 +468,7 @@ model AprovacaoFiscal {
   documentoHash        String?
   assinaturaImagemPath String?
   comentarioReprovacao String?         @db.Text
+  observacao           String?         @db.Text
   criadoEm             DateTime        @default(now())
 }
 

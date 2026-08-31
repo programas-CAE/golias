@@ -463,3 +463,67 @@ body {
 .causa-lista li:last-child {
   border-bottom: none;
 }
+
+.croqui-card {
+  background: #f6faf7;
+  border: 1px solid #dbe8de;
+  border-left: 3px solid rgba(22, 163, 74, 0.5);
+  border-radius: 12px;
+  padding: 16px;
+  margin: 10px 0;
+}
+
+.croqui-titulo {
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #16281c;
+}
+
+.croqui-svg {
+  width: 100%;
+  height: auto;
+}
+
+.croqui-linha {
+  stroke: #4b6355;
+  stroke-width: 2;
+}
+
+.croqui-forma {
+  fill: rgba(22, 163, 74, 0.08);
+  stroke: #4b6355;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.croqui-forma--topo {
+  fill: rgba(22, 163, 74, 0.16);
+}
+
+.croqui-forma--sombra {
+  fill: rgba(22, 163, 74, 0.24);
+}
+
+.croqui-rotulo {
+  fill: #16281c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.croqui-resultado {
+  margin: 10px 0 0;
+  font-size: 0.82rem;
+  color: #5b7268;
+  text-align: center;
+}
+
+.croqui-resultado strong {
+  color: #15803d;
+}
+
+.croqui-vazio {
+  color: #8a9c90;
+  font-size: 0.82rem;
+  text-align: center;
+}

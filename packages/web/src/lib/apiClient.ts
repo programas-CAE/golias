@@ -1,4 +1,4 @@
-const API_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:3333";
+export const API_URL: string = import.meta.env.VITE_API_URL ?? "http://localhost:3333";
 
 export class ApiError extends Error {
   constructor(
@@ -43,4 +43,5 @@ export const api = {
   patch: <T>(path: string, body: unknown): Promise<T> =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
   postForm: <T>(path: string, form: FormData): Promise<T> => request<T>(path, { method: "POST", body: form }),
+  delete: <T>(path: string): Promise<T> => request<T>(path, { method: "DELETE" }),
 };

@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Campo from "./pages/Campo";
+import PortalEncarregado from "./pages/PortalEncarregado";
 import PortalFiscal from "./pages/PortalFiscal";
 import Verificar from "./pages/Verificar";
 
@@ -26,6 +27,7 @@ export default function App(): ReactElement {
         <Route path="/campo/:token" element={<Campo />} />
         <Route path="/verificar/:id" element={<Verificar />} />
         <Route path="/portal-fiscal/:token" element={<PortalFiscal />} />
+        <Route path="/encarregado/:token" element={<PortalEncarregado />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { ApiError, api } from "../lib/apiClient";
 import Autocomplete from "../components/Autocomplete";
 import AssinaturaCanvas, { type AssinaturaCanvasHandle } from "../components/AssinaturaCanvas";
+import CroquiAtividade from "../components/CroquiAtividade";
 
 interface Ref {
   id: string;
@@ -909,6 +910,7 @@ export default function Campo(): ReactElement {
             <h3 className="campo-subtitulo">Atividades neste local</h3>
             {local.atividades.map((atividade, atividadeIndice) => {
               const usaDimensoes = ["M", "M2", "M3"].includes(atividade.unidade);
+              const catalogoDaAtividade = dados?.atividadesCatalogo.find((item) => item.id === atividade.atividadeCatalogoId);
               return (
                 <div className="campo-atividade" key={atividadeIndice}>
                   <select
@@ -1024,6 +1026,19 @@ export default function Campo(): ReactElement {
                     />
                   )}
 
+                  {usaDimensoes && (
+                    <CroquiAtividade
+                      unidade={atividade.unidade}
+                      altura={atividade.altura}
+                      largura={atividade.largura}
+                      larguraFinal={atividade.larguraFinal}
+                      comprimento={atividade.comprimento}
+                      descricaoAtividade={
+                        atividade.pontosExtras.length > 0 ? `${catalogoDaAtividade?.descricao ?? ""} — Ponto 1` : catalogoDaAtividade?.descricao
+                      }
+                    />
+                  )}
+
                   {usaDimensoes &&
                     atividade.pontosExtras.map((ponto, pontoIndice) => (
                       <div className="campo-item" key={pontoIndice}>
@@ -1111,6 +1126,14 @@ export default function Campo(): ReactElement {
                             }
                           />
                         )}
+                        <CroquiAtividade
+                          unidade={atividade.unidade}
+                          altura={ponto.altura}
+                          largura={ponto.largura}
+                          larguraFinal={ponto.larguraFinal}
+                          comprimento={ponto.comprimento}
+                          descricaoAtividade={`${catalogoDaAtividade?.descricao ?? ""} — Ponto ${pontoIndice + 2}`}
+                        />
                       </div>
                     ))}
                   {usaDimensoes && (

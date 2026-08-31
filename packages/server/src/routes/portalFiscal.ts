@@ -86,6 +86,7 @@ export function registerPortalFiscalRoutes(app: FastifyInstance): void {
 
       let fiscalNome = "";
       let fiscalEmail = "";
+      let observacao = "";
       let arquivo: Buffer | undefined;
 
       for await (const part of request.parts()) {
@@ -101,6 +102,8 @@ export function registerPortalFiscalRoutes(app: FastifyInstance): void {
           fiscalNome = String(part.value).trim();
         } else if (part.fieldname === "fiscalEmail") {
           fiscalEmail = String(part.value).trim();
+        } else if (part.fieldname === "observacao") {
+          observacao = String(part.value).trim().slice(0, 2000);
         }
       }
 
@@ -131,6 +134,7 @@ export function registerPortalFiscalRoutes(app: FastifyInstance): void {
             assinadoIp: request.ip,
             documentoHash: rdo.pdfHash,
             assinaturaImagemPath: caminhoAssinatura,
+            observacao: observacao || null,
           },
         }),
         prisma.rdo.update({ where: { id: rdo.id }, data: { status: "APROVADO" } }),

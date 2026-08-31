@@ -137,9 +137,18 @@ interface EquipamentoDraft {
 }
 
 /** Formato retornado por `GET /rdos/:id` — usado só quando a tela abre em modo de edição. */
+interface UltimaDecisaoFiscal {
+  status: "APROVADO" | "REPROVADO";
+  comentario: string | null;
+  assinanteNome: string | null;
+  assinadoEm: string | null;
+}
+
 interface RdoExistente {
   frenteId: string;
   equipeId: string;
+  status: string;
+  ultimaDecisaoFiscal: UltimaDecisaoFiscal | null;
   data: string;
   encarregadoId: string | null;
   clima: string | null;
@@ -307,6 +316,7 @@ export default function RdoCompleto(): ReactElement {
 
   const [salvando, setSalvando] = useState(false);
   const [erroSalvar, setErroSalvar] = useState<string | null>(null);
+  const [ultimaDecisaoFiscal, setUltimaDecisaoFiscal] = useState<UltimaDecisaoFiscal | null>(null);
 
   useEffect(() => {
     async function carregar(): Promise<void> {
@@ -418,6 +428,7 @@ export default function RdoCompleto(): ReactElement {
           );
           setEquipamentos(rdo.equipamentos.map((eq) => ({ equipamentoCatalogoId: eq.equipamentoCatalogoId, quantidade: String(eq.quantidade) })));
           setMateriais(rdo.materiais.map((m) => ({ materialCatalogoId: m.materialCatalogoId, quantidade: String(m.quantidade) })));
+          setUltimaDecisaoFiscal(rdo.ultimaDecisaoFiscal);
         } else {
           const primeiraFrente = listaFrentes[0]?.id ?? "";
           setFrenteId(primeiraFrente);
@@ -789,6 +800,14 @@ export default function RdoCompleto(): ReactElement {
         </div>
 
         {erroCarga && <p className="feedback feedback--erro">{erroCarga}</p>}
+
+        {ultimaDecisaoFiscal?.status === "REPROVADO" && (
+          <p className="feedback feedback--erro" style={{ marginBottom: 16 }}>
+            Reprovado pelo fiscal
+            {ultimaDecisaoFiscal.assinanteNome ? ` (${ultimaDecisaoFiscal.assinanteNome})` : ""}
+            {ultimaDecisaoFiscal.comentario ? `: ${ultimaDecisaoFiscal.comentario}` : ""} — corrija antes de reenviar.
+          </p>
+        )}
 
         <section className="form-section">
           <h2 className="form-section-title">Identificação</h2>
