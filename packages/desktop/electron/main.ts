@@ -83,6 +83,34 @@ function createWindow(): void {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  registrarNavegacaoPorHistorico(mainWindow);
+}
+
+/**
+ * O app não tem um botão "Voltar" em cada tela, e sem isso a única forma de
+ * sair de uma tela era ir lá no menu lateral de novo (perdendo o contexto,
+ * ex.: filtro aplicado numa lista). O HashRouter já registra cada navegação
+ * como uma entrada no histórico da janela (igual um navegador comum) — só
+ * faltava ligar isso ao botão lateral do mouse e ao atalho de teclado.
+ */
+function registrarNavegacaoPorHistorico(win: BrowserWindow): void {
+  win.on("app-command", (_event, cmd) => {
+    if (cmd === "browser-backward" && win.webContents.navigationHistory.canGoBack()) {
+      win.webContents.navigationHistory.goBack();
+    } else if (cmd === "browser-forward" && win.webContents.navigationHistory.canGoForward()) {
+      win.webContents.navigationHistory.goForward();
+    }
+  });
+
+  win.webContents.on("before-input-event", (_event, input) => {
+    if (input.type !== "keyDown" || !input.alt) return;
+    if (input.key === "ArrowLeft" && win.webContents.navigationHistory.canGoBack()) {
+      win.webContents.navigationHistory.goBack();
+    } else if (input.key === "ArrowRight" && win.webContents.navigationHistory.canGoForward()) {
+      win.webContents.navigationHistory.goForward();
+    }
+  });
 }
 
 ipcMain.handle("settings:get", (): GoliasSettings => SETTINGS);
