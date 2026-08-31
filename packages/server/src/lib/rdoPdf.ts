@@ -314,6 +314,58 @@ function desenharTabelaAtividades(doc: PDFKit.PDFDocument, dados: RdoPdfDados, y
   doc.y = y;
 }
 
+function minutosDoHorario(horario: string): number {
+  const [horaStr, minutoStr] = horario.split(":");
+  return Number(horaStr) * 60 + Number(minutoStr);
+}
+
+const JORNADA_REFERENCIA_HORAS = 10;
+
+/**
+ * Soma a "Linha do tempo" com o horário de cada atividade — mesmo cálculo
+ * de `calcularHorasApontadasDia` no formulário (RdoCompleto.tsx/Campo.tsx)
+ * — pra mostrar no PDF se a jornada de referência (10h) foi toda apontada
+ * em algum bloco/atividade, ou se sobrou hora sem descrição.
+ */
+function calcularHorasTrabalhadas(dados: RdoPdfDados): number {
+  let minutos = 0;
+  for (const bloco of dados.blocosHorario) {
+    if (!bloco.horarioInicial || !bloco.horarioFinal) continue;
+    const diferenca = minutosDoHorario(bloco.horarioFinal) - minutosDoHorario(bloco.horarioInicial);
+    if (diferenca > 0) minutos += diferenca;
+  }
+  for (const local of dados.locais) {
+    for (const atividade of local.atividades) {
+      if (!atividade.horarioInicial || !atividade.horarioFinal) continue;
+      const diferenca = minutosDoHorario(atividade.horarioFinal) - minutosDoHorario(atividade.horarioInicial);
+      if (diferenca > 0) minutos += diferenca;
+    }
+  }
+  return minutos / 60;
+}
+
+function formatarHoras(horas: number): string {
+  const totalMinutos = Math.round(horas * 60);
+  const h = Math.floor(totalMinutos / 60);
+  const min = totalMinutos % 60;
+  return `${h}h${String(min).padStart(2, "0")}`;
+}
+
+function desenharResumoHoras(doc: PDFKit.PDFDocument, dados: RdoPdfDados, y: number): number {
+  const horasTrabalhadas = calcularHorasTrabalhadas(dados);
+  const status = horasTrabalhadas >= JORNADA_REFERENCIA_HORAS ? "jornada completa" : "faltam apontar horas";
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(7.5)
+    .text(
+      `${formatarHoras(horasTrabalhadas)} apontadas (linha do tempo + atividades) de ${JORNADA_REFERENCIA_HORAS}h de referência (${status}).`,
+      MARGEM,
+      y + 4,
+      { width: LARGURA_COLUNA_ESQUERDA },
+    );
+  return doc.y;
+}
+
 function desenharListaChecklist(doc: PDFKit.PDFDocument, titulo: string, x: number, y: number, itens: { nome: string; quantidade: number }[]): number {
   doc.font("Helvetica-Bold").fontSize(8).text(titulo, x, y, { width: LARGURA_COLUNA_DIREITA });
   let atual = doc.y + 2;
@@ -679,6 +731,7 @@ export async function gerarPdfRdo(dados: RdoPdfDados): Promise<Buffer> {
 
   const yTabelas = doc.y;
   desenharTabelaAtividades(doc, dados, yTabelas);
+  desenharResumoHoras(doc, dados, doc.y);
   // `desenharColunaDireita` também escreve texto com y explícito, o que
   // faz o pdfkit sobrescrever `doc.y` com a altura DELA — precisa capturar
   // a altura real da tabela de atividades (que pode ser bem maior, com
