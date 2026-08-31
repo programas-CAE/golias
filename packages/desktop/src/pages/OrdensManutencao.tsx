@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
 
@@ -30,12 +30,26 @@ interface OrdemForm {
   detalhes: string;
 }
 
+/**
+ * Minúsculo e sem acento — texto extraído de PDF (import de OM) às vezes
+ * vem com acentos em forma decomposta (NFD), que não bate com `.includes()`
+ * contra o que a pessoa digita normalmente (NFC), mesmo sendo visualmente
+ * idêntico. Removendo os acentos dos dois lados, a busca funciona sempre e
+ * de quebra fica tolerante a digitar sem acento.
+ */
+const MARCAS_DIACRITICAS = /[̀-ͯ]/g;
+
+function normalizarBusca(texto: string): string {
+  return texto.normalize("NFD").replace(MARCAS_DIACRITICAS, "").toLowerCase().trim();
+}
+
 export default function OrdensManutencao(): ReactElement {
   const [ordens, setOrdens] = useState<OrdemManutencao[] | null>(null);
   const [frentes, setFrentes] = useState<Frente[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [editando, setEditando] = useState<OrdemManutencao | "novo" | null>(null);
   const [importando, setImportando] = useState(false);
+  const [busca, setBusca] = useState("");
 
   async function carregar(): Promise<void> {
     setErro(null);
@@ -63,6 +77,14 @@ export default function OrdensManutencao(): ReactElement {
     });
     setEditando(null);
   }
+
+  const ordensFiltradas = useMemo(() => {
+    const termo = normalizarBusca(busca);
+    if (termo === "") return ordens ?? [];
+    return (ordens ?? []).filter((ordem) =>
+      [ordem.numero, ordem.frente.nome, ordem.lado, ordem.detalhes].some((campo) => normalizarBusca(campo ?? "").includes(termo)),
+    );
+  }, [ordens, busca]);
 
   function handleImportado(importadas: OrdemManutencao[]): void {
     setOrdens((atual) => {
@@ -95,11 +117,21 @@ export default function OrdensManutencao(): ReactElement {
 
         {erro && <p className="feedback feedback--erro">{erro}</p>}
 
+        <input
+          className="field-input"
+          style={{ maxWidth: 360, marginBottom: 16 }}
+          placeholder="Buscar por número, frente, lado ou detalhes…"
+          value={busca}
+          onChange={(event) => setBusca(event.target.value)}
+        />
+
         <div className="panel">
           {ordens === null ? (
             <p className="table-empty">Carregando…</p>
-          ) : ordens.length === 0 ? (
-            <p className="table-empty">Nenhuma ordem de manutenção cadastrada.</p>
+          ) : ordensFiltradas.length === 0 ? (
+            <p className="table-empty">
+              {busca ? "Nenhuma ordem encontrada para essa busca." : "Nenhuma ordem de manutenção cadastrada."}
+            </p>
           ) : (
             <table className="table">
               <thead>
@@ -112,7 +144,7 @@ export default function OrdensManutencao(): ReactElement {
                 </tr>
               </thead>
               <tbody>
-                {ordens.map((ordem) => (
+                {ordensFiltradas.map((ordem) => (
                   <tr key={ordem.id}>
                     <td>{ordem.numero}</td>
                     <td>{ordem.frente.nome}</td>
