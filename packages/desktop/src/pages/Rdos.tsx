@@ -17,6 +17,7 @@ interface Equipe {
 
 interface Rdo {
   id: string;
+  codigoRastreio: string;
   data: string;
   status: string;
   frente: Frente;
@@ -24,6 +25,13 @@ interface Rdo {
   linkCampoToken: string | null;
   linkCampoExpiraEm: string | null;
   pdfDisponivel: boolean;
+}
+
+const MARCAS_DIACRITICAS = /[̀-ͯ]/g;
+
+/** Minúsculo e sem acento — mesma tolerância de busca já usada na tela de Ordens de Manutenção. */
+function normalizarBusca(texto: string): string {
+  return texto.normalize("NFD").replace(MARCAS_DIACRITICAS, "").toLowerCase().trim();
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -66,6 +74,8 @@ export default function Rdos(): ReactElement {
   const [criando, setCriando] = useState(false);
   const [linkGerado, setLinkGerado] = useState<{ rdo: Rdo; copiado: boolean } | null>(null);
   const [mes, setMes] = useState(mesAtual());
+  const [busca, setBusca] = useState("");
+  const [excluindo, setExcluindo] = useState<string | null>(null);
 
   async function carregar(): Promise<void> {
     setErro(null);
@@ -99,18 +109,36 @@ export default function Rdos(): ReactElement {
   }
 
   const periodo = useMemo(() => periodoDoArquivo(mes), [mes]);
-  const rdosDoPeriodo = useMemo(
-    () => (rdos ?? []).filter((rdo) => {
+  const rdosDoPeriodo = useMemo(() => {
+    const termo = normalizarBusca(busca);
+    return (rdos ?? []).filter((rdo) => {
       const data = rdo.data.slice(0, 10);
-      return data >= periodo.inicio && data <= periodo.fim;
-    }),
-    [rdos, periodo],
-  );
+      if (data < periodo.inicio || data > periodo.fim) return false;
+      if (termo === "") return true;
+      return [rdo.codigoRastreio, rdo.frente.nome, rdo.equipe.nome].some((campo) => normalizarBusca(campo).includes(termo));
+    });
+  }, [rdos, periodo, busca]);
 
   async function copiarLink(rdo: Rdo): Promise<void> {
     await navigator.clipboard.writeText(linkDoRdo(rdo));
     setLinkGerado({ rdo, copiado: true });
     setTimeout(() => setLinkGerado((atual) => (atual?.rdo.id === rdo.id ? { ...atual, copiado: false } : atual)), 2000);
+  }
+
+  async function excluirRascunho(rdo: Rdo): Promise<void> {
+    if (!window.confirm(`Apagar o RDO ${rdo.codigoRastreio} (${rdo.equipe.nome}, ${rdo.data.slice(0, 10)})? Essa ação não pode ser desfeita.`)) {
+      return;
+    }
+    setExcluindo(rdo.id);
+    setErro(null);
+    try {
+      await api.delete(`/rdos/${rdo.id}`);
+      setRdos((atual) => atual?.filter((item) => item.id !== rdo.id) ?? atual);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível apagar o RDO.");
+    } finally {
+      setExcluindo(null);
+    }
   }
 
   return (
@@ -142,6 +170,16 @@ export default function Rdos(): ReactElement {
             <label className="field-label">Período (dia 21 ao dia 20)</label>
             <input type="month" className="field-input" value={mes} onChange={(event) => setMes(event.target.value)} />
           </div>
+          <div>
+            <label className="field-label">Buscar</label>
+            <input
+              className="field-input"
+              style={{ minWidth: 260 }}
+              placeholder="Código, frente ou equipe…"
+              value={busca}
+              onChange={(event) => setBusca(event.target.value)}
+            />
+          </div>
           <p className="list-subtitle" style={{ marginTop: 20 }}>
             {periodo.inicio.split("-").reverse().join("/")} a {periodo.fim.split("-").reverse().join("/")}
           </p>
@@ -151,11 +189,12 @@ export default function Rdos(): ReactElement {
           {rdos === null ? (
             <p className="table-empty">Carregando…</p>
           ) : rdosDoPeriodo.length === 0 ? (
-            <p className="table-empty">Nenhum RDO nesse período.</p>
+            <p className="table-empty">{busca ? "Nenhum RDO encontrado para essa busca." : "Nenhum RDO nesse período."}</p>
           ) : (
             <table className="table">
               <thead>
                 <tr>
+                  <th>Código</th>
                   <th>Data</th>
                   <th>Frente</th>
                   <th>Equipe</th>
@@ -167,6 +206,7 @@ export default function Rdos(): ReactElement {
               <tbody>
                 {rdosDoPeriodo.map((rdo) => (
                   <tr key={rdo.id}>
+                    <td>{rdo.codigoRastreio}</td>
                     <td>{rdo.data.slice(0, 10)}</td>
                     <td>{rdo.frente.nome}</td>
                     <td>{rdo.equipe.nome}</td>
@@ -194,6 +234,16 @@ export default function Rdos(): ReactElement {
                           onClick={() => void copiarLink(rdo)}
                         >
                           {linkGerado?.rdo.id === rdo.id && linkGerado.copiado ? "Copiado!" : "Copiar link"}
+                        </button>
+                      )}
+                      {rdo.status === "RASCUNHO" && (
+                        <button
+                          type="button"
+                          className="button button--ghost button--small"
+                          disabled={excluindo === rdo.id}
+                          onClick={() => void excluirRascunho(rdo)}
+                        >
+                          {excluindo === rdo.id ? "Apagando…" : "Apagar"}
                         </button>
                       )}
                     </td>

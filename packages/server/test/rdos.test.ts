@@ -38,9 +38,10 @@ describe("POST /rdos", () => {
     });
 
     expect(response.statusCode).toBe(201);
-    const body = response.json() as { status: string; linkCampoToken: string; linkCampoExpiraEm: string };
+    const body = response.json() as { status: string; codigoRastreio: string; linkCampoToken: string; linkCampoExpiraEm: string };
     expect(body.status).toBe("RASCUNHO");
     expect(body.linkCampoToken).toHaveLength(43);
+    expect(body.codigoRastreio).toMatch(/^\d{8}\d{3}$/);
   });
 
   it("retorna 400 para frenteId inválido", async () => {
@@ -54,6 +55,58 @@ describe("POST /rdos", () => {
     });
 
     expect(response.statusCode).toBe(400);
+  });
+
+  it("dá códigos de rastreio sequenciais pra RDOs criados no mesmo dia", async () => {
+    const { frente, equipe } = await criarCenario();
+
+    const app = buildApp();
+    const payload = { frenteId: frente.id, equipeId: equipe.id, data: "2026-07-21" };
+    const primeiro = await app.inject({ method: "POST", url: "/rdos", payload });
+    const segundo = await app.inject({ method: "POST", url: "/rdos", payload });
+
+    const codigo1 = (primeiro.json() as { codigoRastreio: string }).codigoRastreio;
+    const codigo2 = (segundo.json() as { codigoRastreio: string }).codigoRastreio;
+    expect(codigo1.slice(0, 8)).toBe(codigo2.slice(0, 8));
+    expect(Number(codigo2.slice(8))).toBe(Number(codigo1.slice(8)) + 1);
+  });
+});
+
+describe("DELETE /rdos/:id", () => {
+  it("apaga um RDO em rascunho", async () => {
+    const { frente, equipe } = await criarCenario();
+    const app = buildApp();
+    const criado = await app.inject({
+      method: "POST",
+      url: "/rdos",
+      payload: { frenteId: frente.id, equipeId: equipe.id, data: "2026-07-21" },
+    });
+    const rdoId = (criado.json() as { id: string }).id;
+
+    const response = await app.inject({ method: "DELETE", url: `/rdos/${rdoId}` });
+    expect(response.statusCode).toBe(204);
+
+    const buscar = await app.inject({ method: "GET", url: `/rdos/${rdoId}` });
+    expect(buscar.statusCode).toBe(404);
+  });
+
+  it("retorna 409 quando o RDO não está mais em rascunho", async () => {
+    const { frente, equipe } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21"), status: "APROVADO" },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "DELETE", url: `/rdos/${rdo.id}` });
+
+    expect(response.statusCode).toBe(409);
+    await expect(prisma.rdo.findUnique({ where: { id: rdo.id } })).resolves.not.toBeNull();
+  });
+
+  it("retorna 404 para RDO inexistente", async () => {
+    const app = buildApp();
+    const response = await app.inject({ method: "DELETE", url: "/rdos/nao-existe" });
+    expect(response.statusCode).toBe(404);
   });
 });
 

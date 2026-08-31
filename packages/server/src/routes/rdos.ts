@@ -8,6 +8,7 @@ import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { comCodigoRastreio } from "../lib/codigoRastreio.js";
 import { prisma } from "../lib/prisma.js";
 import { calcularHashConteudo, gerarPdfRdo, type RdoConteudo } from "../lib/rdoPdf.js";
 import { generateToken } from "../lib/tokens.js";
@@ -211,6 +212,7 @@ async function buscarUltimaDecisaoFiscal(rdoId: string, status: string): Promise
 
 const rdoListSelect = {
   id: true,
+  codigoRastreio: true,
   data: true,
   status: true,
   frente: { select: { id: true, nome: true } },
@@ -227,6 +229,7 @@ function comPdfDisponivel<T extends { pdfPath: string | null }>({ pdfPath, ...re
 
 export const rdoCampoSelect = {
   id: true,
+  codigoRastreio: true,
   frenteId: true,
   frente: { select: { id: true, nome: true, codigo: true, contrato: { select: { numero: true } } } },
   equipeId: true,
@@ -555,10 +558,12 @@ export function registerRdosRoutes(app: FastifyInstance): void {
     linkCampoExpiraEm.setDate(linkCampoExpiraEm.getDate() + LINK_CAMPO_DIAS_VALIDADE);
 
     try {
-      const rdo = await prisma.rdo.create({
-        data: { ...data, linkCampoToken: generateToken(), linkCampoExpiraEm },
-        select: rdoListSelect,
-      });
+      const rdo = await comCodigoRastreio((codigoRastreio) =>
+        prisma.rdo.create({
+          data: { ...data, codigoRastreio, linkCampoToken: generateToken(), linkCampoExpiraEm },
+          select: rdoListSelect,
+        }),
+      );
       return await reply.status(201).send(comPdfDisponivel(rdo));
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
@@ -566,6 +571,36 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       }
       throw error;
     }
+  });
+
+  /**
+   * Apaga um RDO ainda em rascunho — ex.: cadastrado errado/duplicado por
+   * engano, antes de ir pra qualquer lugar (encarregado, escritório,
+   * fiscal). Só permitido em RASCUNHO de propósito: depois que alguém já
+   * viu ou mexeu no RDO (mesmo só validação do escritório), apagar em vez
+   * de reprovar/corrigir apagaria histórico que outra pessoa já depende.
+   */
+  app.delete<{ Params: { id: string } }>("/rdos/:id", async (request, reply) => {
+    const rdo = await prisma.rdo.findUnique({ where: { id: request.params.id }, select: { id: true, status: true } });
+    if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
+    if (rdo.status !== "RASCUNHO") {
+      return reply.status(409).send({ error: "Só é possível apagar um RDO enquanto ele está em rascunho" });
+    }
+
+    await prisma.$transaction([
+      prisma.rdoBlocoHorario.deleteMany({ where: { rdoId: rdo.id } }),
+      prisma.rdoAtividadeMaoDeObra.deleteMany({ where: { rdoAtividade: { rdoLocal: { rdoId: rdo.id } } } }),
+      prisma.rdoAtividadePonto.deleteMany({ where: { rdoAtividade: { rdoLocal: { rdoId: rdo.id } } } }),
+      prisma.rdoAtividade.deleteMany({ where: { rdoLocal: { rdoId: rdo.id } } }),
+      prisma.rdoLocal.deleteMany({ where: { rdoId: rdo.id } }),
+      prisma.rdoMaoDeObra.deleteMany({ where: { rdoId: rdo.id } }),
+      prisma.rdoEquipamento.deleteMany({ where: { rdoId: rdo.id } }),
+      prisma.rdoMaterial.deleteMany({ where: { rdoId: rdo.id } }),
+      prisma.rdoAnexo.deleteMany({ where: { rdoId: rdo.id } }),
+      prisma.rdo.delete({ where: { id: rdo.id } }),
+    ]);
+
+    return reply.status(204).send();
   });
 
   /**
@@ -583,27 +618,29 @@ export function registerRdosRoutes(app: FastifyInstance): void {
     linkCampoExpiraEm.setDate(linkCampoExpiraEm.getDate() + LINK_CAMPO_DIAS_VALIDADE);
 
     try {
-      const rdoId = await prisma.$transaction(async (tx) => {
-        const rdo = await tx.rdo.create({
-          data: {
-            frenteId: data.frenteId,
-            equipeId: data.equipeId,
-            data: data.data,
-            horaExtraInicio: data.horaExtraInicio,
-            horaExtraFim: data.horaExtraFim,
-            clima: data.clima,
-            encarregadoId: data.encarregadoId,
-            totalDesvios: data.totalDesvios,
-            observacoesContratada: data.observacoesContratada,
-            linkCampoToken: generateToken(),
-            linkCampoExpiraEm,
-            blocosHorario: { create: data.blocosHorario },
-            maoDeObra: { create: data.maoDeObra },
-            equipamentos: { create: data.equipamentos },
-            materiais: { create: data.materiais },
-          },
-          select: { id: true },
-        });
+      const rdoId = await comCodigoRastreio((codigoRastreio) =>
+        prisma.$transaction(async (tx) => {
+          const rdo = await tx.rdo.create({
+            data: {
+              frenteId: data.frenteId,
+              equipeId: data.equipeId,
+              data: data.data,
+              codigoRastreio,
+              horaExtraInicio: data.horaExtraInicio,
+              horaExtraFim: data.horaExtraFim,
+              clima: data.clima,
+              encarregadoId: data.encarregadoId,
+              totalDesvios: data.totalDesvios,
+              observacoesContratada: data.observacoesContratada,
+              linkCampoToken: generateToken(),
+              linkCampoExpiraEm,
+              blocosHorario: { create: data.blocosHorario },
+              maoDeObra: { create: data.maoDeObra },
+              equipamentos: { create: data.equipamentos },
+              materiais: { create: data.materiais },
+            },
+            select: { id: true },
+          });
 
         for (const local of data.locais) {
           await tx.rdoLocal.create({
@@ -619,8 +656,9 @@ export function registerRdosRoutes(app: FastifyInstance): void {
           });
         }
 
-        return rdo.id;
-      });
+          return rdo.id;
+        }),
+      );
 
       const criado = await prisma.rdo.findUnique({ where: { id: rdoId }, select: rdoCampoSelect });
       return await reply.status(201).send(criado);

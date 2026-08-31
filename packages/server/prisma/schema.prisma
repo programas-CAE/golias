@@ -238,6 +238,13 @@ model Rdo {
   equipeId              String
   equipe                Equipe      @relation(fields: [equipeId], references: [id])
   data                  DateTime    @db.Date
+  // Código de busca rápida (AAAAMMDD + sequência do dia, ex.: "20260830001")
+  // — pelo dia em que o RDO foi lançado no sistema, não pelo dia do campo
+  // (`data`), pra bater com o que a pessoa tem na cabeça quando cadastra.
+  // Sem default de negócio (código real vem sempre de `comCodigoRastreio`,
+  // no server) — o default aqui é só uma rede de segurança pra fixture de
+  // teste/seed que cria um Rdo direto sem passar por essa função.
+  codigoRastreio        String      @unique @default(dbgenerated("gen_random_uuid()::text"))
   // Intervalo de hora extra do dia (formato HH:mm), quando houver — distinto
   // dos horários de cada bloco de atividade (ver RdoBlocoHorario).
   horaExtraInicio       String?

@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadEnv, requireEnv } from "../src/lib/loadEnv.js";
+import { comCodigoRastreio } from "../src/lib/codigoRastreio.js";
 
 loadEnv("../.env", import.meta.url);
 
@@ -373,11 +374,13 @@ async function seedRdosHistoricos(): Promise<void> {
     const dia = Number(registro.data.slice(8, 10));
     const data = new Date(Date.UTC(anoAlvo, mesAlvo, dia));
 
-    await prisma.rdo.create({
+    await comCodigoRastreio((codigoRastreio) =>
+      prisma.rdo.create({
       data: {
         frenteId: distrito.frenteId,
         equipeId: equipe.id,
         data,
+        codigoRastreio,
         encarregadoId: equipe.encarregadoId,
         status: "APROVADO",
         observacoesContratada: `${MARCADOR_RDO_HISTORICO} ${registro.rdo} — produção real de ${registro.data}, importada com data ajustada para o mês corrente.`,
@@ -402,7 +405,8 @@ async function seedRdosHistoricos(): Promise<void> {
           ],
         },
       },
-    });
+      }),
+    );
     rdosCriados += 1;
   }
 

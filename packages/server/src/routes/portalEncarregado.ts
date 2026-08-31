@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { LINK_CAMPO_DIAS_VALIDADE } from "./rdos.js";
+import { comCodigoRastreio } from "../lib/codigoRastreio.js";
 import { prisma } from "../lib/prisma.js";
 import { generateToken } from "../lib/tokens.js";
 
@@ -122,10 +123,12 @@ export function registerPortalEncarregadoRoutes(app: FastifyInstance): void {
       const linkCampoExpiraEm = new Date();
       linkCampoExpiraEm.setDate(linkCampoExpiraEm.getDate() + LINK_CAMPO_DIAS_VALIDADE);
 
-      const rdo = await prisma.rdo.create({
-        data: { frenteId: frente.id, equipeId: equipe.id, data: hoje, linkCampoToken: generateToken(), linkCampoExpiraEm },
-        select: { linkCampoToken: true },
-      });
+      const rdo = await comCodigoRastreio((codigoRastreio) =>
+        prisma.rdo.create({
+          data: { frenteId: frente.id, equipeId: equipe.id, data: hoje, codigoRastreio, linkCampoToken: generateToken(), linkCampoExpiraEm },
+          select: { linkCampoToken: true },
+        }),
+      );
       return reply.status(201).send({ linkCampoToken: rdo.linkCampoToken });
     },
   );

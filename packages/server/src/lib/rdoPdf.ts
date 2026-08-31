@@ -201,11 +201,23 @@ function desenharIdentificacao(doc: PDFKit.PDFDocument, dados: RdoPdfDados): voi
   doc.y = y + 8;
 }
 
+/** Um trecho da descrição com sua própria formatação — pra destacar "OM" em
+ * negrito e o status (concluída/em andamento) na cor certa, sem colorir a
+ * linha toda. */
+interface SegmentoTexto {
+  texto: string;
+  negrito?: boolean;
+  cor?: string;
+}
+
+const COR_STATUS_CONCLUIDA = "#15803d";
+const COR_STATUS_EM_ANDAMENTO = "#b45309";
+
 interface LinhaTabela {
   inicial: string;
   final: string;
   item: string;
-  descricao: string;
+  descricao: SegmentoTexto[];
   unidade: string;
   quantidade: string;
 }
@@ -218,7 +230,7 @@ function montarLinhasTabela(dados: RdoPdfDados): LinhaTabela[] {
       inicial: bloco.horarioInicial,
       final: bloco.horarioFinal,
       item: "",
-      descricao: bloco.descricao,
+      descricao: [{ texto: bloco.descricao }],
       unidade: "",
       quantidade: "",
     }));
@@ -233,18 +245,28 @@ function montarLinhasTabela(dados: RdoPdfDados): LinhaTabela[] {
         atividade.maoDeObra.length > 0
           ? ` — MO: ${atividade.maoDeObra.map((item) => `${item.quantidade} ${item.funcao}`).join(", ")}`
           : "";
-      const percentual = atividade.percentualConcluido != null ? ` — ${atividade.percentualConcluido}%` : "";
-      const statusOm =
-        atividade.statusOm === "CONCLUIDA"
-          ? ` [OM concluída${percentual}]`
-          : atividade.statusOm === "EM_ANDAMENTO"
-            ? ` [OM em andamento${percentual}]`
-            : "";
+
+      const descricao: SegmentoTexto[] = [
+        { texto: `${atividade.descricao} — ${local.descricao}${km}${maoDeObra}` },
+      ];
+      if (atividade.statusOm === "CONCLUIDA" || atividade.statusOm === "EM_ANDAMENTO") {
+        const percentual = atividade.percentualConcluido != null ? ` — ${atividade.percentualConcluido}%` : "";
+        descricao.push(
+          { texto: " [" },
+          { texto: "OM", negrito: true },
+          { texto: " " },
+          atividade.statusOm === "CONCLUIDA"
+            ? { texto: "concluída", cor: COR_STATUS_CONCLUIDA }
+            : { texto: "em andamento", cor: COR_STATUS_EM_ANDAMENTO },
+          { texto: `${percentual}]` },
+        );
+      }
+
       linhas.push({
         inicial: atividade.horarioInicial ?? "",
         final: atividade.horarioFinal ?? "",
         item: atividade.item,
-        descricao: `${atividade.descricao} — ${local.descricao}${km}${maoDeObra}${statusOm}`,
+        descricao,
         unidade: atividade.unidade,
         quantidade: formatarNumero(atividade.quantidade),
       });
@@ -282,6 +304,23 @@ function desenharCabecalhoTabela(doc: PDFKit.PDFDocument, y: number): number {
   return yLinha + 3;
 }
 
+/** Desenha uma descrição com trechos em negrito/cor (ex.: "OM" em negrito,
+ * "concluída"/"em andamento" na cor do status) sem colorir a linha toda —
+ * usa o recurso de texto encadeado do pdfkit (`continued`), que só aceita
+ * x/y no primeiro trecho; os seguintes continuam de onde o anterior parou. */
+function desenharDescricaoComEstilo(doc: PDFKit.PDFDocument, segmentos: SegmentoTexto[], x: number, y: number, largura: number): void {
+  segmentos.forEach((segmento, indice) => {
+    doc.font(segmento.negrito ? "Helvetica-Bold" : "Helvetica").fillColor(segmento.cor ?? "black");
+    const ehUltimo = indice === segmentos.length - 1;
+    if (indice === 0) {
+      doc.text(segmento.texto, x, y, { width: largura, continued: !ehUltimo });
+    } else {
+      doc.text(segmento.texto, { continued: !ehUltimo });
+    }
+  });
+  doc.font("Helvetica").fillColor("black");
+}
+
 function desenharTabelaAtividades(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yInicial: number): void {
   const linhas = montarLinhasTabela(dados);
   let y = desenharCabecalhoTabela(doc, yInicial);
@@ -293,7 +332,8 @@ function desenharTabelaAtividades(doc: PDFKit.PDFDocument, dados: RdoPdfDados, y
   }
 
   for (const linha of linhas) {
-    const alturaDescricao = doc.heightOfString(linha.descricao, { width: COL_DESCRICAO - 4 });
+    const descricaoPlana = linha.descricao.map((segmento) => segmento.texto).join("");
+    const alturaDescricao = doc.heightOfString(descricaoPlana, { width: COL_DESCRICAO - 4 });
     const alturaLinha = Math.max(11, alturaDescricao + 2);
 
     if (y + alturaLinha > ALTURA_PAGINA - MARGEM - 90) {
@@ -308,7 +348,7 @@ function desenharTabelaAtividades(doc: PDFKit.PDFDocument, dados: RdoPdfDados, y
     x += COL_FINAL;
     doc.text(linha.item, x + 2, y, { width: COL_ITEM - 2 });
     x += COL_ITEM;
-    doc.text(linha.descricao, x + 2, y, { width: COL_DESCRICAO - 4 });
+    desenharDescricaoComEstilo(doc, linha.descricao, x + 2, y, COL_DESCRICAO - 4);
     x += COL_DESCRICAO;
     doc.text(linha.unidade, x + 2, y, { width: COL_UNID - 2 });
     x += COL_UNID;

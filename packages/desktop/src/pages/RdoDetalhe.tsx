@@ -70,6 +70,7 @@ interface UltimaDecisaoFiscal {
 
 interface RdoDetalheResponse {
   id: string;
+  codigoRastreio: string;
   data: string;
   status: string;
   clima: string | null;
@@ -177,7 +178,7 @@ export default function RdoDetalhe(): ReactElement {
           <>
             <div className="list-header">
               <div>
-                <h1 className="list-title">RDO — {rdo.data.slice(0, 10)}</h1>
+                <h1 className="list-title">RDO {rdo.codigoRastreio} — {rdo.data.slice(0, 10)}</h1>
                 <p className="list-subtitle">
                   {rdo.frente.nome} · Equipe {rdo.equipe.nome} ·{" "}
                   <span className="badge badge--ativo">{STATUS_LABEL[rdo.status] ?? rdo.status}</span>
