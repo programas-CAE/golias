@@ -324,6 +324,10 @@ model RdoAtividade {
   // enum StatusOmDeclarado. Sem sentido sem ordemManutencaoId, mas não
   // reforçado no banco (validado na camada de aplicação).
   statusOm            StatusOmDeclarado?
+  // Percentual concluído da OM naquele dia (0-100), do jeito que o
+  // encarregado reporta no RDO em papel (ex.: "Status do dia: 85%") — só
+  // faz sentido junto de statusOm, mesma regra de não reforçado no banco.
+  percentualConcluido Int?
   kmInicial           Decimal?                @db.Decimal(10, 3)
   kmFinal             Decimal?                @db.Decimal(10, 3)
   altura              Decimal?                @db.Decimal(10, 3)

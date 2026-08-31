@@ -1,4 +1,4 @@
-import { equipeCreateInputSchema, equipeMembroInputSchema, equipeUpdateInputSchema } from "@golias/shared";
+import { equipeCreateInputSchema, equipeMembroInputSchema, equipeMembroUpdateInputSchema, equipeUpdateInputSchema } from "@golias/shared";
 import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
@@ -80,6 +80,25 @@ export function registerEquipesRoutes(app: FastifyInstance): void {
       throw error;
     }
   });
+
+  app.patch<{ Params: { id: string; membroId: string } }>(
+    "/equipes/:id/membros/:membroId",
+    async (request, reply) => {
+      const data = parseBody(equipeMembroUpdateInputSchema, request.body, reply);
+      if (!data) return;
+
+      // updateMany (não update) pelo mesmo motivo do delete abaixo: garante
+      // que só mexe no membro se ele pertencer à equipe do path.
+      const { count } = await prisma.equipeMembro.updateMany({
+        where: { id: request.params.membroId, equipeId: request.params.id },
+        data,
+      });
+      if (count === 0) {
+        return reply.status(404).send({ error: "Membro não encontrado" });
+      }
+      return prisma.equipeMembro.findUniqueOrThrow({ where: { id: request.params.membroId }, select: membroSelect });
+    },
+  );
 
   app.delete<{ Params: { id: string; membroId: string } }>(
     "/equipes/:id/membros/:membroId",

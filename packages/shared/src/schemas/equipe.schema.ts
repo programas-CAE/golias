@@ -27,3 +27,9 @@ export const equipeMembroInputSchema = z.object({
 });
 
 export type EquipeMembroInput = z.infer<typeof equipeMembroInputSchema>;
+
+export const equipeMembroUpdateInputSchema = z.object({
+  quantidade: z.number().int().positive(),
+});
+
+export type EquipeMembroUpdateInput = z.infer<typeof equipeMembroUpdateInputSchema>;

@@ -148,6 +148,45 @@ describe("POST /rdos/completo", () => {
     expect(Number(detalheBody.equipamentos[0]?.producaoValor)).toBe(800);
   });
 
+  it("aceita um RDO só com produção de equipamento, sem nenhuma atividade do catálogo", async () => {
+    const { frente, equipe, equipamento } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        locais: [{ descricao: "Ramal km 28+200 a 30+700", ordem: 0, atividades: [] }],
+        equipamentos: [
+          { equipamentoCatalogoId: equipamento.id, quantidade: 1, producaoDescricao: "Manutenção de Acesso", producaoValor: 800, producaoUnidade: "m" },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+  });
+
+  it("retorna 400 quando não há atividade nem produção de equipamento (RDO vazio)", async () => {
+    const { frente, equipe } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        locais: [{ descricao: "Ramal km 28+200 a 30+700", ordem: 0, atividades: [] }],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
   it("soma pontos extras da mesma atividade/OM no totalCalculado, cada um com seu próprio memorial", async () => {
     const { frente, equipe, atividade } = await criarCenario();
 

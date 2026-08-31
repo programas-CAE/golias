@@ -122,6 +122,8 @@ export const rdoAtividadeInputSchema = z
     // Só faz sentido quando ordemManutencaoId está preenchido — não
     // reforçado aqui porque o formulário já só mostra o campo nesse caso.
     statusOm: statusOmDeclaradoSchema.nullable().optional(),
+    // Percentual concluído da OM naquele dia (0-100) — mesma regra do statusOm.
+    percentualConcluido: z.number().int().min(0).max(100).nullable().optional(),
     kmInicial: z.number().nonnegative().nullable().optional(),
     kmFinal: z.number().nonnegative().nullable().optional(),
     altura: z.number().positive().nullable().optional(),
@@ -155,7 +157,12 @@ export const rdoLocalInputSchema = z.object({
   descricao: z.string().min(1, "Descrição do local é obrigatória"),
   lado: z.string().nullable().optional(),
   ordem: z.number().int().nonnegative().default(0),
-  atividades: z.array(rdoAtividadeInputSchema).min(1, "Informe ao menos uma atividade para o local"),
+  // Sem mínimo: equipes de terraplenagem apontam produção por equipamento
+  // (ver rdoEquipamentoInputSchema), não por atividade com dimensões dentro
+  // de um local — o local pode existir só pra descrever o trecho (ex.: "Km
+  // 28+200 a 30+700"), sem nenhuma atividade do catálogo. `rdoCreateInputSchema`
+  // garante que o RDO como um todo não fica vazio (atividade OU produção).
+  atividades: z.array(rdoAtividadeInputSchema).default([]),
 });
 
 export type RdoLocalInput = z.infer<typeof rdoLocalInputSchema>;
@@ -198,22 +205,38 @@ export const rdoMaterialInputSchema = z.object({
 
 export type RdoMaterialInput = z.infer<typeof rdoMaterialInputSchema>;
 
-export const rdoCreateInputSchema = z.object({
-  frenteId: z.string().cuid(),
-  equipeId: z.string().cuid(),
-  data: z.coerce.date(),
-  blocosHorario: z.array(rdoBlocoHorarioInputSchema).default([]),
-  horaExtraInicio: horarioSchema.nullable().optional(),
-  horaExtraFim: horarioSchema.nullable().optional(),
-  clima: tempoClimaSchema.nullable().optional(),
-  encarregadoId: z.string().cuid().nullable().optional(),
-  totalDesvios: z.number().int().nonnegative().nullable().optional(),
-  observacoesContratada: z.string().max(4000).nullable().optional(),
-  locais: z.array(rdoLocalInputSchema).min(1, "Informe ao menos um local trabalhado"),
-  maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),
-  equipamentos: z.array(rdoEquipamentoInputSchema).default([]),
-  materiais: z.array(rdoMaterialInputSchema).default([]),
-});
+export const rdoCreateInputSchema = z
+  .object({
+    frenteId: z.string().cuid(),
+    equipeId: z.string().cuid(),
+    data: z.coerce.date(),
+    blocosHorario: z.array(rdoBlocoHorarioInputSchema).default([]),
+    horaExtraInicio: horarioSchema.nullable().optional(),
+    horaExtraFim: horarioSchema.nullable().optional(),
+    clima: tempoClimaSchema.nullable().optional(),
+    encarregadoId: z.string().cuid().nullable().optional(),
+    totalDesvios: z.number().int().nonnegative().nullable().optional(),
+    observacoesContratada: z.string().max(4000).nullable().optional(),
+    locais: z.array(rdoLocalInputSchema).min(1, "Informe ao menos um local trabalhado"),
+    maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),
+    equipamentos: z.array(rdoEquipamentoInputSchema).default([]),
+    materiais: z.array(rdoMaterialInputSchema).default([]),
+  })
+  .superRefine((data, ctx) => {
+    // Um RDO precisa de algum conteúdo mensurável — ou atividade(s) do
+    // catálogo (Preventiva, com dimensões), ou produção de equipamento
+    // (terraplenagem, ver rdoEquipamentoInputSchema). Local sem atividade
+    // sozinho (só descrevendo o trecho) não basta.
+    const temAtividade = data.locais.some((local) => local.atividades.length > 0);
+    const temProducaoEquipamento = data.equipamentos.some((equipamento) => equipamento.producaoValor != null);
+    if (!temAtividade && !temProducaoEquipamento) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Informe ao menos uma atividade ou a produção de algum equipamento",
+        path: ["locais"],
+      });
+    }
+  });
 
 export type RdoCreateInput = z.infer<typeof rdoCreateInputSchema>;
 

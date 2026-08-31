@@ -177,6 +177,47 @@ describe("POST /equipes/:id/membros", () => {
   });
 });
 
+describe("PATCH /equipes/:id/membros/:membroId", () => {
+  it("atualiza a quantidade do membro", async () => {
+    const distrito = await criarDistrito();
+    const equipe = await prisma.equipe.create({ data: { nome: "Equipe F", distritoId: distrito.id } });
+    const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "Servente de Obras" } });
+    const membro = await prisma.equipeMembro.create({
+      data: { equipeId: equipe.id, colaboradorId: null, funcaoId: funcao.id, quantidade: 1 },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/equipes/${equipe.id}/membros/${membro.id}`,
+      payload: { quantidade: 4 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { quantidade: number };
+    expect(body.quantidade).toBe(4);
+  });
+
+  it("retorna 404 quando o membro é de outra equipe", async () => {
+    const distrito = await criarDistrito();
+    const equipeCerta = await prisma.equipe.create({ data: { nome: "Equipe J", distritoId: distrito.id } });
+    const outraEquipe = await prisma.equipe.create({ data: { nome: "Equipe K", distritoId: distrito.id } });
+    const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "Sinaleiro" } });
+    const membro = await prisma.equipeMembro.create({
+      data: { equipeId: outraEquipe.id, colaboradorId: null, funcaoId: funcao.id, quantidade: 1 },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "PATCH",
+      url: `/equipes/${equipeCerta.id}/membros/${membro.id}`,
+      payload: { quantidade: 2 },
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+});
+
 describe("DELETE /equipes/:id/membros/:membroId", () => {
   it("remove um membro da equipe", async () => {
     const distrito = await criarDistrito();

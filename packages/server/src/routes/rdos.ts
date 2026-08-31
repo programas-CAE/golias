@@ -74,6 +74,7 @@ function montarDadosCriacaoAtividade(atividade: import("@golias/shared").RdoAtiv
     atividadeCatalogoId: atividade.atividadeCatalogoId,
     ordemManutencaoId: atividade.ordemManutencaoId,
     statusOm: atividade.statusOm,
+    percentualConcluido: atividade.percentualConcluido,
     kmInicial: atividade.kmInicial,
     kmFinal: atividade.kmFinal,
     altura: atividade.altura,
@@ -156,6 +157,24 @@ async function substituirConteudoRdo(
   }
 }
 
+/**
+ * Um RDO só está pronto pra enviar se tem algum conteúdo mensurável — ou
+ * atividade(s) do catálogo (Preventiva, com dimensões), ou produção de
+ * algum equipamento (terraplenagem, que aponta por máquina em vez de
+ * atividade — ver comentário em rdoEquipamentoInputSchema). Mesma regra
+ * usada em rdoCreateInputSchema (packages/shared), aqui reaplicada porque
+ * os RDOs criados como rascunho vazio (`POST /rdos`) passam por esse
+ * schema só depois, ao enviar.
+ */
+function rdoTemConteudo(rdo: {
+  locais: Array<{ atividades: Array<{ id: string }> }>;
+  equipamentos: Array<{ producaoValor: unknown }>;
+}): boolean {
+  const temAtividade = rdo.locais.some((local) => local.atividades.length > 0);
+  const temProducaoEquipamento = rdo.equipamentos.some((equipamento) => equipamento.producaoValor != null);
+  return temAtividade || temProducaoEquipamento;
+}
+
 interface UltimaDecisaoFiscal {
   status: "APROVADO" | "REPROVADO";
   comentario: string | null;
@@ -198,7 +217,13 @@ const rdoListSelect = {
   equipe: { select: { id: true, nome: true } },
   linkCampoToken: true,
   linkCampoExpiraEm: true,
+  pdfPath: true,
 } as const;
+
+/** Não expõe o caminho em disco (`pdfPath` é interno) — só se o PDF já existe. */
+function comPdfDisponivel<T extends { pdfPath: string | null }>({ pdfPath, ...resto }: T): Omit<T, "pdfPath"> & { pdfDisponivel: boolean } {
+  return { ...resto, pdfDisponivel: pdfPath != null };
+}
 
 export const rdoCampoSelect = {
   id: true,
@@ -250,6 +275,7 @@ export const rdoCampoSelect = {
           atividadeCatalogo: { select: { id: true, codigo: true, descricao: true, unidade: true, usaDimensoes: true } },
           ordemManutencaoId: true,
           statusOm: true,
+          percentualConcluido: true,
           kmInicial: true,
           kmFinal: true,
           altura: true,
@@ -411,6 +437,7 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
         horarioInicial: atividade.horarioInicial,
         horarioFinal: atividade.horarioFinal,
         statusOm: atividade.statusOm,
+        percentualConcluido: atividade.percentualConcluido,
         maoDeObra: atividade.maoDeObra
           .filter((item) => item.quantidade > 0)
           .map((item) => ({ funcao: item.funcao.nome, quantidade: item.quantidade })),
@@ -516,7 +543,8 @@ export async function gerarEArmazenarPdf(rdoId: string): Promise<{ id: string; p
 
 export function registerRdosRoutes(app: FastifyInstance): void {
   app.get("/rdos", async () => {
-    return prisma.rdo.findMany({ orderBy: { criadoEm: "desc" }, select: rdoListSelect });
+    const rdos = await prisma.rdo.findMany({ orderBy: { criadoEm: "desc" }, select: rdoListSelect });
+    return rdos.map(comPdfDisponivel);
   });
 
   app.post("/rdos", async (request, reply) => {
@@ -531,7 +559,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         data: { ...data, linkCampoToken: generateToken(), linkCampoExpiraEm },
         select: rdoListSelect,
       });
-      return await reply.status(201).send(rdo);
+      return await reply.status(201).send(comPdfDisponivel(rdo));
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2003") {
         return reply.status(400).send({ error: "Frente ou equipe informada não existe" });
@@ -778,6 +806,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
           linkCampoExpiraEm: true,
           encarregadoId: true,
           locais: { select: { atividades: { select: { id: true } } } },
+          equipamentos: { select: { producaoValor: true } },
         },
       });
       if (!rdo) {
@@ -789,8 +818,8 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       if (!["RASCUNHO", "EM_CORRECAO"].includes(rdo.status)) {
         return reply.status(409).send({ error: "Este RDO já foi enviado para aprovação" });
       }
-      if (!rdo.locais.some((local) => local.atividades.length > 0)) {
-        return reply.status(400).send({ error: "Informe ao menos um local com atividade antes de enviar" });
+      if (!rdoTemConteudo(rdo)) {
+        return reply.status(400).send({ error: "Informe ao menos um local com atividade, ou a produção de algum equipamento, antes de enviar" });
       }
 
       const file = await request.file();
@@ -984,14 +1013,19 @@ export function registerRdosRoutes(app: FastifyInstance): void {
   app.post<{ Params: { id: string } }>("/rdos/:id/enviar-fiscal", async (request, reply) => {
     const rdo = await prisma.rdo.findUnique({
       where: { id: request.params.id },
-      select: { id: true, status: true, locais: { select: { atividades: { select: { id: true } } } } },
+      select: {
+        id: true,
+        status: true,
+        locais: { select: { atividades: { select: { id: true } } } },
+        equipamentos: { select: { producaoValor: true } },
+      },
     });
     if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
     if (rdo.status !== "AGUARDANDO_VALIDACAO_ESCRITORIO") {
       return reply.status(409).send({ error: "Este RDO não está aguardando validação do escritório" });
     }
-    if (!rdo.locais.some((local) => local.atividades.length > 0)) {
-      return reply.status(400).send({ error: "Informe ao menos um local com atividade antes de enviar" });
+    if (!rdoTemConteudo(rdo)) {
+      return reply.status(400).send({ error: "Informe ao menos um local com atividade, ou a produção de algum equipamento, antes de enviar" });
     }
 
     await prisma.$transaction([

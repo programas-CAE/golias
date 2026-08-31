@@ -41,6 +41,7 @@ export interface RdoPdfAtividade {
   horarioInicial: string | null;
   horarioFinal: string | null;
   statusOm: "EM_ANDAMENTO" | "CONCLUIDA" | null;
+  percentualConcluido: number | null;
   maoDeObra: RdoPdfAtividadeMaoDeObraItem[];
   // Ponto 1 é sempre os campos de dimensão acima (altura/largura/.../
   // quantidade) — pontosExtras só existe quando a mesma atividade/OM foi
@@ -232,8 +233,13 @@ function montarLinhasTabela(dados: RdoPdfDados): LinhaTabela[] {
         atividade.maoDeObra.length > 0
           ? ` — MO: ${atividade.maoDeObra.map((item) => `${item.quantidade} ${item.funcao}`).join(", ")}`
           : "";
+      const percentual = atividade.percentualConcluido != null ? ` — ${atividade.percentualConcluido}%` : "";
       const statusOm =
-        atividade.statusOm === "CONCLUIDA" ? " [OM concluída]" : atividade.statusOm === "EM_ANDAMENTO" ? " [OM em andamento]" : "";
+        atividade.statusOm === "CONCLUIDA"
+          ? ` [OM concluída${percentual}]`
+          : atividade.statusOm === "EM_ANDAMENTO"
+            ? ` [OM em andamento${percentual}]`
+            : "";
       linhas.push({
         inicial: atividade.horarioInicial ?? "",
         final: atividade.horarioFinal ?? "",
