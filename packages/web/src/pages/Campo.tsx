@@ -62,6 +62,7 @@ interface RdoAtividadeSalva {
   atividadeCatalogoId: string;
   ordemManutencaoId: string | null;
   statusOm: string | null;
+  percentualConcluido: number | null;
   kmInicial: string | null;
   kmFinal: string | null;
   altura: string | null;
@@ -171,6 +172,7 @@ interface AtividadeDraft {
   atividadeCatalogoId: string;
   ordemManutencaoId: string;
   statusOm: string;
+  percentualConcluido: string;
   unidade: string;
   kmInicial: string;
   kmFinal: string;
@@ -217,6 +219,7 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     atividadeCatalogoId: primeira?.id ?? "",
     ordemManutencaoId: "",
     statusOm: "",
+    percentualConcluido: "",
     unidade: primeira?.unidade ?? "UND",
     kmInicial: "",
     kmFinal: "",
@@ -370,6 +373,7 @@ export default function Campo(): ReactElement {
                   atividadeCatalogoId: atividade.atividadeCatalogoId,
                   ordemManutencaoId: atividade.ordemManutencaoId ?? "",
                   statusOm: atividade.statusOm ?? "",
+                  percentualConcluido: atividade.percentualConcluido != null ? String(atividade.percentualConcluido) : "",
                   kmInicial: atividade.kmInicial ?? "",
                   kmFinal: atividade.kmFinal ?? "",
                   unidade: atividade.unidade,
@@ -506,6 +510,7 @@ export default function Campo(): ReactElement {
                   kmFinal: om?.kmFinal ?? atividade.kmFinal,
                   // OM trocada/removida invalida a declaração anterior.
                   statusOm: ordemManutencaoId ? atividade.statusOm : "",
+                  percentualConcluido: ordemManutencaoId ? atividade.percentualConcluido : "",
                 }
               : atividade,
           ),
@@ -684,6 +689,7 @@ export default function Campo(): ReactElement {
             atividadeCatalogoId: atividade.atividadeCatalogoId,
             ordemManutencaoId: atividade.ordemManutencaoId || null,
             statusOm: atividade.statusOm || null,
+            percentualConcluido: atividade.percentualConcluido === "" ? null : Number(atividade.percentualConcluido),
             kmInicial: atividade.kmInicial === "" ? null : Number(atividade.kmInicial),
             kmFinal: atividade.kmFinal === "" ? null : Number(atividade.kmFinal),
             unidade: atividade.unidade,
@@ -1224,17 +1230,33 @@ export default function Campo(): ReactElement {
                   )}
 
                   {atividade.ordemManutencaoId && (
-                    <div>
-                      <label className="field-label">Status da OM</label>
-                      <select
-                        className="field-input"
-                        value={atividade.statusOm}
-                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "statusOm", event.target.value)}
-                      >
-                        <option value="">—</option>
-                        <option value="EM_ANDAMENTO">Em andamento</option>
-                        <option value="CONCLUIDA">Concluída</option>
-                      </select>
+                    <div className="campo-grid-2">
+                      <div>
+                        <label className="field-label">Status da OM</label>
+                        <select
+                          className="field-input"
+                          value={atividade.statusOm}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "statusOm", event.target.value)}
+                        >
+                          <option value="">—</option>
+                          <option value="EM_ANDAMENTO">Em andamento</option>
+                          <option value="CONCLUIDA">Concluída</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="field-label">% concluído da OM</label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          className="field-input"
+                          placeholder="0 a 100"
+                          value={atividade.percentualConcluido}
+                          onChange={(event) =>
+                            atualizarAtividade(localIndice, atividadeIndice, "percentualConcluido", event.target.value)
+                          }
+                        />
+                      </div>
                     </div>
                   )}
 
@@ -1366,6 +1388,11 @@ export default function Campo(): ReactElement {
               getLabel={(item) => item.nome}
               placeholder="Digite o nome do equipamento…"
               onChange={(equipamentoCatalogoId) => atualizarEquipamento(indice, "equipamentoCatalogoId", equipamentoCatalogoId)}
+              onCriar={async (nome) => {
+                const novo = await api.post<EquipamentoRef>("/equipamentos", { nome });
+                setEquipamentosCatalogo((atual) => [...atual, novo]);
+                return novo;
+              }}
             />
             <input
               type="number"

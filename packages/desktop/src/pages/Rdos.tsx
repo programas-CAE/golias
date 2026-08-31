@@ -1,8 +1,8 @@
-import { useEffect, useState, type FormEvent, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
-import { getSettings } from "../lib/settingsStore";
+import { abrirExterno, getSettings } from "../lib/settingsStore";
 
 interface Frente {
   id: string;
@@ -23,6 +23,7 @@ interface Rdo {
   equipe: { id: string; nome: string };
   linkCampoToken: string | null;
   linkCampoExpiraEm: string | null;
+  pdfDisponivel: boolean;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -34,6 +35,27 @@ const STATUS_LABEL: Record<string, string> = {
   REPROVADO: "Reprovado",
 };
 
+function mesAtual(): string {
+  const hoje = new Date();
+  return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Período (dia 21 do mês anterior ao dia 20 do mês selecionado) usado pra
+ * arquivar/consultar os RDOs por ciclo, a pedido do usuário — não é o
+ * mesmo ciclo do Farol (dia 19 a 20), é um período de arquivo diferente.
+ */
+function periodoDoArquivo(mes: string): { inicio: string; fim: string } {
+  const [anoStr, mesStr] = mes.split("-");
+  const ano = Number(anoStr);
+  const mesNumero = Number(mesStr);
+  const inicio = new Date(ano, mesNumero - 2, 21);
+  const fim = new Date(ano, mesNumero - 1, 20);
+  const formatar = (data: Date): string =>
+    `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}-${String(data.getDate()).padStart(2, "0")}`;
+  return { inicio: formatar(inicio), fim: formatar(fim) };
+}
+
 export default function Rdos(): ReactElement {
   const navigate = useNavigate();
   const [rdos, setRdos] = useState<Rdo[] | null>(null);
@@ -43,6 +65,7 @@ export default function Rdos(): ReactElement {
   const [erro, setErro] = useState<string | null>(null);
   const [criando, setCriando] = useState(false);
   const [linkGerado, setLinkGerado] = useState<{ rdo: Rdo; copiado: boolean } | null>(null);
+  const [mes, setMes] = useState(mesAtual());
 
   async function carregar(): Promise<void> {
     setErro(null);
@@ -69,6 +92,20 @@ export default function Rdos(): ReactElement {
   function linkDoRdo(rdo: Rdo): string {
     return `${webUrl.replace(/\/$/, "")}/campo/${rdo.linkCampoToken}`;
   }
+
+  async function baixarPdf(rdo: Rdo): Promise<void> {
+    const settings = await getSettings();
+    await abrirExterno(`${settings.apiUrl.replace(/\/$/, "")}/rdos/${rdo.id}/pdf`);
+  }
+
+  const periodo = useMemo(() => periodoDoArquivo(mes), [mes]);
+  const rdosDoPeriodo = useMemo(
+    () => (rdos ?? []).filter((rdo) => {
+      const data = rdo.data.slice(0, 10);
+      return data >= periodo.inicio && data <= periodo.fim;
+    }),
+    [rdos, periodo],
+  );
 
   async function copiarLink(rdo: Rdo): Promise<void> {
     await navigator.clipboard.writeText(linkDoRdo(rdo));
@@ -100,11 +137,21 @@ export default function Rdos(): ReactElement {
 
         {erro && <p className="feedback feedback--erro">{erro}</p>}
 
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div>
+            <label className="field-label">Período (dia 21 ao dia 20)</label>
+            <input type="month" className="field-input" value={mes} onChange={(event) => setMes(event.target.value)} />
+          </div>
+          <p className="list-subtitle" style={{ marginTop: 20 }}>
+            {periodo.inicio.split("-").reverse().join("/")} a {periodo.fim.split("-").reverse().join("/")}
+          </p>
+        </div>
+
         <div className="panel">
           {rdos === null ? (
             <p className="table-empty">Carregando…</p>
-          ) : rdos.length === 0 ? (
-            <p className="table-empty">Nenhum RDO criado ainda.</p>
+          ) : rdosDoPeriodo.length === 0 ? (
+            <p className="table-empty">Nenhum RDO nesse período.</p>
           ) : (
             <table className="table">
               <thead>
@@ -118,7 +165,7 @@ export default function Rdos(): ReactElement {
                 </tr>
               </thead>
               <tbody>
-                {rdos.map((rdo) => (
+                {rdosDoPeriodo.map((rdo) => (
                   <tr key={rdo.id}>
                     <td>{rdo.data.slice(0, 10)}</td>
                     <td>{rdo.frente.nome}</td>
@@ -130,6 +177,15 @@ export default function Rdos(): ReactElement {
                     <td style={{ display: "flex", gap: 8 }}>
                       <button type="button" className="button button--ghost button--small" onClick={() => navigate(`/rdos/${rdo.id}`)}>
                         Ver
+                      </button>
+                      <button
+                        type="button"
+                        className="button button--ghost button--small"
+                        disabled={!rdo.pdfDisponivel}
+                        title={rdo.pdfDisponivel ? undefined : "PDF ainda não foi gerado"}
+                        onClick={() => void baixarPdf(rdo)}
+                      >
+                        Baixar PDF
                       </button>
                       {rdo.linkCampoToken && (
                         <button

@@ -17,6 +17,7 @@ interface AtividadeDetalhe {
   unidade: string;
   ordemManutencaoId: string | null;
   statusOm: string | null;
+  percentualConcluido: number | null;
   kmInicial: string | null;
   kmFinal: string | null;
   horarioInicial: string | null;
@@ -309,7 +310,7 @@ export default function RdoDetalhe(): ReactElement {
                           </td>
                           <td>
                             {atividade.ordemManutencaoId
-                              ? `Vinculada${atividade.statusOm ? ` (${STATUS_OM_LABEL[atividade.statusOm] ?? atividade.statusOm})` : ""}`
+                              ? `Vinculada${atividade.statusOm ? ` (${STATUS_OM_LABEL[atividade.statusOm] ?? atividade.statusOm}${atividade.percentualConcluido != null ? ` — ${atividade.percentualConcluido}%` : ""})` : ""}`
                               : "—"}
                           </td>
                           <td>

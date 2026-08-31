@@ -11,6 +11,13 @@ interface AutocompleteProps<T extends AutocompleteItem> {
   getSublabel?: (item: T) => string | null | undefined;
   onChange: (id: string) => void;
   placeholder?: string;
+  /**
+   * Quando informado, digitar um nome que não existe na lista mostra uma
+   * sugestão "+ Criar…" — usada em catálogos que mudam com frequência (ex.:
+   * equipamentos), pra não obrigar a pessoa a ir numa outra tela cadastrar
+   * antes de conseguir usar.
+   */
+  onCriar?: (texto: string) => Promise<T>;
 }
 
 /**
@@ -26,11 +33,14 @@ export default function Autocomplete<T extends AutocompleteItem>({
   getSublabel,
   onChange,
   placeholder,
+  onCriar,
 }: AutocompleteProps<T>): ReactElement {
   const selecionado = useMemo(() => items.find((item) => item.id === value) ?? null, [items, value]);
   const [texto, setTexto] = useState(selecionado ? getLabel(selecionado) : "");
   const [aberto, setAberto] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [criando, setCriando] = useState(false);
+  const [erroCriar, setErroCriar] = useState<string | null>(null);
   // Enquanto o usuário digita, o texto não deve ser resincronizado a partir
   // de `selecionado` — só depois que ele confirma uma sugestão ou sai do
   // campo (senão a digitação é apagada a cada tecla, porque nada muda
@@ -77,6 +87,26 @@ export default function Autocomplete<T extends AutocompleteItem>({
     setAberto(false);
   }
 
+  const textoAparado = texto.trim();
+  const podeCriar =
+    onCriar != null &&
+    textoAparado !== "" &&
+    !items.some((item) => getLabel(item).toLowerCase() === textoAparado.toLowerCase());
+
+  async function criar(): Promise<void> {
+    if (!onCriar || !podeCriar) return;
+    setCriando(true);
+    setErroCriar(null);
+    try {
+      const novo = await onCriar(textoAparado);
+      selecionar(novo);
+    } catch (error) {
+      setErroCriar(error instanceof Error ? error.message : "Não foi possível criar.");
+    } finally {
+      setCriando(false);
+    }
+  }
+
   return (
     <div className="om-autocomplete" ref={containerRef}>
       <input
@@ -91,7 +121,7 @@ export default function Autocomplete<T extends AutocompleteItem>({
         }}
         onFocus={() => setAberto(true)}
       />
-      {aberto && sugestoes.length > 0 && (
+      {aberto && (sugestoes.length > 0 || podeCriar) && (
         <ul className="om-autocomplete-lista">
           {sugestoes.map((item) => {
             const sublabel = getSublabel?.(item);
@@ -104,13 +134,26 @@ export default function Autocomplete<T extends AutocompleteItem>({
               </li>
             );
           })}
+          {podeCriar && (
+            <li>
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => void criar()}
+                disabled={criando}
+              >
+                <span className="om-autocomplete-numero">{criando ? "Criando…" : `+ Criar "${textoAparado}"`}</span>
+              </button>
+            </li>
+          )}
         </ul>
       )}
-      {aberto && texto.trim() !== "" && sugestoes.length === 0 && (
+      {aberto && texto.trim() !== "" && sugestoes.length === 0 && !podeCriar && (
         <ul className="om-autocomplete-lista">
           <li className="om-autocomplete-vazio">Nenhum resultado encontrado</li>
         </ul>
       )}
+      {erroCriar && <p className="feedback feedback--erro">{erroCriar}</p>}
     </div>
   );
 }

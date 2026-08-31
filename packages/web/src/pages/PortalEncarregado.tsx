@@ -156,11 +156,20 @@ export default function PortalEncarregado(): ReactElement {
     setSalvandoMembro(true);
     setErro(null);
     try {
-      await api.post(`/equipes/${equipeId}/membros`, {
-        funcaoId: novoMembroFuncaoId,
-        colaboradorId: novoMembroColaboradorId || null,
-        quantidade: Number(novoMembroQuantidade) || 1,
-      });
+      const colaboradorId = novoMembroColaboradorId || null;
+      const quantidade = Number(novoMembroQuantidade) || 1;
+      // Já existe uma linha igual (mesma função e mesmo colaborador, ou
+      // ambos genéricos)? Soma na existente em vez de criar outra — cada
+      // clique em "+ Adicionar" não pode virar uma linha nova de "1", senão
+      // a mesma função aparece repetida várias vezes na mão de obra do RDO.
+      const existente = equipeSelecionada?.membros.find(
+        (membro) => membro.funcao.id === novoMembroFuncaoId && (membro.colaborador?.id ?? null) === colaboradorId,
+      );
+      if (existente) {
+        await api.patch(`/equipes/${equipeId}/membros/${existente.id}`, { quantidade: existente.quantidade + quantidade });
+      } else {
+        await api.post(`/equipes/${equipeId}/membros`, { funcaoId: novoMembroFuncaoId, colaboradorId, quantidade });
+      }
       await carregar(true);
       setNovoMembroFuncaoId("");
       setNovoMembroColaboradorId("");

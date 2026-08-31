@@ -74,6 +74,7 @@ export default function PortalFiscal(): ReactElement {
   const [observacao, setObservacao] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
+  const [rdoAssinadoId, setRdoAssinadoId] = useState<string | null>(null);
   const assinaturaRef = useRef<AssinaturaCanvasHandle>(null);
 
   async function carregarLista(): Promise<void> {
@@ -98,6 +99,7 @@ export default function PortalFiscal(): ReactElement {
     setCarregandoDetalhe(true);
     setErroAcao(null);
     setAcao(null);
+    setRdoAssinadoId(null);
     try {
       const detalhe = await api.get<RdoDetalhe>(`/portal-fiscal/${token}/rdos/${rdoId}`);
       setRdoAberto(detalhe);
@@ -129,6 +131,7 @@ export default function PortalFiscal(): ReactElement {
       if (observacao.trim()) form.append("observacao", observacao.trim());
       form.append("assinatura", blob, "assinatura.png");
       await api.postForm(`/portal-fiscal/${token}/rdos/${rdoAberto.id}/assinar`, form);
+      setRdoAssinadoId(rdoAberto.id);
       setRdoAberto(null);
       setAcao(null);
       setObservacao("");
@@ -219,6 +222,21 @@ export default function PortalFiscal(): ReactElement {
             </ul>
           )}
         </section>
+
+        {rdoAssinadoId && (
+          <section className="campo-secao">
+            <p className="feedback feedback--ok">RDO aprovado e assinado com sucesso.</p>
+            <a
+              className="button"
+              style={{ display: "inline-flex", marginTop: 8 }}
+              href={`${API_URL}/rdos/${rdoAssinadoId}/pdf`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Baixar PDF assinado
+            </a>
+          </section>
+        )}
 
         {lista.historico.length > 0 && (
           <section className="campo-secao">

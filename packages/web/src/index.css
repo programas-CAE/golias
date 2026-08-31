@@ -222,7 +222,7 @@ body {
   border-bottom: none;
 }
 
-.campo-qtd {
+.field-input.campo-qtd {
   width: 72px;
   text-align: center;
   flex-shrink: 0;
