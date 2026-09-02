@@ -198,16 +198,62 @@ model EquipeMembro {
 }
 
 model OrdemManutencao {
-  id          String         @id @default(cuid())
-  numero      String         @unique
-  frenteId    String
-  frente      Frente         @relation(fields: [frenteId], references: [id])
-  dataEmissao DateTime
-  kmInicial   Decimal?       @db.Decimal(10, 3)
-  kmFinal     Decimal?       @db.Decimal(10, 3)
-  lado        String?
-  detalhes    String?
-  atividades  RdoAtividade[]
+  id                   String                @id @default(cuid())
+  numero               String                @unique
+  frenteId             String
+  frente               Frente                @relation(fields: [frenteId], references: [id])
+  dataEmissao          DateTime
+  kmInicial            Decimal?              @db.Decimal(10, 3)
+  kmFinal              Decimal?              @db.Decimal(10, 3)
+  lado                 String?
+  detalhes             String?
+  atividades           RdoAtividade[]
+  anexos               RdoAnexo[]
+  relatorioFotografico RelatorioFotografico?
+}
+
+// Checklist de Conclusão de Manutenção Preventiva/Corretiva - Infraestrutura
+// (documento oficial da Vale/EFC — "Relatório Fotográfico"). Um por OM.
+// Criado (e pré-preenchido com as fotos que o encarregado já lançou pra
+// essa OM) na primeira vez que a tela é aberta no escritório; depois disso
+// é só ajuste — sincronizar novas fotos é uma ação separada, pra não
+// ressuscitar uma foto que o escritório removeu de propósito.
+model RelatorioFotografico {
+  id                   String                     @id @default(cuid())
+  ordemManutencaoId    String                     @unique
+  ordemManutencao      OrdemManutencao            @relation(fields: [ordemManutencaoId], references: [id])
+  dataConclusao        DateTime?                  @db.Date
+  // "* Todas as atividades listadas na OM foram executadas;" — único item
+  // do checklist original, com a caixa "OK".
+  atividadesExecutadas Boolean                    @default(true)
+  comentarios          String?
+  pdfPath              String?
+  fotos                RelatorioFotograficoFoto[]
+  criadoEm             DateTime                   @default(now())
+  atualizadoEm         DateTime                   @updatedAt
+}
+
+model RelatorioFotograficoFoto {
+  id                     String               @id @default(cuid())
+  relatorioFotograficoId String
+  relatorioFotografico   RelatorioFotografico @relation(fields: [relatorioFotograficoId], references: [id])
+  ordem                  Int
+  legenda                String?
+  // "Remover" é exclusão lógica, não apaga a linha — se apagasse, sincronizar
+  // fotos novas do campo ressuscitaria uma foto que o escritório tirou de
+  // propósito (o rdoAnexoId voltaria a parecer "nunca visto"). A linha
+  // inativa continua existindo só como "já vi essa e tirei".
+  ativa                  Boolean              @default(true)
+  // Ou referencia uma foto que o encarregado já mandou num RDO (reaproveita
+  // o arquivo, sem duplicar), ou foi anexada direto nesta tela pelo
+  // escritório (dono do próprio arquivo) — sempre um dos dois, nunca os dois.
+  rdoAnexoId             String?
+  rdoAnexo               RdoAnexo?            @relation(fields: [rdoAnexoId], references: [id], onDelete: Cascade)
+  caminhoArquivo         String?
+  nomeOriginal           String?
+  mimeType               String?
+  tamanhoBytes           Int?
+  criadoEm               DateTime             @default(now())
 }
 
 model Usuario {
@@ -457,17 +503,25 @@ model RdoMaterial {
 }
 
 model RdoAnexo {
-  id             String    @id @default(cuid())
-  rdoId          String
-  rdo            Rdo       @relation(fields: [rdoId], references: [id])
-  tipo           TipoAnexo
-  caminhoArquivo String
-  nomeOriginal   String
-  mimeType       String
-  tamanhoBytes   Int
-  descricao      String?
-  valor          Decimal?  @db.Decimal(12, 2)
-  criadoEm       DateTime  @default(now())
+  id                String                     @id @default(cuid())
+  rdoId             String
+  rdo               Rdo                        @relation(fields: [rdoId], references: [id])
+  tipo              TipoAnexo
+  caminhoArquivo    String
+  nomeOriginal      String
+  mimeType          String
+  tamanhoBytes      Int
+  descricao         String?
+  valor             Decimal?                   @db.Decimal(12, 2)
+  // Foto tirada para uma OM específica (o encarregado escolhe a OM ao
+  // enviar a foto no lançamento de campo) — null pra fotos gerais do dia,
+  // notas fiscais e documentos, que não são de uma OM em particular.
+  // Usado pra agrupar as fotos por OM no PDF do RDO, na tela do escritório
+  // e como fonte pro Relatório Fotográfico da OM (RelatorioFotografico).
+  ordemManutencaoId String?
+  ordemManutencao   OrdemManutencao?           @relation(fields: [ordemManutencaoId], references: [id])
+  criadoEm          DateTime                   @default(now())
+  fotosDeRelatorio  RelatorioFotograficoFoto[]
 }
 
 model AprovacaoFiscal {

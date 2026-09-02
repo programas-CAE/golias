@@ -9,4 +9,5 @@ export * from "./schemas/frente.schema.js";
 export * from "./schemas/ordemManutencao.schema.js";
 export * from "./schemas/portalFiscal.schema.js";
 export * from "./schemas/rdo.schema.js";
+export * from "./schemas/relatorioFotografico.schema.js";
 export * from "./utils/calcularTotalAtividade.js";

@@ -8,9 +8,10 @@ import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { ANEXO_MIME_EXTENSAO, ANEXO_TIPOS, assinaturaValida, salvarArquivoAnexo } from "../lib/anexoArquivo.js";
 import { comCodigoRastreio } from "../lib/codigoRastreio.js";
 import { prisma } from "../lib/prisma.js";
-import { calcularHashConteudo, gerarPdfRdo, type RdoConteudo } from "../lib/rdoPdf.js";
+import { calcularHashConteudo, gerarPdfRdo, type RdoConteudo, type RdoPdfGrupoFotos } from "../lib/rdoPdf.js";
 import { generateToken } from "../lib/tokens.js";
 import { parseBody } from "../lib/validate.js";
 
@@ -277,6 +278,7 @@ export const rdoCampoSelect = {
           atividadeCatalogoId: true,
           atividadeCatalogo: { select: { id: true, codigo: true, descricao: true, unidade: true, usaDimensoes: true } },
           ordemManutencaoId: true,
+          ordemManutencao: { select: { id: true, numero: true } },
           statusOm: true,
           percentualConcluido: true,
           kmInicial: true,
@@ -351,44 +353,12 @@ export const rdoCampoSelect = {
       mimeType: true,
       tamanhoBytes: true,
       descricao: true,
+      ordemManutencaoId: true,
+      ordemManutencao: { select: { id: true, numero: true } },
       criadoEm: true,
     },
   },
 } as const;
-
-const ANEXO_TIPOS = ["FOTO", "NOTA_FISCAL", "DOCUMENTO"] as const;
-const ANEXO_MIME_EXTENSAO: Record<string, string> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-  "application/pdf": ".pdf",
-};
-
-/**
- * Confere os primeiros bytes do arquivo contra a assinatura esperada do tipo
- * declarado — o Content-Type do multipart é só uma alegação do cliente, não
- * prova do conteúdo real (endpoint público, sem login).
- */
-export function assinaturaValida(mimetype: string, buffer: Buffer): boolean {
-  switch (mimetype) {
-    case "image/jpeg":
-      return buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
-    case "image/png":
-      return (
-        buffer.length >= 4 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47
-      );
-    case "image/webp":
-      return (
-        buffer.length >= 12 &&
-        buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
-        buffer.subarray(8, 12).toString("ascii") === "WEBP"
-      );
-    case "application/pdf":
-      return buffer.length >= 4 && buffer.subarray(0, 4).toString("ascii") === "%PDF";
-    default:
-      return false;
-  }
-}
 
 async function buscarRdoPorToken(token: string) {
   return prisma.rdo.findUnique({ where: { linkCampoToken: token }, select: rdoCampoSelect });
@@ -407,6 +377,45 @@ type RdoParaPdf = NonNullable<Awaited<ReturnType<typeof buscarRdoPorToken>>>;
  * com uma busca à parte, como já feito em distritos.ts
  * (`/distritos/:id/encarregados`).
  */
+/**
+ * Fotos (tipo FOTO) do RDO, agrupadas pela OM que o encarregado marcou ao
+ * enviar cada uma — pra aparecer separado por OM no PDF, em vez de uma
+ * lista solta. Fotos sem OM (ou anexos que não são foto, como nota fiscal)
+ * caem no grupo "Fotos gerais" ou ficam de fora, respectivamente.
+ */
+async function montarGruposFotos(rdoId: string): Promise<RdoPdfGrupoFotos[]> {
+  const fotos = await prisma.rdoAnexo.findMany({
+    where: { rdoId, tipo: "FOTO" },
+    orderBy: { criadoEm: "asc" },
+    select: {
+      caminhoArquivo: true,
+      descricao: true,
+      ordemManutencaoId: true,
+      ordemManutencao: { select: { numero: true } },
+    },
+  });
+
+  const grupos = new Map<string, { omNumero: string | null; fotos: { imagem: Buffer; legenda: string | null }[] }>();
+  for (const foto of fotos) {
+    const chave = foto.ordemManutencaoId ?? "__geral__";
+    if (!grupos.has(chave)) {
+      grupos.set(chave, { omNumero: foto.ordemManutencao?.numero ?? null, fotos: [] });
+    }
+    let imagem: Buffer;
+    try {
+      imagem = await readFile(foto.caminhoArquivo);
+    } catch {
+      continue;
+    }
+    grupos.get(chave)!.fotos.push({ imagem, legenda: foto.descricao });
+  }
+
+  // OMs primeiro (na ordem em que apareceram), "Fotos gerais" por último.
+  const comOm = [...grupos.values()].filter((g) => g.omNumero != null);
+  const semOm = grupos.get("__geral__");
+  return semOm && semOm.fotos.length > 0 ? [...comOm, semOm] : comOm;
+}
+
 async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
   const encarregado = rdo.encarregadoId
     ? await prisma.colaborador.findUnique({ where: { id: rdo.encarregadoId }, select: { nome: true } })
@@ -439,6 +448,7 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
         comprimento: atividade.comprimento != null ? Number(atividade.comprimento) : null,
         horarioInicial: atividade.horarioInicial,
         horarioFinal: atividade.horarioFinal,
+        omNumero: atividade.ordemManutencao?.numero ?? null,
         statusOm: atividade.statusOm,
         percentualConcluido: atividade.percentualConcluido,
         maoDeObra: atividade.maoDeObra
@@ -511,6 +521,10 @@ export async function gerarEArmazenarPdf(rdoId: string): Promise<{ id: string; p
   const conteudo = await montarConteudoRdo(rdo);
   const hash = calcularHashConteudo(conteudo);
   const urlVerificacao = montarUrlVerificacao(rdo.id, hash);
+  // Fotos ficam fora do conteúdo hasheado (mesma lógica das assinaturas
+  // abaixo) — os bytes de imagem não devem entrar no hash de autenticidade,
+  // que precisa ficar estável e barato de recalcular.
+  const gruposFotos = await montarGruposFotos(rdo.id);
 
   const assinaturaEncarregado =
     rdoComAssinaturas?.assinaturaEncarregadoPath && rdoComAssinaturas.enviadoParaFiscalEm
@@ -529,7 +543,7 @@ export async function gerarEArmazenarPdf(rdoId: string): Promise<{ id: string; p
         }
       : null;
 
-  const buffer = await gerarPdfRdo({ ...conteudo, urlVerificacao, assinaturaEncarregado, assinaturaFiscal });
+  const buffer = await gerarPdfRdo({ ...conteudo, urlVerificacao, assinaturaEncarregado, assinaturaFiscal, gruposFotos });
 
   const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
   const rdoDir = path.join(uploadsRoot, "rdos", rdo.id);
@@ -750,7 +764,10 @@ export function registerRdosRoutes(app: FastifyInstance): void {
     },
   );
 
-  app.post<{ Params: { token: string }; Querystring: { tipo?: string; descricao?: string } }>(
+  app.post<{
+    Params: { token: string };
+    Querystring: { tipo?: string; descricao?: string; ordemManutencaoId?: string };
+  }>(
     "/rdos/campo/:token/anexos",
     { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
     async (request, reply) => {
@@ -789,23 +806,26 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         ? (tipoQuery as (typeof ANEXO_TIPOS)[number])
         : "FOTO";
 
-      const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
-      const rdoDir = path.join(uploadsRoot, rdo.id);
-      await mkdir(rdoDir, { recursive: true });
+      const ordemManutencaoId = request.query.ordemManutencaoId || null;
+      if (ordemManutencaoId) {
+        const om = await prisma.ordemManutencao.findUnique({ where: { id: ordemManutencaoId }, select: { id: true } });
+        if (!om) {
+          return reply.status(400).send({ error: "Ordem de manutenção inválida" });
+        }
+      }
 
-      const nomeArquivo = `${generateToken()}${extensao}`;
-      const caminhoCompleto = path.join(rdoDir, nomeArquivo);
-      await writeFile(caminhoCompleto, buffer);
+      const { caminhoArquivo } = await salvarArquivoAnexo(buffer, file.mimetype, rdo.id);
 
       const anexo = await prisma.rdoAnexo.create({
         data: {
           rdoId: rdo.id,
           tipo,
-          caminhoArquivo: caminhoCompleto,
+          caminhoArquivo,
           nomeOriginal: file.filename,
           mimeType: file.mimetype,
           tamanhoBytes: buffer.length,
           descricao: request.query.descricao ?? null,
+          ordemManutencaoId,
         },
         select: {
           id: true,
@@ -814,11 +834,42 @@ export function registerRdosRoutes(app: FastifyInstance): void {
           mimeType: true,
           tamanhoBytes: true,
           descricao: true,
+          ordemManutencaoId: true,
+          ordemManutencao: { select: { id: true, numero: true } },
           criadoEm: true,
         },
       });
 
       return await reply.status(201).send(anexo);
+    },
+  );
+
+  /** Baixa/visualiza o arquivo de um anexo (foto, nota fiscal, documento). */
+  app.get<{ Params: { id: string; anexoId: string } }>(
+    "/rdos/:id/anexos/:anexoId",
+    async (request, reply) => {
+      const anexo = await prisma.rdoAnexo.findUnique({ where: { id: request.params.anexoId } });
+      if (!anexo || anexo.rdoId !== request.params.id) {
+        return reply.status(404).send({ error: "Anexo não encontrado" });
+      }
+      const buffer = await readFile(anexo.caminhoArquivo);
+      return reply
+        .header("Content-Type", anexo.mimeType)
+        .header("Content-Disposition", `inline; filename="${anexo.nomeOriginal}"`)
+        .send(buffer);
+    },
+  );
+
+  /** Remove um anexo — só faz sentido enquanto o RDO ainda não foi assinado/enviado. */
+  app.delete<{ Params: { id: string; anexoId: string } }>(
+    "/rdos/:id/anexos/:anexoId",
+    async (request, reply) => {
+      const anexo = await prisma.rdoAnexo.findUnique({ where: { id: request.params.anexoId } });
+      if (!anexo || anexo.rdoId !== request.params.id) {
+        return reply.status(404).send({ error: "Anexo não encontrado" });
+      }
+      await prisma.rdoAnexo.delete({ where: { id: anexo.id } });
+      return reply.status(204).send();
     },
   );
 

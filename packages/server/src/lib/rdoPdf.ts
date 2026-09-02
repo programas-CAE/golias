@@ -40,6 +40,9 @@ export interface RdoPdfAtividade {
   comprimento: number | null;
   horarioInicial: string | null;
   horarioFinal: string | null;
+  // Número da OM (SAP) vinculada à atividade — mostrado no lugar da palavra
+  // "concluída"/"em andamento" no PDF, pra identificar de cara qual OM é.
+  omNumero: string | null;
   statusOm: "EM_ANDAMENTO" | "CONCLUIDA" | null;
   percentualConcluido: number | null;
   maoDeObra: RdoPdfAtividadeMaoDeObraItem[];
@@ -105,11 +108,30 @@ export interface RdoPdfAssinatura {
   data: Date;
 }
 
-/** `RdoConteudo` + a URL de verificação (que já embute o hash desse conteúdo) — o que o desenho do PDF efetivamente usa. */
+/** Uma foto do registro fotográfico, já com os bytes lidos do disco. */
+export interface RdoPdfFoto {
+  imagem: Buffer;
+  legenda: string | null;
+}
+
+/** Fotos do dia agrupadas pela OM a que foram vinculadas (omNumero null = "Fotos gerais"). */
+export interface RdoPdfGrupoFotos {
+  omNumero: string | null;
+  fotos: RdoPdfFoto[];
+}
+
+/**
+ * `RdoConteudo` + a URL de verificação (que já embute o hash desse
+ * conteúdo) — o que o desenho do PDF efetivamente usa. Assinaturas e fotos
+ * ficam de fora de `RdoConteudo` de propósito: são bytes de imagem, não
+ * precisam (nem devem, por custo/estabilidade) entrar no hash de
+ * autenticidade calculado sobre o conteúdo.
+ */
 export interface RdoPdfDados extends RdoConteudo {
   urlVerificacao: string;
   assinaturaEncarregado?: RdoPdfAssinatura | null;
   assinaturaFiscal?: RdoPdfAssinatura | null;
+  gruposFotos?: RdoPdfGrupoFotos[];
 }
 
 const MARGEM = 28;
@@ -251,13 +273,14 @@ function montarLinhasTabela(dados: RdoPdfDados): LinhaTabela[] {
       ];
       if (atividade.statusOm === "CONCLUIDA" || atividade.statusOm === "EM_ANDAMENTO") {
         const percentual = atividade.percentualConcluido != null ? ` — ${atividade.percentualConcluido}%` : "";
+        const cor = atividade.statusOm === "CONCLUIDA" ? COR_STATUS_CONCLUIDA : COR_STATUS_EM_ANDAMENTO;
+        // Mostra o número da OM (não a palavra "concluída"/"em andamento")
+        // colorido conforme o status, pra identificar a OM de cara.
         descricao.push(
           { texto: " [" },
           { texto: "OM", negrito: true },
           { texto: " " },
-          atividade.statusOm === "CONCLUIDA"
-            ? { texto: "concluída", cor: COR_STATUS_CONCLUIDA }
-            : { texto: "em andamento", cor: COR_STATUS_EM_ANDAMENTO },
+          { texto: atividade.omNumero ?? "—", cor },
           { texto: `${percentual}]` },
         );
       }
@@ -736,6 +759,67 @@ function desenharCroquis(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   }
 }
 
+const FOTO_LARGURA = 250;
+const FOTO_ALTURA = 180;
+
+/** Registro fotográfico do dia, agrupado por OM (uma seção por OM, 2 fotos por linha) — página(s) própria(s), depois dos croquis. */
+function desenharFotos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
+  const grupos = (dados.gruposFotos ?? []).filter((grupo) => grupo.fotos.length > 0);
+  if (grupos.length === 0) return;
+
+  doc.addPage();
+  doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000").text("REGISTRO FOTOGRÁFICO", MARGEM, MARGEM);
+  doc.moveTo(MARGEM, doc.y + 4).lineTo(LARGURA_PAGINA - MARGEM, doc.y + 4).lineWidth(0.75).stroke();
+  let y = doc.y + 16;
+
+  const gap = 20;
+  const colX = [MARGEM, MARGEM + FOTO_LARGURA + gap];
+  const alturaCartao = FOTO_ALTURA + 28;
+
+  for (const grupo of grupos) {
+    if (y + 18 > ALTURA_PAGINA - MARGEM) {
+      doc.addPage();
+      y = MARGEM;
+    }
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .fillColor("#000000")
+      .text(grupo.omNumero ? `OM ${grupo.omNumero}` : "Fotos gerais", MARGEM, y);
+    y = doc.y + 8;
+
+    let coluna = 0;
+    for (const foto of grupo.fotos) {
+      if (y + alturaCartao > ALTURA_PAGINA - MARGEM) {
+        doc.addPage();
+        y = MARGEM;
+        coluna = 0;
+      }
+      const x = colX[coluna]!;
+      try {
+        doc.image(foto.imagem, x, y, { fit: [FOTO_LARGURA, FOTO_ALTURA], align: "center", valign: "center" });
+      } catch {
+        // Arquivo corrompido/formato inesperado — pula a imagem em vez de derrubar a geração do PDF inteiro.
+      }
+      if (foto.legenda) {
+        doc
+          .font("Helvetica")
+          .fontSize(7)
+          .fillColor("#000000")
+          .text(foto.legenda, x, y + FOTO_ALTURA + 2, { width: FOTO_LARGURA });
+      }
+      if (coluna === 0) {
+        coluna = 1;
+      } else {
+        coluna = 0;
+        y += alturaCartao;
+      }
+    }
+    if (coluna !== 0) y += alturaCartao;
+    y += 12;
+  }
+}
+
 async function desenharRodape(doc: PDFKit.PDFDocument, dados: RdoPdfDados): Promise<void> {
   garantirEspaco(doc, 130);
   const y0 = doc.y + 16;
@@ -791,6 +875,7 @@ export async function gerarPdfRdo(dados: RdoPdfDados): Promise<Buffer> {
   desenharObservacoes(doc, dados);
   await desenharRodape(doc, dados);
   desenharCroquis(doc, dados);
+  desenharFotos(doc, dados);
 
   doc.end();
   return fim;

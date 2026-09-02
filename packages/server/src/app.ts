@@ -18,6 +18,7 @@ import { registerPortalEncarregadoRoutes } from "./routes/portalEncarregado.js";
 import { registerPortalFiscalRoutes } from "./routes/portalFiscal.js";
 import { registerPowerBiRoutes } from "./routes/powerbi.js";
 import { registerRdosRoutes } from "./routes/rdos.js";
+import { registerRelatoriosFotograficosRoutes } from "./routes/relatoriosFotograficos.js";
 
 /**
  * Cria e configura a instância Fastify da API GOLIAS, sem colocá-la para
@@ -58,6 +59,7 @@ export function buildApp(): FastifyInstance {
   registerFuncoesRoutes(app);
   registerColaboradoresRoutes(app);
   registerOrdensManutencaoRoutes(app);
+  registerRelatoriosFotograficosRoutes(app);
   registerAtividadesRoutes(app);
   registerEquipesRoutes(app);
   registerEquipamentosRoutes(app);

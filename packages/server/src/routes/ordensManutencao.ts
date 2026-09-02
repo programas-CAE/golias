@@ -65,6 +65,20 @@ const ordemSelect = {
   detalhes: true,
 } as const;
 
+/**
+ * A OM "precisa" do Relatório Fotográfico quando algum RDO já declarou uma
+ * atividade dela como CONCLUIDA e ainda não existe um relatório com pelo
+ * menos 1 foto — é só um indicador (badge na lista/Farol), não trava nada.
+ */
+function precisaRelatorioFotografico(
+  atividades: { statusOm: string | null }[],
+  relatorioFotografico: { fotos: unknown[] } | null,
+): boolean {
+  const temAtividadeConcluida = atividades.some((a) => a.statusOm === "CONCLUIDA");
+  const temRelatorioComFoto = (relatorioFotografico?.fotos.length ?? 0) > 0;
+  return temAtividadeConcluida && !temRelatorioComFoto;
+}
+
 export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
   /**
    * Painel do ciclo de medição (dia 19 do mês anterior ao dia 20 do mês
@@ -97,8 +111,12 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
           detalhes: true,
           frente: { select: { id: true, nome: true, codigo: true } },
           atividades: {
-            select: { rdoLocal: { select: { rdo: { select: { equipeId: true, status: true, data: true } } } } },
+            select: {
+              statusOm: true,
+              rdoLocal: { select: { rdo: { select: { equipeId: true, status: true, data: true } } } },
+            },
           },
+          relatorioFotografico: { select: { fotos: { select: { id: true } } } },
         },
       }),
       prisma.equipe.findMany({
@@ -151,6 +169,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
       lado: string | null;
       detalhes: string | null;
       status: StatusFarol;
+      precisaRelatorioFotografico: boolean;
     }> = [];
 
     for (const ordem of ordens) {
@@ -184,6 +203,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
         lado: ordem.lado,
         detalhes: ordem.detalhes,
         status,
+        precisaRelatorioFotografico: precisaRelatorioFotografico(ordem.atividades, ordem.relatorioFotografico),
       });
     }
 
@@ -217,10 +237,18 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
   });
 
   app.get("/ordens-manutencao", async () => {
-    return prisma.ordemManutencao.findMany({
+    const ordens = await prisma.ordemManutencao.findMany({
       orderBy: { dataEmissao: "desc" },
-      select: ordemSelect,
+      select: {
+        ...ordemSelect,
+        atividades: { select: { statusOm: true } },
+        relatorioFotografico: { select: { fotos: { select: { id: true } } } },
+      },
     });
+    return ordens.map(({ atividades, relatorioFotografico, ...ordem }) => ({
+      ...ordem,
+      precisaRelatorioFotografico: precisaRelatorioFotografico(atividades, relatorioFotografico),
+    }));
   });
 
   app.post("/ordens-manutencao", async (request, reply) => {
@@ -229,7 +257,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
 
     try {
       const ordem = await prisma.ordemManutencao.create({ data, select: ordemSelect });
-      return await reply.status(201).send(ordem);
+      return await reply.status(201).send({ ...ordem, precisaRelatorioFotografico: false });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === "P2002") {
@@ -248,11 +276,16 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
     if (!data) return;
 
     try {
-      return await prisma.ordemManutencao.update({
+      const { atividades, relatorioFotografico, ...ordem } = await prisma.ordemManutencao.update({
         where: { id: request.params.id },
         data,
-        select: ordemSelect,
+        select: {
+          ...ordemSelect,
+          atividades: { select: { statusOm: true } },
+          relatorioFotografico: { select: { fotos: { select: { id: true } } } },
+        },
       });
+      return { ...ordem, precisaRelatorioFotografico: precisaRelatorioFotografico(atividades, relatorioFotografico) };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === "P2025") {
