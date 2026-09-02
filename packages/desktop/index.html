@@ -5,6 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/icon.png" />
     <title>GOLIAS</title>
+    <script>
+      // Aplica o tema salvo (ou a preferência do sistema, na primeira vez)
+      // antes do CSS pintar a tela — evita o "flash" de tema claro antes de
+      // trocar pra escuro. Ver src/lib/theme.ts para o resto da lógica.
+      (function () {
+        try {
+          var salvo = localStorage.getItem("golias:tema");
+          var tema =
+            salvo === "light" || salvo === "dark"
+              ? salvo
+              : window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+                ? "dark"
+                : "light";
+          document.documentElement.dataset.theme = tema;
+        } catch (erro) {
+          // localStorage indisponível (ex.: bloqueado) — fica no tema claro padrão.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

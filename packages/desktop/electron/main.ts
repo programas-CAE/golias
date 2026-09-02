@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from "electron";
+import { app, BrowserWindow, Menu, dialog, ipcMain, nativeTheme, shell } from "electron";
 import { autoUpdater } from "electron-updater";
 import path from "node:path";
 
@@ -63,7 +63,12 @@ function createWindow(): void {
     width: 1280,
     height: 800,
     title: "GOLIAS",
-    backgroundColor: "#f4faf6",
+    // Cor de fundo da janela antes do HTML/CSS pintar — segue a preferência
+    // de tema do próprio SO como melhor palpite (o processo principal não
+    // tem acesso ao localStorage do renderer, onde a escolha explícita de
+    // tema fica salva; ver src/lib/theme.ts). Evita o "flash" claro numa
+    // janela que vai abrir escura na maioria dos casos reais.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? "#14201a" : "#f4faf6",
     icon: path.join(__dirname, "../build/icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

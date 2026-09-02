@@ -1,5 +1,6 @@
-import type { ReactElement } from "react";
+import { useState, type ReactElement } from "react";
 import { NavLink } from "react-router-dom";
+import { definirTema, temaAtual, type Tema } from "../lib/theme";
 
 const LINKS: Array<{ to: string; label: string }> = [
   { to: "/", label: "Início" },
@@ -15,6 +16,18 @@ const LINKS: Array<{ to: string; label: string }> = [
 ];
 
 export default function Nav(): ReactElement {
+  // Lê o tema já aplicado (script inline em index.html, antes do React
+  // montar) sem escrever nada — só grava em localStorage quando o usuário
+  // realmente clica no botão, pra não "travar" a preferência do sistema
+  // sozinho no primeiro carregamento.
+  const [tema, setTema] = useState<Tema>(() => temaAtual());
+
+  function alternarTema(): void {
+    const novo: Tema = tema === "dark" ? "light" : "dark";
+    definirTema(novo);
+    setTema(novo);
+  }
+
   return (
     <nav className="nav">
       <div className="nav-brand">
@@ -40,6 +53,11 @@ export default function Nav(): ReactElement {
             {link.label}
           </NavLink>
         ))}
+      </div>
+      <div className="nav-footer">
+        <button type="button" className="nav-theme-toggle" onClick={alternarTema}>
+          {tema === "dark" ? "☀️ Modo claro" : "🌙 Modo escuro"}
+        </button>
       </div>
     </nav>
   );

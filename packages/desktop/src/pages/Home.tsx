@@ -249,12 +249,12 @@ export default function Home(): ReactElement {
                 titulo="Evolução da eficiência (%)"
                 pontos={dados.evolucaoSemanal.map((semana) => ({ rotulo: semana.semana, valor: semana.eficiencia }))}
                 formatValue={(valor) => `${valor.toFixed(0)}%`}
-                cor="#16a34a"
+                cor="var(--accent)"
               />
               <LineChart
                 titulo="RDOs emitidos por semana"
                 pontos={dados.evolucaoSemanal.map((semana) => ({ rotulo: semana.semana, valor: semana.rdosEmitidos }))}
-                cor="#15803d"
+                cor="var(--accent-strong)"
               />
             </div>
 
@@ -284,8 +284,8 @@ export default function Home(): ReactElement {
               <DonutChart
                 titulo="Distribuição das horas"
                 fatias={[
-                  { rotulo: "Produtivas", valor: dados.horasProdutivas, cor: "#16a34a" },
-                  { rotulo: "Improdutivas", valor: dados.horasImprodutivas, cor: "#8a9c90" },
+                  { rotulo: "Produtivas", valor: dados.horasProdutivas, cor: "var(--accent)" },
+                  { rotulo: "Improdutivas", valor: dados.horasImprodutivas, cor: "var(--text-muted)" },
                 ]}
               />
 

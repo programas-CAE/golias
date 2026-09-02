@@ -514,7 +514,7 @@ export default function RdoDetalhe(): ReactElement {
                           <img
                             src={`${apiUrl.replace(/\/$/, "")}/rdos/${rdo.id}/anexos/${foto.id}`}
                             alt={foto.nomeOriginal}
-                            style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 8, border: "1px solid #d8e4de" }}
+                            style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }}
                           />
                         </a>
                       ))}

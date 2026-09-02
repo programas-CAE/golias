@@ -304,7 +304,7 @@ export default function RelatorioFotografico(): ReactElement {
                       <img
                         src={`${apiUrl.replace(/\/$/, "")}/ordens-manutencao/${id}/relatorio-fotografico/fotos/${foto.id}/arquivo`}
                         alt={foto.legenda ?? ""}
-                        style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", borderRadius: 8, border: "1px solid #d8e4de" }}
+                        style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }}
                       />
                       <select
                         className="field-input"
