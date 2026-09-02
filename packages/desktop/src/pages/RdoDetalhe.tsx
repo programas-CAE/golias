@@ -78,10 +78,30 @@ interface UltimaDecisaoFiscal {
   assinadoEm: string | null;
 }
 
+interface RdoSuperestruturaDetalhe {
+  intervaloProgramadoInicio: string | null;
+  intervaloProgramadoFim: string | null;
+  intervaloRealizadoInicio: string | null;
+  intervaloRealizadoFim: string | null;
+  tempoTotalPerdas: string | null;
+  leiturasTemperatura: { hora: string; temperaturaC: string | null }[];
+  servicos: {
+    id: string;
+    codigo: string | null;
+    descricao: string;
+    unidade: string | null;
+    quantidade: string | null;
+    linha: string | null;
+    kmInicial: string | null;
+    kmFinal: string | null;
+  }[];
+}
+
 interface RdoDetalheResponse {
   id: string;
   codigoRastreio: string;
   data: string;
+  tipo: string;
   status: string;
   clima: string | null;
   horaExtraInicio: string | null;
@@ -98,6 +118,7 @@ interface RdoDetalheResponse {
   equipamentos: EquipamentoDetalhe[];
   materiais: MaterialDetalhe[];
   anexos: AnexoDetalhe[];
+  superestrutura: RdoSuperestruturaDetalhe | null;
   ultimaDecisaoFiscal: UltimaDecisaoFiscal | null;
 }
 
@@ -113,6 +134,12 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_OM_LABEL: Record<string, string> = {
   EM_ANDAMENTO: "Em andamento",
   CONCLUIDA: "Concluída",
+};
+
+const TIPO_LABEL: Record<string, string> = {
+  PREVENTIVA_CORRETIVA: "Preventiva/Corretiva",
+  TERRAPLENAGEM: "Terraplenagem",
+  SUPERESTRUTURA: "Superestrutura",
 };
 
 /** Agrupa as fotos do RDO pela OM que o encarregado marcou ao enviar cada uma — mesma lógica do PDF e do Campo.tsx. */
@@ -209,7 +236,7 @@ export default function RdoDetalhe(): ReactElement {
               <div>
                 <h1 className="list-title">RDO {rdo.codigoRastreio} — {rdo.data.slice(0, 10)}</h1>
                 <p className="list-subtitle">
-                  {rdo.frente.nome} · Equipe {rdo.equipe.nome} ·{" "}
+                  {rdo.frente.nome} · Equipe {rdo.equipe.nome} · {TIPO_LABEL[rdo.tipo] ?? rdo.tipo} ·{" "}
                   <span className="badge badge--ativo">{STATUS_LABEL[rdo.status] ?? rdo.status}</span>
                 </p>
               </div>
@@ -272,6 +299,55 @@ export default function RdoDetalhe(): ReactElement {
                 {rdo.ultimaDecisaoFiscal.assinanteNome ? ` (${rdo.ultimaDecisaoFiscal.assinanteNome})` : ""}:{" "}
                 {rdo.ultimaDecisaoFiscal.comentario}
               </p>
+            )}
+
+            {rdo.superestrutura && (
+              <section className="form-section">
+                <h2 className="form-section-title">Superestrutura</h2>
+                <p className="list-subtitle">
+                  <strong>Temperatura/Hora:</strong>{" "}
+                  {rdo.superestrutura.leiturasTemperatura.length > 0
+                    ? rdo.superestrutura.leiturasTemperatura
+                        .map((l) => `${l.hora}${l.temperaturaC != null ? ` — ${l.temperaturaC}°C` : ""}`)
+                        .join("   ")
+                    : "—"}
+                </p>
+                <p className="list-subtitle">
+                  <strong>Intervalo programado:</strong> {rdo.superestrutura.intervaloProgramadoInicio ?? "—"} /{" "}
+                  {rdo.superestrutura.intervaloProgramadoFim ?? "—"} &nbsp;·&nbsp;
+                  <strong>Realizado:</strong> {rdo.superestrutura.intervaloRealizadoInicio ?? "—"} /{" "}
+                  {rdo.superestrutura.intervaloRealizadoFim ?? "—"} &nbsp;·&nbsp;
+                  <strong>Tempo total por perdas:</strong> {rdo.superestrutura.tempoTotalPerdas ?? "—"}
+                </p>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Descrição</th>
+                      <th>Unid.</th>
+                      <th>Qtd.</th>
+                      <th>Linha</th>
+                      <th>Km inic/fim</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rdo.superestrutura.servicos.map((servico) => (
+                      <tr key={servico.id}>
+                        <td>{servico.codigo ?? "—"}</td>
+                        <td>{servico.descricao}</td>
+                        <td>{servico.unidade ?? "—"}</td>
+                        <td>{servico.quantidade ?? "—"}</td>
+                        <td>{servico.linha ?? "—"}</td>
+                        <td>
+                          {servico.kmInicial != null && servico.kmFinal != null
+                            ? `${servico.kmInicial}—${servico.kmFinal}`
+                            : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </section>
             )}
 
             <section className="form-section">

@@ -19,6 +19,7 @@ interface Rdo {
   id: string;
   codigoRastreio: string;
   data: string;
+  tipo: string;
   status: string;
   frente: Frente;
   equipe: { id: string; nome: string };
@@ -26,6 +27,12 @@ interface Rdo {
   linkCampoExpiraEm: string | null;
   pdfDisponivel: boolean;
 }
+
+const TIPO_LABEL: Record<string, string> = {
+  PREVENTIVA_CORRETIVA: "Preventiva/Corretiva",
+  TERRAPLENAGEM: "Terraplenagem",
+  SUPERESTRUTURA: "Superestrutura",
+};
 
 const MARCAS_DIACRITICAS = /[̀-ͯ]/g;
 
@@ -196,6 +203,7 @@ export default function Rdos(): ReactElement {
                 <tr>
                   <th>Código</th>
                   <th>Data</th>
+                  <th>Tipo</th>
                   <th>Frente</th>
                   <th>Equipe</th>
                   <th>Status</th>
@@ -208,6 +216,7 @@ export default function Rdos(): ReactElement {
                   <tr key={rdo.id}>
                     <td>{rdo.codigoRastreio}</td>
                     <td>{rdo.data.slice(0, 10)}</td>
+                    <td>{TIPO_LABEL[rdo.tipo] ?? rdo.tipo}</td>
                     <td>{rdo.frente.nome}</td>
                     <td>{rdo.equipe.nome}</td>
                     <td>

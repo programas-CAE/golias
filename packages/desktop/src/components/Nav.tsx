@@ -10,6 +10,7 @@ const LINKS: Array<{ to: string; label: string }> = [
   { to: "/links", label: "Links" },
   { to: "/catalogos", label: "Catálogos" },
   { to: "/medicoes", label: "Medição Mensal" },
+  { to: "/cadastro", label: "Cadastro" },
 ];
 
 export default function Nav(): ReactElement {
