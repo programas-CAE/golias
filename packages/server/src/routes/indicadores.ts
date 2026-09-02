@@ -181,15 +181,20 @@ export function extrairMetasDoMesAnterior(resumoMesAnterior: ResumoProdutividade
   return metas;
 }
 
-/** Intervalo [início, fim) do mês "YYYY-MM"; usa o mês atual se omitido/inválido. */
+/**
+ * Intervalo [início, fim) do ciclo de medição rotulado "YYYY-MM" — do dia 19
+ * do mês anterior ao dia 20 do mês rotulado (mesmo ciclo do Farol de status,
+ * GET /rdos/farol-status e GET /ordens-manutencao/farol), não o mês civil.
+ * Usa o ciclo atual se omitido/inválido.
+ */
 export function intervaloDoMes(mes: string | undefined): { periodo: string; inicio: Date; fim: Date } {
   const valido = mes && /^\d{4}-\d{2}$/.test(mes) ? mes : new Date().toISOString().slice(0, 7);
   const ano = Number(valido.slice(0, 4));
   const mesNum = Number(valido.slice(5, 7));
   return {
     periodo: valido,
-    inicio: new Date(Date.UTC(ano, mesNum - 1, 1)),
-    fim: new Date(Date.UTC(ano, mesNum, 1)),
+    inicio: new Date(Date.UTC(ano, mesNum - 2, 19)),
+    fim: new Date(Date.UTC(ano, mesNum - 1, 21)),
   };
 }
 
@@ -201,129 +206,170 @@ export function periodoAnterior(periodo: string): string {
   return `${data.getUTCFullYear()}-${String(data.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+/**
+ * Restringe cada RDO só às atividades do catálogo escolhido, e descarta os
+ * RDOs que não tinham nenhuma — usado pelo filtro de Atividade dos
+ * indicadores. Afeta tudo que deriva de `calcularProdutividade` (produção,
+ * PUS, eficiência) e também as contagens simples (RDOs emitidos, mão de
+ * obra média, desvios), já que essas passam a olhar só pros RDOs em que a
+ * atividade escolhida foi de fato executada.
+ */
+function filtrarPorAtividade(rdos: RdoIndicador[], atividadeCatalogoId: string | undefined): RdoIndicador[] {
+  if (!atividadeCatalogoId) return rdos;
+  return rdos
+    .map((rdo) => ({
+      ...rdo,
+      locais: rdo.locais.map((local) => ({
+        ...local,
+        atividades: local.atividades.filter((atividade) => atividade.atividadeCatalogo.id === atividadeCatalogoId),
+      })),
+    }))
+    .filter((rdo) => rdo.locais.some((local) => local.atividades.length > 0));
+}
+
 export function registerIndicadoresRoutes(app: FastifyInstance): void {
-  app.get<{ Querystring: { mes?: string } }>("/indicadores", async (request) => {
-    const { periodo, inicio, fim } = intervaloDoMes(request.query.mes);
-    const ano = inicio.getUTCFullYear();
-    const mesNum = inicio.getUTCMonth() + 1;
-    const { inicio: inicioAnterior, fim: fimAnterior } = intervaloDoMes(periodoAnterior(periodo));
+  app.get<{ Querystring: { mes?: string; frenteId?: string; equipeId?: string; atividadeCatalogoId?: string } }>(
+    "/indicadores",
+    async (request) => {
+      const { periodo, inicio, fim } = intervaloDoMes(request.query.mes);
+      const ano = inicio.getUTCFullYear();
+      const mesNum = inicio.getUTCMonth() + 1;
+      const { inicio: inicioAnterior, fim: fimAnterior } = intervaloDoMes(periodoAnterior(periodo));
+      const { frenteId, equipeId, atividadeCatalogoId } = request.query;
+      // Filtro comum de Localidade (frente) e Equipe — aplicado direto no
+      // banco, restringe quais RDOs entram em tudo que segue. O filtro de
+      // Atividade já não dá pra fazer no banco (precisa olhar dentro de
+      // locais/atividades RDO a RDO), então é aplicado depois, em memória
+      // (`filtrarPorAtividade`).
+      const whereFiltros = { ...(frenteId ? { frenteId } : {}), ...(equipeId ? { equipeId } : {}) };
 
-    const [rdos, rdosMesAnterior, ordensManutencao, frentes, periodosMedicao, atividadesCatalogo] = await Promise.all([
-      prisma.rdo.findMany({ where: { data: { gte: inicio, lt: fim } }, select: rdoIndicadorSelect }),
-      prisma.rdo.findMany({ where: { data: { gte: inicioAnterior, lt: fimAnterior } }, select: rdoIndicadorSelect }),
-      prisma.ordemManutencao.count({ where: { dataEmissao: { gte: inicio, lt: fim } } }),
-      prisma.frente.findMany({
-        where: { ativo: true },
-        orderBy: { codigo: "asc" },
-        select: { id: true, nome: true, codigo: true, metaEficienciaPct: true, metaPusGeral: true },
-      }),
-      prisma.periodoMedicao.findMany({
-        where: { ano, mes: mesNum },
-        select: { frenteId: true, itens: { select: { atividadeCatalogoId: true, quantidadeTotal: true, unidade: true } } },
-      }),
-      prisma.atividadeCatalogo.findMany({ select: { id: true, codigo: true, descricao: true, ordem: true } }),
-    ]);
+      const [rdosBrutos, rdosMesAnteriorBrutos, ordensManutencao, frentes, periodosMedicao, atividadesCatalogo] =
+        await Promise.all([
+          prisma.rdo.findMany({ where: { data: { gte: inicio, lt: fim }, ...whereFiltros }, select: rdoIndicadorSelect }),
+          prisma.rdo.findMany({
+            where: { data: { gte: inicioAnterior, lt: fimAnterior }, ...whereFiltros },
+            select: rdoIndicadorSelect,
+          }),
+          // Ordem de Manutenção não tem equipe nem atividade própria (só
+          // aparece atrelada a uma quando um RDO a referencia) — só dá pra
+          // filtrar essa contagem por frente.
+          prisma.ordemManutencao.count({ where: { dataEmissao: { gte: inicio, lt: fim }, ...(frenteId ? { frenteId } : {}) } }),
+          prisma.frente.findMany({
+            where: { ativo: true, ...(frenteId ? { id: frenteId } : {}) },
+            orderBy: { codigo: "asc" },
+            select: { id: true, nome: true, codigo: true, metaEficienciaPct: true, metaPusGeral: true },
+          }),
+          prisma.periodoMedicao.findMany({
+            where: { ano, mes: mesNum },
+            select: { frenteId: true, itens: { select: { atividadeCatalogoId: true, quantidadeTotal: true, unidade: true } } },
+          }),
+          prisma.atividadeCatalogo.findMany({ select: { id: true, codigo: true, descricao: true, ordem: true } }),
+        ]);
 
-    const metasMesAnterior = extrairMetasDoMesAnterior(calcularProdutividade(rdosMesAnterior));
+      const rdos = filtrarPorAtividade(rdosBrutos, atividadeCatalogoId);
+      const rdosMesAnterior = filtrarPorAtividade(rdosMesAnteriorBrutos, atividadeCatalogoId);
 
-    const atividadePorId = new Map(atividadesCatalogo.map((atividade) => [atividade.id, atividade]));
-    const frentePorId = new Map(frentes.map((frente) => [frente.id, frente]));
+      const metasMesAnterior = extrairMetasDoMesAnterior(calcularProdutividade(rdosMesAnterior));
 
-    /**
-     * Produção histórica importada das planilhas (packages/server/prisma/
-     * seed.ts) para o mês selecionado — não vem de RDO, então fica separada
-     * dos indicadores calculados a partir de RDOs reais, com a mesma
-     * unidade/atividade do catálogo pra ficar fácil de comparar.
-     */
-    const producaoHistorica =
-      periodosMedicao.length === 0
-        ? null
-        : (() => {
-            const linhasMap = new Map<string, { atividade: { id: string; codigo: string; descricao: string; ordem: number }; unidade: string; porFrente: Record<string, number>; total: number }>();
-            for (const periodoDoMes of periodosMedicao) {
-              const frente = frentePorId.get(periodoDoMes.frenteId);
-              if (!frente) continue;
-              for (const item of periodoDoMes.itens) {
-                const atividade = atividadePorId.get(item.atividadeCatalogoId);
-                if (!atividade) continue;
-                const linha = linhasMap.get(atividade.id) ?? { atividade, unidade: item.unidade, porFrente: {}, total: 0 };
-                const quantidade = Number(item.quantidadeTotal);
-                linha.porFrente[frente.codigo] = quantidade;
-                linha.total += quantidade;
-                linhasMap.set(atividade.id, linha);
+      const atividadePorId = new Map(atividadesCatalogo.map((atividade) => [atividade.id, atividade]));
+      const frentePorId = new Map(frentes.map((frente) => [frente.id, frente]));
+
+      /**
+       * Produção histórica importada das planilhas (packages/server/prisma/
+       * seed.ts) para o mês selecionado — não vem de RDO, então fica separada
+       * dos indicadores calculados a partir de RDOs reais, com a mesma
+       * unidade/atividade do catálogo pra ficar fácil de comparar.
+       */
+      const producaoHistorica =
+        periodosMedicao.length === 0
+          ? null
+          : (() => {
+              const linhasMap = new Map<string, { atividade: { id: string; codigo: string; descricao: string; ordem: number }; unidade: string; porFrente: Record<string, number>; total: number }>();
+              for (const periodoDoMes of periodosMedicao) {
+                const frente = frentePorId.get(periodoDoMes.frenteId);
+                if (!frente) continue;
+                for (const item of periodoDoMes.itens) {
+                  const atividade = atividadePorId.get(item.atividadeCatalogoId);
+                  if (!atividade) continue;
+                  const linha = linhasMap.get(atividade.id) ?? { atividade, unidade: item.unidade, porFrente: {}, total: 0 };
+                  const quantidade = Number(item.quantidadeTotal);
+                  linha.porFrente[frente.codigo] = quantidade;
+                  linha.total += quantidade;
+                  linhasMap.set(atividade.id, linha);
+                }
               }
-            }
-            return [...linhasMap.values()].sort((a, b) => a.atividade.ordem - b.atividade.ordem);
-          })();
+              return [...linhasMap.values()].sort((a, b) => a.atividade.ordem - b.atividade.ordem);
+            })();
 
-    const geral = calcularProdutividade(rdos, metasMesAnterior);
+      const geral = calcularProdutividade(rdos, metasMesAnterior);
 
-    const rdosEmitidos = rdos.length;
-    const maoDeObraMedia =
-      rdosEmitidos > 0
-        ? rdos.reduce((soma, rdo) => soma + rdo.maoDeObra.reduce((s, mdo) => s + mdo.quantidade, 0), 0) / rdosEmitidos
-        : 0;
-    const totalDesvios = rdos.reduce((soma, rdo) => soma + (rdo.totalDesvios ?? 0), 0);
+      const rdosEmitidos = rdos.length;
+      const maoDeObraMedia =
+        rdosEmitidos > 0
+          ? rdos.reduce((soma, rdo) => soma + rdo.maoDeObra.reduce((s, mdo) => s + mdo.quantidade, 0), 0) / rdosEmitidos
+          : 0;
+      const totalDesvios = rdos.reduce((soma, rdo) => soma + (rdo.totalDesvios ?? 0), 0);
 
-    const porFrente = frentes.map((frente) => {
-      const rdosDaFrente = rdos.filter((rdo) => rdo.frenteId === frente.id);
-      const { eficiencia } = calcularProdutividade(rdosDaFrente, metasMesAnterior);
-      const metaEficiencia = frente.metaEficienciaPct != null ? Number(frente.metaEficienciaPct) : 100;
-      const metaPus = frente.metaPusGeral != null ? Number(frente.metaPusGeral) : null;
-      return {
-        id: frente.id,
-        nome: frente.nome,
-        codigo: frente.codigo,
-        rdosEmitidos: rdosDaFrente.length,
-        eficiencia,
-        metaEficiencia,
-        metaPus,
-      };
-    });
+      const porFrente = frentes.map((frente) => {
+        const rdosDaFrente = rdos.filter((rdo) => rdo.frenteId === frente.id);
+        const { eficiencia } = calcularProdutividade(rdosDaFrente, metasMesAnterior);
+        const metaEficiencia = frente.metaEficienciaPct != null ? Number(frente.metaEficienciaPct) : 100;
+        const metaPus = frente.metaPusGeral != null ? Number(frente.metaPusGeral) : null;
+        return {
+          id: frente.id,
+          nome: frente.nome,
+          codigo: frente.codigo,
+          rdosEmitidos: rdosDaFrente.length,
+          eficiencia,
+          metaEficiencia,
+          metaPus,
+        };
+      });
 
-    const causasMap = new Map<string, number>();
-    for (const rdo of rdos) {
-      for (const mdo of rdo.maoDeObra) {
-        const horas = Number(mdo.horasImprodutivas ?? 0);
-        if (!mdo.causaImprodutividade || horas <= 0) continue;
-        causasMap.set(mdo.causaImprodutividade, (causasMap.get(mdo.causaImprodutividade) ?? 0) + horas);
+      const causasMap = new Map<string, number>();
+      for (const rdo of rdos) {
+        for (const mdo of rdo.maoDeObra) {
+          const horas = Number(mdo.horasImprodutivas ?? 0);
+          if (!mdo.causaImprodutividade || horas <= 0) continue;
+          causasMap.set(mdo.causaImprodutividade, (causasMap.get(mdo.causaImprodutividade) ?? 0) + horas);
+        }
       }
-    }
-    const causasImprodutividade = [...causasMap.entries()]
-      .map(([causa, horas]) => ({ causa, horas }))
-      .sort((a, b) => b.horas - a.horas)
-      .slice(0, 6);
+      const causasImprodutividade = [...causasMap.entries()]
+        .map(([causa, horas]) => ({ causa, horas }))
+        .sort((a, b) => b.horas - a.horas)
+        .slice(0, 6);
 
-    const semanasMap = new Map<number, RdoIndicador[]>();
-    for (const rdo of rdos) {
-      const semana = Math.ceil(rdo.data.getUTCDate() / 7);
-      const atual = semanasMap.get(semana) ?? [];
-      atual.push(rdo);
-      semanasMap.set(semana, atual);
-    }
-    const evolucaoSemanal = [...semanasMap.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([semana, rdosSemana]) => ({
-        semana: `Semana ${semana}`,
-        rdosEmitidos: rdosSemana.length,
-        eficiencia: calcularProdutividade(rdosSemana, metasMesAnterior).eficiencia,
-      }));
+      const semanasMap = new Map<number, RdoIndicador[]>();
+      for (const rdo of rdos) {
+        const semana = Math.ceil(rdo.data.getUTCDate() / 7);
+        const atual = semanasMap.get(semana) ?? [];
+        atual.push(rdo);
+        semanasMap.set(semana, atual);
+      }
+      const evolucaoSemanal = [...semanasMap.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([semana, rdosSemana]) => ({
+          semana: `Semana ${semana}`,
+          rdosEmitidos: rdosSemana.length,
+          eficiencia: calcularProdutividade(rdosSemana, metasMesAnterior).eficiencia,
+        }));
 
-    return {
-      periodo,
-      rdosEmitidos,
-      ordensManutencao,
-      maoDeObraMedia,
-      totalDesvios,
-      eficienciaGeral: geral.eficiencia,
-      horasTrabalhadas: geral.horasTrabalhadas,
-      horasImprodutivas: geral.horasImprodutivas,
-      horasProdutivas: Math.max(geral.horasTrabalhadas - geral.horasImprodutivas, 0),
-      produtividadePorAtividade: geral.produtividadePorAtividade,
-      porFrente,
-      causasImprodutividade,
-      evolucaoSemanal,
-      producaoHistorica,
-    };
-  });
+      return {
+        periodo,
+        rdosEmitidos,
+        ordensManutencao,
+        maoDeObraMedia,
+        totalDesvios,
+        eficienciaGeral: geral.eficiencia,
+        horasTrabalhadas: geral.horasTrabalhadas,
+        horasImprodutivas: geral.horasImprodutivas,
+        horasProdutivas: Math.max(geral.horasTrabalhadas - geral.horasImprodutivas, 0),
+        produtividadePorAtividade: geral.produtividadePorAtividade,
+        porFrente,
+        causasImprodutividade,
+        evolucaoSemanal,
+        producaoHistorica,
+      };
+    },
+  );
 }

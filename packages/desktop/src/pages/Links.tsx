@@ -3,15 +3,6 @@ import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
 import { getSettings } from "../lib/settingsStore";
 
-interface Frente {
-  id: string;
-  codigo: string;
-  nome: string;
-  ativo: boolean;
-  portalFiscalToken: string | null;
-  portalEncarregadoToken: string | null;
-}
-
 interface Rdo {
   id: string;
   data: string;
@@ -33,22 +24,15 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function Links(): ReactElement {
-  const [frentes, setFrentes] = useState<Frente[] | null>(null);
   const [rdos, setRdos] = useState<Rdo[] | null>(null);
   const [webUrl, setWebUrl] = useState("");
   const [erro, setErro] = useState<string | null>(null);
-  const [gerandoToken, setGerandoToken] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState<string | null>(null);
 
   async function carregar(): Promise<void> {
     setErro(null);
     try {
-      const [listaFrentes, listaRdos, settings] = await Promise.all([
-        api.get<Frente[]>("/frentes"),
-        api.get<Rdo[]>("/rdos"),
-        getSettings(),
-      ]);
-      setFrentes(listaFrentes);
+      const [listaRdos, settings] = await Promise.all([api.get<Rdo[]>("/rdos"), getSettings()]);
       setRdos(listaRdos);
       setWebUrl(settings.webUrl);
     } catch (error) {
@@ -60,40 +44,11 @@ export default function Links(): ReactElement {
     void carregar();
   }, []);
 
-  function linkPortalFiscal(token: string): string {
-    return `${webUrl.replace(/\/$/, "")}/portal-fiscal/${token}`;
-  }
-
-  function linkPortalEncarregado(token: string): string {
-    return `${webUrl.replace(/\/$/, "")}/encarregado/${token}`;
-  }
+  const linkPortalFiscal = `${webUrl.replace(/\/$/, "")}/fiscal`;
+  const linkPortalEncarregado = `${webUrl.replace(/\/$/, "")}/encarregado`;
 
   function linkDeCampo(token: string): string {
     return `${webUrl.replace(/\/$/, "")}/campo/${token}`;
-  }
-
-  async function gerarLinkFiscal(frenteId: string): Promise<void> {
-    setGerandoToken(`fiscal-${frenteId}`);
-    try {
-      const atualizada = await api.post<Frente>(`/frentes/${frenteId}/portal-token`, {});
-      setFrentes((atual) => atual?.map((f) => (f.id === atualizada.id ? atualizada : f)) ?? atual);
-    } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível gerar o link.");
-    } finally {
-      setGerandoToken(null);
-    }
-  }
-
-  async function gerarLinkEncarregado(frenteId: string): Promise<void> {
-    setGerandoToken(`encarregado-${frenteId}`);
-    try {
-      const atualizada = await api.post<Frente>(`/frentes/${frenteId}/portal-encarregado-token`, {});
-      setFrentes((atual) => atual?.map((f) => (f.id === atualizada.id ? atualizada : f)) ?? atual);
-    } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível gerar o link.");
-    } finally {
-      setGerandoToken(null);
-    }
   }
 
   async function copiar(chave: string, texto: string): Promise<void> {
@@ -115,8 +70,8 @@ export default function Links(): ReactElement {
           <div>
             <h1 className="list-title">Links</h1>
             <p className="list-subtitle">
-              Links fixos do portal do fiscal e do portal do encarregado (por frente), e links de campo pendentes de
-              preenchimento
+              Link único de entrada do portal do fiscal e do portal do encarregado (cada um entra com seu próprio
+              login), e links de campo pendentes de preenchimento
             </p>
           </div>
         </div>
@@ -126,115 +81,37 @@ export default function Links(): ReactElement {
         <section className="form-section">
           <h2 className="form-section-title">Portal do fiscal</h2>
           <p className="form-section-subtitle">
-            Link fixo por frente — o fiscal salva e volta nele sempre, não expira.
+            Link único, o mesmo para todas as frentes — cada fiscal entra com seu e-mail e senha (cadastre em
+            Cadastro) e vê só os RDOs da frente dele.
           </p>
-          <div className="panel" style={{ marginTop: 12 }}>
-            {frentes === null ? (
-              <p className="table-empty">Carregando…</p>
-            ) : frentes.length === 0 ? (
-              <p className="table-empty">Nenhuma frente cadastrada.</p>
-            ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Frente</th>
-                    <th>Status</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {frentes.map((frente) => (
-                    <tr key={frente.id}>
-                      <td>{frente.nome}</td>
-                      <td>
-                        <span className={`badge badge--${frente.ativo ? "ativo" : "inativo"}`}>
-                          {frente.ativo ? "Ativa" : "Inativa"}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        {frente.portalFiscalToken ? (
-                          <button
-                            type="button"
-                            className="button button--ghost button--small"
-                            onClick={() => void copiar(`fiscal-${frente.id}`, linkPortalFiscal(frente.portalFiscalToken!))}
-                          >
-                            {linkCopiado === `fiscal-${frente.id}` ? "Copiado!" : "Copiar link"}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="button button--ghost button--small"
-                            disabled={gerandoToken === `fiscal-${frente.id}`}
-                            onClick={() => void gerarLinkFiscal(frente.id)}
-                          >
-                            {gerandoToken === `fiscal-${frente.id}` ? "Gerando…" : "Gerar link"}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+          <div className="panel" style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <code>{linkPortalFiscal}</code>
+            <button
+              type="button"
+              className="button button--ghost button--small"
+              onClick={() => void copiar("fiscal", linkPortalFiscal)}
+            >
+              {linkCopiado === "fiscal" ? "Copiado!" : "Copiar link"}
+            </button>
           </div>
         </section>
 
         <section className="form-section">
           <h2 className="form-section-title">Portal do encarregado</h2>
           <p className="form-section-subtitle">
-            Link fixo por frente — o encarregado escolhe a equipe (o navegador lembra a última) e lança a produção do
-            dia, sem precisar que o escritório crie o RDO antes.
+            Link único, o mesmo para todas as frentes — cada encarregado entra com sua matrícula e senha (cadastre em
+            Cadastro), escolhe a equipe e o tipo de RDO, e lança a produção do dia sem precisar que o escritório crie
+            o RDO antes.
           </p>
-          <div className="panel" style={{ marginTop: 12 }}>
-            {frentes === null ? (
-              <p className="table-empty">Carregando…</p>
-            ) : frentes.length === 0 ? (
-              <p className="table-empty">Nenhuma frente cadastrada.</p>
-            ) : (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Frente</th>
-                    <th>Status</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {frentes.map((frente) => (
-                    <tr key={frente.id}>
-                      <td>{frente.nome}</td>
-                      <td>
-                        <span className={`badge badge--${frente.ativo ? "ativo" : "inativo"}`}>
-                          {frente.ativo ? "Ativa" : "Inativa"}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        {frente.portalEncarregadoToken ? (
-                          <button
-                            type="button"
-                            className="button button--ghost button--small"
-                            onClick={() =>
-                              void copiar(`encarregado-${frente.id}`, linkPortalEncarregado(frente.portalEncarregadoToken!))
-                            }
-                          >
-                            {linkCopiado === `encarregado-${frente.id}` ? "Copiado!" : "Copiar link"}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="button button--ghost button--small"
-                            disabled={gerandoToken === `encarregado-${frente.id}`}
-                            onClick={() => void gerarLinkEncarregado(frente.id)}
-                          >
-                            {gerandoToken === `encarregado-${frente.id}` ? "Gerando…" : "Gerar link"}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+          <div className="panel" style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <code>{linkPortalEncarregado}</code>
+            <button
+              type="button"
+              className="button button--ghost button--small"
+              onClick={() => void copiar("encarregado", linkPortalEncarregado)}
+            >
+              {linkCopiado === "encarregado" ? "Copiado!" : "Copiar link"}
+            </button>
           </div>
         </section>
 
@@ -242,6 +119,7 @@ export default function Links(): ReactElement {
           <h2 className="form-section-title">Preenchimento do encarregado</h2>
           <p className="form-section-subtitle">
             RDOs ainda não enviados ou reprovados e reabertos para correção — um link por RDO, válido por 7 dias.
+            Alternativa ao login pra mandar direto pra quem vai preencher.
           </p>
           <div className="panel" style={{ marginTop: 12 }}>
             {rdos === null ? (

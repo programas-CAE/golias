@@ -62,14 +62,71 @@ interface Indicadores {
   producaoHistorica: LinhaProducaoHistorica[] | null;
 }
 
+interface Frente {
+  id: string;
+  nome: string;
+  codigo: string;
+}
+
+interface Equipe {
+  id: string;
+  nome: string;
+  distrito: { nome: string; frenteId: string };
+}
+
+interface AtividadeCatalogo {
+  id: string;
+  codigo: string;
+  descricao: string;
+}
+
+/**
+ * Rótulo do ciclo de medição (dia 19 do mês anterior ao dia 20 do mês
+ * rotulado) que contém a data de hoje — do dia 21 em diante, o ciclo
+ * vigente já "pertence" ao mês seguinte (só fecha no dia 20 dele). Mesma
+ * conta do Farol de status (Farol.tsx).
+ */
 function mesAtual(): string {
-  return new Date().toISOString().slice(0, 7);
+  const hoje = new Date();
+  const mesCiclo = hoje.getDate() > 20 ? hoje.getMonth() + 1 : hoje.getMonth();
+  const data = new Date(hoje.getFullYear(), mesCiclo, 1);
+  return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, "0")}`;
 }
 
 export default function Home(): ReactElement {
   const [mes, setMes] = useState(mesAtual());
+  const [frenteFiltro, setFrenteFiltro] = useState("");
+  const [equipeFiltro, setEquipeFiltro] = useState("");
+  const [atividadeFiltro, setAtividadeFiltro] = useState("");
+  const [frentes, setFrentes] = useState<Frente[]>([]);
+  const [equipes, setEquipes] = useState<Equipe[]>([]);
+  const [atividadesCatalogo, setAtividadesCatalogo] = useState<AtividadeCatalogo[]>([]);
   const [dados, setDados] = useState<Indicadores | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([api.get<Frente[]>("/frentes"), api.get<Equipe[]>("/equipes"), api.get<AtividadeCatalogo[]>("/atividades")])
+      .then(([listaFrentes, listaEquipes, listaAtividades]) => {
+        setFrentes(listaFrentes);
+        setEquipes(listaEquipes);
+        setAtividadesCatalogo(listaAtividades);
+      })
+      .catch(() => {
+        // Filtros ficam vazios se essa carga falhar — os indicadores em si
+        // continuam funcionando sem eles.
+      });
+  }, []);
+
+  // Uma localidade só tem sentido pras equipes dela — troca a frente e o
+  // filtro de equipe some se a equipe escolhida não for mais compatível.
+  const equipesDoFiltro = frenteFiltro ? equipes.filter((equipe) => equipe.distrito.frenteId === frenteFiltro) : equipes;
+
+  useEffect(() => {
+    if (equipeFiltro && !equipesDoFiltro.some((equipe) => equipe.id === equipeFiltro)) {
+      setEquipeFiltro("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frenteFiltro]);
 
   useEffect(() => {
     let cancelado = false;
@@ -77,7 +134,11 @@ export default function Home(): ReactElement {
     async function carregar(): Promise<void> {
       setErro(null);
       try {
-        const resposta = await api.get<Indicadores>(`/indicadores?mes=${mes}`);
+        const params = new URLSearchParams({ mes });
+        if (frenteFiltro) params.set("frenteId", frenteFiltro);
+        if (equipeFiltro) params.set("equipeId", equipeFiltro);
+        if (atividadeFiltro) params.set("atividadeCatalogoId", atividadeFiltro);
+        const resposta = await api.get<Indicadores>(`/indicadores?${params.toString()}`);
         if (!cancelado) setDados(resposta);
       } catch (error) {
         if (!cancelado) setErro(error instanceof ApiError ? error.message : "Não foi possível carregar os indicadores.");
@@ -88,7 +149,7 @@ export default function Home(): ReactElement {
     return () => {
       cancelado = true;
     };
-  }, [mes]);
+  }, [mes, frenteFiltro, equipeFiltro, atividadeFiltro]);
 
   const atividadesComMeta = dados?.produtividadePorAtividade.filter((atividade) => atividade.meta != null) ?? [];
 
@@ -99,10 +160,69 @@ export default function Home(): ReactElement {
         <div className="list-header">
           <div>
             <h1 className="list-title">Indicadores</h1>
-            <p className="list-subtitle">Produtividade e eficiência das equipes preventivas</p>
+            <p className="list-subtitle">
+              Produtividade e eficiência das equipes preventivas — ciclo de medição do dia 19 do mês anterior ao dia
+              20 do mês selecionado
+            </p>
           </div>
           <div className="dashboard-header-actions">
             <input type="month" className="field-input" value={mes} onChange={(event) => setMes(event.target.value)} />
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="farol-filtros-bar">
+            <div>
+              <label className="field-label">Localidade</label>
+              <select className="field-input" value={frenteFiltro} onChange={(event) => setFrenteFiltro(event.target.value)}>
+                <option value="">Todas as localidades</option>
+                {frentes.map((frente) => (
+                  <option key={frente.id} value={frente.id}>
+                    {frente.nome}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="field-label">Equipe</label>
+              <select className="field-input" value={equipeFiltro} onChange={(event) => setEquipeFiltro(event.target.value)}>
+                <option value="">Todas as equipes</option>
+                {equipesDoFiltro.map((equipe) => (
+                  <option key={equipe.id} value={equipe.id}>
+                    {equipe.nome} ({equipe.distrito.nome})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="field-label">Atividade</label>
+              <select
+                className="field-input"
+                value={atividadeFiltro}
+                onChange={(event) => setAtividadeFiltro(event.target.value)}
+              >
+                <option value="">Todas as atividades</option>
+                {atividadesCatalogo.map((atividade) => (
+                  <option key={atividade.id} value={atividade.id}>
+                    {atividade.codigo} — {atividade.descricao}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {(frenteFiltro || equipeFiltro || atividadeFiltro) && (
+              <button
+                type="button"
+                className="button button--ghost button--small"
+                style={{ alignSelf: "flex-end" }}
+                onClick={() => {
+                  setFrenteFiltro("");
+                  setEquipeFiltro("");
+                  setAtividadeFiltro("");
+                }}
+              >
+                Limpar filtros
+              </button>
+            )}
           </div>
         </div>
 
