@@ -192,9 +192,11 @@ export default function EncarregadoDashboard(): ReactElement {
         (membro) => membro.funcao.id === novoMembroFuncaoId && (membro.colaborador?.id ?? null) === colaboradorId,
       );
       if (existente) {
-        await api.patch(`/equipes/${equipeId}/membros/${existente.id}`, { quantidade: existente.quantidade + quantidade });
+        await api.patch(`/encarregado/equipes/${equipeId}/membros/${existente.id}`, {
+          quantidade: existente.quantidade + quantidade,
+        });
       } else {
-        await api.post(`/equipes/${equipeId}/membros`, { funcaoId: novoMembroFuncaoId, colaboradorId, quantidade });
+        await api.post(`/encarregado/equipes/${equipeId}/membros`, { funcaoId: novoMembroFuncaoId, colaboradorId, quantidade });
       }
       await carregar(true);
       setNovoMembroFuncaoId("");
@@ -207,11 +209,22 @@ export default function EncarregadoDashboard(): ReactElement {
     }
   }
 
+  async function alterarQuantidadeMembro(membroId: string, quantidade: number): Promise<void> {
+    if (!equipeId || quantidade < 1) return;
+    setErro(null);
+    try {
+      await api.patch(`/encarregado/equipes/${equipeId}/membros/${membroId}`, { quantidade });
+      await carregar(true);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível alterar a quantidade.");
+    }
+  }
+
   async function removerMembro(membroId: string): Promise<void> {
     if (!equipeId) return;
     setErro(null);
     try {
-      await api.delete(`/equipes/${equipeId}/membros/${membroId}`);
+      await api.delete(`/encarregado/equipes/${equipeId}/membros/${membroId}`);
       await carregar(true);
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível remover o membro.");
@@ -350,14 +363,24 @@ export default function EncarregadoDashboard(): ReactElement {
           ) : (
             <ul className="causa-lista">
               {equipeSelecionada.membros.map((membro) => (
-                <li key={membro.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <li key={membro.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                   <span>
                     {membro.funcao.nome}
-                    {membro.colaborador ? ` — ${membro.colaborador.nome}` : ""} ({membro.quantidade})
+                    {membro.colaborador ? ` — ${membro.colaborador.nome}` : ""}
                   </span>
-                  <button type="button" className="button button--ghost button--small" onClick={() => void removerMembro(membro.id)}>
-                    Remover
-                  </button>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <input
+                      type="number"
+                      min={1}
+                      className="field-input"
+                      style={{ width: 64, textAlign: "center" }}
+                      value={membro.quantidade}
+                      onChange={(event) => void alterarQuantidadeMembro(membro.id, Number(event.target.value))}
+                    />
+                    <button type="button" className="button button--ghost button--small" onClick={() => void removerMembro(membro.id)}>
+                      Remover
+                    </button>
+                  </span>
                 </li>
               ))}
             </ul>

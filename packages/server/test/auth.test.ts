@@ -182,3 +182,82 @@ describe("Rotas autenticadas — /fiscal e /encarregado", () => {
     expect(rdo.encarregadoId).toBe(encarregado.colaboradorId);
   });
 });
+
+describe("Autonomia do encarregado sobre a própria equipe", () => {
+  async function logarEncarregado(app: ReturnType<typeof buildApp>, identificador: string): Promise<string> {
+    const login = await app.inject({ method: "POST", url: "/auth/login", payload: { identificador, senha: "senha123" } });
+    return (login.json() as { accessToken: string }).accessToken;
+  }
+
+  it("criar equipe já entra com o encarregadoId de quem criou", async () => {
+    const { encarregado, frente } = await criarCenario();
+    const distrito = await prisma.distrito.create({ data: { nome: "Centro", frenteId: frente.id } });
+    const app = buildApp();
+    const accessToken = await logarEncarregado(app, encarregado.matriculaLogin!);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/encarregado/equipes",
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { nome: "Preventiva Nova", distritoId: distrito.id },
+    });
+    expect(response.statusCode).toBe(201);
+    const equipe = await prisma.equipe.findUniqueOrThrow({ where: { id: (response.json() as { id: string }).id } });
+    expect(equipe.encarregadoId).toBe(encarregado.colaboradorId);
+  });
+
+  it("adiciona, edita a quantidade e remove um membro da equipe da própria frente", async () => {
+    const { encarregado, frente } = await criarCenario();
+    const distrito = await prisma.distrito.create({ data: { nome: "Centro", frenteId: frente.id } });
+    const equipe = await prisma.equipe.create({ data: { nome: "Preventiva", distritoId: distrito.id } });
+    const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "Servente de Obras" } });
+    const app = buildApp();
+    const accessToken = await logarEncarregado(app, encarregado.matriculaLogin!);
+
+    const criar = await app.inject({
+      method: "POST",
+      url: `/encarregado/equipes/${equipe.id}/membros`,
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { funcaoId: funcao.id, quantidade: 3 },
+    });
+    expect(criar.statusCode).toBe(201);
+    const membro = criar.json() as { id: string; quantidade: number };
+    expect(membro.quantidade).toBe(3);
+
+    const editar = await app.inject({
+      method: "PATCH",
+      url: `/encarregado/equipes/${equipe.id}/membros/${membro.id}`,
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { quantidade: 5 },
+    });
+    expect(editar.statusCode).toBe(200);
+    expect((editar.json() as { quantidade: number }).quantidade).toBe(5);
+
+    const remover = await app.inject({
+      method: "DELETE",
+      url: `/encarregado/equipes/${equipe.id}/membros/${membro.id}`,
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    expect(remover.statusCode).toBe(204);
+    expect(await prisma.equipeMembro.findUnique({ where: { id: membro.id } })).toBeNull();
+  });
+
+  it("retorna 404 ao tentar mexer numa equipe de outra frente", async () => {
+    const { encarregado } = await criarCenario();
+    const outroContrato = await prisma.contrato.create({ data: { numero: "5900000001" } });
+    const outraFrente = await prisma.frente.create({ data: { codigo: "PBA", nome: "Parauapebas", contratoId: outroContrato.id } });
+    const outroDistrito = await prisma.distrito.create({ data: { nome: "Centro PBA", frenteId: outraFrente.id } });
+    const equipeDeOutraFrente = await prisma.equipe.create({ data: { nome: "Preventiva PBA", distritoId: outroDistrito.id } });
+    const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "Servente de Obras" } });
+    const app = buildApp();
+    const accessToken = await logarEncarregado(app, encarregado.matriculaLogin!);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/encarregado/equipes/${equipeDeOutraFrente.id}/membros`,
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { funcaoId: funcao.id, quantidade: 1 },
+    });
+    expect(response.statusCode).toBe(404);
+  });
+});
