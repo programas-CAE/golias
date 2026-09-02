@@ -156,7 +156,9 @@ function desenharChecklist(doc: PDFKit.PDFDocument, dados: RelatorioFotograficoD
 function desenharComentarios(doc: PDFKit.PDFDocument, dados: RelatorioFotograficoDados): void {
   doc.font("Helvetica-Bold").fontSize(10).text("Comentários:", MARGEM, doc.y);
   doc.y += 12;
-  const alturaCaixa = 60;
+  // 85pt — mede com a caixa de comentário do Excel original (merge D30:AB33,
+  // 4 linhas de ~20pt cada), em vez de um valor arbitrário.
+  const alturaCaixa = 85;
   doc.rect(MARGEM, doc.y, LARGURA_UTIL, alturaCaixa).lineWidth(0.5).stroke();
   doc
     .font("Helvetica")
