@@ -228,6 +228,25 @@ body {
   flex-shrink: 0;
 }
 
+.campo-item-checklist {
+  margin-bottom: 4px;
+}
+
+.campo-item-checklist .campo-checklist-row > span {
+  flex: 1;
+}
+
+.campo-item-detalhe {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  margin: -4px 0 10px;
+  border: 1px dashed #b9d6bf;
+  border-radius: 8px;
+  background: #fafffc;
+}
+
 .campo-mao-de-obra-row {
   display: grid;
   grid-template-columns: 2fr 1fr auto;

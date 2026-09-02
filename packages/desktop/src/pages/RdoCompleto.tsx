@@ -132,14 +132,20 @@ interface MaterialDraft {
   quantidade: string;
 }
 
-interface EquipamentoDraft {
-  equipamentoCatalogoId: string;
-  quantidade: string;
+// Detalhe de produção/horímetro de um item da checklist de equipamentos —
+// escondido por padrão (só a quantidade aparece direto), porque só faz
+// sentido pra máquina de verdade (terraplenagem), não pra item de
+// checklist comum tipo Tenda/Banheiro Químico.
+interface EquipamentoDetalhe {
   producaoDescricao: string;
   producaoValor: string;
   producaoUnidade: string;
   horimetroInicial: string;
   horimetroFinal: string;
+}
+
+function detalheVazio(): EquipamentoDetalhe {
+  return { producaoDescricao: "", producaoValor: "", producaoUnidade: "", horimetroInicial: "", horimetroFinal: "" };
 }
 
 /** Formato retornado por `GET /rdos/:id` — usado só quando a tela abre em modo de edição. */
@@ -326,7 +332,12 @@ export default function RdoCompleto(): ReactElement {
   const [locais, setLocais] = useState<LocalDraft[]>([]);
   const [maoDeObra, setMaoDeObra] = useState<Record<string, string>>({});
   const [outrasMaoDeObra, setOutrasMaoDeObra] = useState<OutraMaoDeObraDraft[]>([]);
-  const [equipamentos, setEquipamentos] = useState<EquipamentoDraft[]>([]);
+  // Checklist fixa — todo item do catálogo aparece direto, só com a
+  // quantidade (padrão antigo, que o usuário pediu de volta); produção/
+  // horímetro fica escondido por item até clicar em "+ Produção/horímetro".
+  const [equipamentosQtd, setEquipamentosQtd] = useState<Record<string, string>>({});
+  const [equipamentosDetalhe, setEquipamentosDetalhe] = useState<Record<string, EquipamentoDetalhe>>({});
+  const [equipamentosDetalheAberto, setEquipamentosDetalheAberto] = useState<Record<string, boolean>>({});
   const [materiais, setMateriais] = useState<MaterialDraft[]>([]);
   const [observacoes, setObservacoes] = useState("");
 
@@ -443,16 +454,30 @@ export default function RdoCompleto(): ReactElement {
               })
               .map((mdo) => ({ funcaoId: mdo.funcaoId, colaboradorId: mdo.colaboradorId ?? "", quantidade: String(mdo.quantidade) })),
           );
-          setEquipamentos(
-            rdo.equipamentos.map((eq) => ({
-              equipamentoCatalogoId: eq.equipamentoCatalogoId,
-              quantidade: String(eq.quantidade),
-              producaoDescricao: eq.producaoDescricao ?? "",
-              producaoValor: eq.producaoValor ?? "",
-              producaoUnidade: eq.producaoUnidade ?? "",
-              horimetroInicial: eq.horimetroInicial ?? "",
-              horimetroFinal: eq.horimetroFinal ?? "",
-            })),
+          setEquipamentosQtd(Object.fromEntries(rdo.equipamentos.map((eq) => [eq.equipamentoCatalogoId, String(eq.quantidade)])));
+          setEquipamentosDetalhe(
+            Object.fromEntries(
+              rdo.equipamentos.map((eq) => [
+                eq.equipamentoCatalogoId,
+                {
+                  producaoDescricao: eq.producaoDescricao ?? "",
+                  producaoValor: eq.producaoValor ?? "",
+                  producaoUnidade: eq.producaoUnidade ?? "",
+                  horimetroInicial: eq.horimetroInicial ?? "",
+                  horimetroFinal: eq.horimetroFinal ?? "",
+                },
+              ]),
+            ),
+          );
+          setEquipamentosDetalheAberto(
+            Object.fromEntries(
+              rdo.equipamentos
+                .filter(
+                  (eq) =>
+                    eq.producaoDescricao || eq.producaoValor != null || eq.horimetroInicial != null || eq.horimetroFinal != null,
+                )
+                .map((eq) => [eq.equipamentoCatalogoId, true]),
+            ),
           );
           setMateriais(rdo.materiais.map((m) => ({ materialCatalogoId: m.materialCatalogoId, quantidade: String(m.quantidade) })));
           setUltimaDecisaoFiscal(rdo.ultimaDecisaoFiscal);
@@ -691,27 +716,15 @@ export default function RdoCompleto(): ReactElement {
     setMateriais((atual) => atual.map((material, i) => (i === indice ? { ...material, [campo]: valor } : material)));
   }
 
-  function adicionarEquipamento(): void {
-    setEquipamentos((atual) => [
+  function atualizarDetalheEquipamento(equipamentoCatalogoId: string, campo: keyof EquipamentoDetalhe, valor: string): void {
+    setEquipamentosDetalhe((atual) => ({
       ...atual,
-      {
-        equipamentoCatalogoId: "",
-        quantidade: "",
-        producaoDescricao: "",
-        producaoValor: "",
-        producaoUnidade: "",
-        horimetroInicial: "",
-        horimetroFinal: "",
-      },
-    ]);
+      [equipamentoCatalogoId]: { ...(atual[equipamentoCatalogoId] ?? detalheVazio()), [campo]: valor },
+    }));
   }
 
-  function atualizarEquipamento(indice: number, campo: keyof EquipamentoDraft, valor: string): void {
-    setEquipamentos((atual) => atual.map((equipamento, i) => (i === indice ? { ...equipamento, [campo]: valor } : equipamento)));
-  }
-
-  function removerEquipamento(indice: number): void {
-    setEquipamentos((atual) => atual.filter((_, i) => i !== indice));
+  function alternarDetalheEquipamento(equipamentoCatalogoId: string): void {
+    setEquipamentosDetalheAberto((atual) => ({ ...atual, [equipamentoCatalogoId]: !atual[equipamentoCatalogoId] }));
   }
 
   async function handleSalvar(): Promise<void> {
@@ -786,17 +799,20 @@ export default function RdoCompleto(): ReactElement {
             quantidade: Number(item.quantidade),
           })),
       ],
-      equipamentos: equipamentos
-        .filter((equipamento) => equipamento.equipamentoCatalogoId !== "" && Number(equipamento.quantidade) > 0)
-        .map((equipamento) => ({
-          equipamentoCatalogoId: equipamento.equipamentoCatalogoId,
-          quantidade: Number(equipamento.quantidade),
-          producaoDescricao: equipamento.producaoDescricao.trim() || null,
-          producaoValor: equipamento.producaoValor !== "" ? Number(equipamento.producaoValor) : null,
-          producaoUnidade: equipamento.producaoUnidade.trim() || null,
-          horimetroInicial: equipamento.horimetroInicial !== "" ? Number(equipamento.horimetroInicial) : null,
-          horimetroFinal: equipamento.horimetroFinal !== "" ? Number(equipamento.horimetroFinal) : null,
-        })),
+      equipamentos: equipamentosCatalogo
+        .filter((item) => Number(equipamentosQtd[item.id] ?? "0") > 0)
+        .map((item) => {
+          const detalhe = equipamentosDetalhe[item.id] ?? detalheVazio();
+          return {
+            equipamentoCatalogoId: item.id,
+            quantidade: Number(equipamentosQtd[item.id]),
+            producaoDescricao: detalhe.producaoDescricao.trim() || null,
+            producaoValor: detalhe.producaoValor !== "" ? Number(detalhe.producaoValor) : null,
+            producaoUnidade: detalhe.producaoUnidade.trim() || null,
+            horimetroInicial: detalhe.horimetroInicial !== "" ? Number(detalhe.horimetroInicial) : null,
+            horimetroFinal: detalhe.horimetroFinal !== "" ? Number(detalhe.horimetroFinal) : null,
+          };
+        }),
       materiais: materiais
         .filter((material) => material.materialCatalogoId !== "" && Number(material.quantidade) > 0)
         .map((material, ordem) => ({
@@ -1606,93 +1622,94 @@ export default function RdoCompleto(): ReactElement {
         <section className="form-section">
           <h2 className="form-section-title">Equipamentos / outros custos indiretos</h2>
           <p className="form-section-subtitle">
-            Produção é opcional — só preencha pra equipes que apontam por equipamento (ex.: terraplenagem), não pra um
-            item de checklist comum.
+            Marque a quantidade de cada item usado no dia. Produção/horímetro é opcional — só abra pra equipamento
+            que aponta por produção (ex.: terraplenagem).
           </p>
-          {equipamentos.map((equipamento, indice) => (
-            <div key={indice} style={{ marginBottom: 12 }}>
-              <div className="material-row">
-                <Autocomplete
-                  value={equipamento.equipamentoCatalogoId}
-                  items={equipamentosCatalogo}
-                  getLabel={(item) => item.nome}
-                  placeholder="Digite o nome do equipamento…"
-                  onChange={(equipamentoCatalogoId) => atualizarEquipamento(indice, "equipamentoCatalogoId", equipamentoCatalogoId)}
-                  onCriar={async (nome) => {
-                    const novo = await api.post<EquipamentoCatalogo>("/equipamentos", { nome });
-                    setEquipamentosCatalogo((atual) => [...atual, novo]);
-                    return novo;
-                  }}
-                />
-                <input
-                  type="number"
-                  min={1}
-                  className="field-input"
-                  placeholder="Qtd."
-                  value={equipamento.quantidade}
-                  onChange={(event) => atualizarEquipamento(indice, "quantidade", event.target.value)}
-                />
-                <button type="button" className="button button--ghost button--small" onClick={() => removerEquipamento(indice)}>
-                  Remover
-                </button>
-              </div>
-              <div className="grid-3">
-                <input
-                  className="field-input"
-                  placeholder="Produção (ex.: Manutenção de acesso)"
-                  value={equipamento.producaoDescricao}
-                  onChange={(event) => atualizarEquipamento(indice, "producaoDescricao", event.target.value)}
-                />
-                <input
-                  type="number"
-                  step="0.001"
-                  className="field-input"
-                  placeholder="Valor"
-                  value={equipamento.producaoValor}
-                  onChange={(event) => atualizarEquipamento(indice, "producaoValor", event.target.value)}
-                />
-                <input
-                  className="field-input"
-                  placeholder="Unidade (ex.: m, cargas, litros)"
-                  value={equipamento.producaoUnidade}
-                  onChange={(event) => atualizarEquipamento(indice, "producaoUnidade", event.target.value)}
-                />
-              </div>
-              <p className="form-section-subtitle" style={{ marginTop: 8 }}>
-                Ou, se a máquina é apontada por horímetro (ex.: retroescavadeira, pá carregadeira): horímetro inicial
-                e final do dia.
-              </p>
-              <div className="grid-2">
-                <div>
-                  <label className="field-label">Horímetro inicial</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    className="field-input"
-                    placeholder="Ex.: 1234.50"
-                    value={equipamento.horimetroInicial}
-                    onChange={(event) => atualizarEquipamento(indice, "horimetroInicial", event.target.value)}
-                  />
+          {equipamentosCatalogo.length === 0 ? (
+            <p className="table-empty">Nenhum equipamento cadastrado no catálogo.</p>
+          ) : (
+            equipamentosCatalogo.map((item) => {
+              const detalhe = equipamentosDetalhe[item.id] ?? detalheVazio();
+              const aberto = equipamentosDetalheAberto[item.id] ?? false;
+              return (
+                <div key={item.id} style={{ marginBottom: 4 }}>
+                  <div className="checklist-row">
+                    <span>{item.nome}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      className="field-input qty-input"
+                      value={equipamentosQtd[item.id] ?? ""}
+                      onChange={(event) => setEquipamentosQtd((atual) => ({ ...atual, [item.id]: event.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      onClick={() => alternarDetalheEquipamento(item.id)}
+                    >
+                      {aberto ? "Ocultar produção/horímetro" : "+ Produção/horímetro"}
+                    </button>
+                  </div>
+                  {aberto && (
+                    <div className="repeatable-item" style={{ marginTop: 4 }}>
+                      <div className="grid-3">
+                        <input
+                          className="field-input"
+                          placeholder="Produção (ex.: Manutenção de acesso)"
+                          value={detalhe.producaoDescricao}
+                          onChange={(event) => atualizarDetalheEquipamento(item.id, "producaoDescricao", event.target.value)}
+                        />
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder="Valor"
+                          value={detalhe.producaoValor}
+                          onChange={(event) => atualizarDetalheEquipamento(item.id, "producaoValor", event.target.value)}
+                        />
+                        <input
+                          className="field-input"
+                          placeholder="Unidade (ex.: m, cargas, litros)"
+                          value={detalhe.producaoUnidade}
+                          onChange={(event) => atualizarDetalheEquipamento(item.id, "producaoUnidade", event.target.value)}
+                        />
+                      </div>
+                      <p className="form-section-subtitle" style={{ marginTop: 8 }}>
+                        Ou, se a máquina é apontada por horímetro (ex.: retroescavadeira, pá carregadeira): horímetro
+                        inicial e final do dia.
+                      </p>
+                      <div className="grid-2">
+                        <div>
+                          <label className="field-label">Horímetro inicial</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            className="field-input"
+                            placeholder="Ex.: 1234.50"
+                            value={detalhe.horimetroInicial}
+                            onChange={(event) => atualizarDetalheEquipamento(item.id, "horimetroInicial", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Horímetro final</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            className="field-input"
+                            placeholder="Ex.: 1240.00"
+                            value={detalhe.horimetroFinal}
+                            onChange={(event) => atualizarDetalheEquipamento(item.id, "horimetroFinal", event.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="field-label">Horímetro final</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    className="field-input"
-                    placeholder="Ex.: 1240.00"
-                    value={equipamento.horimetroFinal}
-                    onChange={(event) => atualizarEquipamento(indice, "horimetroFinal", event.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-          <button type="button" className="button button--secondary button--small" style={{ marginTop: 12 }} onClick={adicionarEquipamento}>
-            + Adicionar equipamento
-          </button>
+              );
+            })
+          )}
         </section>
 
         <section className="form-section">
