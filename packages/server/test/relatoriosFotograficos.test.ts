@@ -39,15 +39,38 @@ async function montarCenario() {
   return { om, rdo };
 }
 
-async function enviarFotoParaOm(app: ReturnType<typeof buildApp>, rdoId: string, omId: string) {
+async function enviarFotoParaOm(app: ReturnType<typeof buildApp>, rdoId: string, omId: string, legenda?: string) {
+  const query = legenda ? `&descricao=${encodeURIComponent(legenda)}` : "";
   const response = await app.inject({
     method: "POST",
-    url: `/rdos/campo/token-relfoto/anexos?tipo=FOTO&ordemManutencaoId=${omId}`,
+    url: `/rdos/campo/token-relfoto/anexos?tipo=FOTO&ordemManutencaoId=${omId}${query}`,
     headers: { "content-type": `multipart/form-data; boundary=${BOUNDARY}` },
     payload: multipartBody("foto.jpg", "image/jpeg", JPEG_BYTES),
   });
   expect(response.statusCode).toBe(201);
   return response.json() as { id: string; ordemManutencaoId: string | null };
+}
+
+async function enviarFotoExtra(app: ReturnType<typeof buildApp>, omId: string) {
+  const response = await app.inject({
+    method: "POST",
+    url: `/ordens-manutencao/${omId}/relatorio-fotografico/fotos`,
+    headers: { "content-type": `multipart/form-data; boundary=${BOUNDARY}` },
+    payload: multipartBody("extra.jpg", "image/jpeg", JPEG_BYTES),
+  });
+  expect(response.statusCode).toBe(201);
+  return response.json() as { fotos: FotoOrdenada[] };
+}
+
+interface FotoOrdenada {
+  id: string;
+  ordem: number;
+  legenda: string | null;
+}
+
+async function buscarRelatorio(app: ReturnType<typeof buildApp>, omId: string) {
+  const response = await app.inject({ method: "GET", url: `/ordens-manutencao/${omId}/relatorio-fotografico` });
+  return response.json() as { fotos: FotoOrdenada[] };
 }
 
 describe("POST /rdos/campo/:token/anexos com ordemManutencaoId", () => {
@@ -269,6 +292,68 @@ describe("PDF do Relatório Fotográfico", () => {
     const app = buildApp();
     const response = await app.inject({ method: "GET", url: `/ordens-manutencao/${om.id}/relatorio-fotografico/pdf` });
     expect(response.statusCode).toBe(404);
+  });
+});
+
+describe("Pareamento Antes/Depois no Relatório Fotográfico", () => {
+  it("pareia a N-ésima foto Antes com a N-ésima Depois, mesmo chegando fora de ordem", async () => {
+    const { om, rdo } = await montarCenario();
+    const app = buildApp();
+    // Antes, Antes, Depois (fora de ordem — duas "Antes" seguidas antes de qualquer "Depois").
+    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
+    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
+    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
+
+    const relatorio = await buscarRelatorio(app, om.id);
+    const ordenadas = [...relatorio.fotos].sort((a, b) => a.ordem - b.ordem);
+    expect(ordenadas.map((f) => [f.ordem, f.legenda])).toEqual([
+      [0, "Antes"], // par 0: Antes
+      [1, "Depois"], // par 0: Depois (a 1ª Depois pareia com a 1ª Antes)
+      [2, "Antes"], // par 1: só Antes (não tem 2ª Depois pra parear)
+    ]);
+  });
+
+  it("sincronizar-fotos empareia só as fotos novas, sem mexer no que já tava no relatório", async () => {
+    const { om, rdo } = await montarCenario();
+    const app = buildApp();
+    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
+    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
+    await buscarRelatorio(app, om.id); // cria o relatório, par 0 = ordem 0/1
+
+    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
+    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
+    const sync = await app.inject({
+      method: "POST",
+      url: `/ordens-manutencao/${om.id}/relatorio-fotografico/sincronizar-fotos`,
+    });
+    const body = sync.json() as { fotos: FotoOrdenada[] };
+    const ordenadas = [...body.fotos].sort((a, b) => a.ordem - b.ordem);
+    expect(ordenadas.map((f) => [f.ordem, f.legenda])).toEqual([
+      [0, "Antes"],
+      [1, "Depois"],
+      [2, "Antes"], // novo par começa em 2, não colide com o par 0 existente
+      [3, "Depois"],
+    ]);
+  });
+
+  it("upload extra não colide com foto existente quando há buraco no meio (par incompleto)", async () => {
+    const { om, rdo } = await montarCenario();
+    const app = buildApp();
+    // 1 Antes + 2 Depois: par 0 = (Antes@0, Depois@1); par 1 = só Depois,
+    // que fica em ordem 3 (o lado Antes, ordem 2, fica vazio) — 3 fotos no
+    // total, mas o maior `ordem` usado é 3, não 2. Se o upload extra usasse
+    // ingenuamente "quantas fotos existem" (3) como próximo ordem, colidiria
+    // com essa foto que já está em 3.
+    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
+    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
+    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
+    const antesDoExtra = await buscarRelatorio(app, om.id);
+    expect(antesDoExtra.fotos.map((f) => f.ordem).sort((a, b) => a - b)).toEqual([0, 1, 3]);
+
+    const extra = await enviarFotoExtra(app, om.id);
+    const ordensUsadas = extra.fotos.map((f) => f.ordem);
+    expect(new Set(ordensUsadas).size).toBe(ordensUsadas.length); // nenhum ordem repetido
+    expect(extra.fotos).toHaveLength(4);
   });
 });
 

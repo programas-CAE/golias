@@ -18,6 +18,16 @@ const SETTINGS: GoliasSettings = {
   webUrl: "https://campo.golias.engecomengenharia.online",
 };
 
+// Sem isso, o Windows associa a janela EM EXECUÇÃO (barra de tarefas,
+// alt-tab, agrupamento) a um AppUserModelID genérico derivado do caminho
+// do .exe, que pode cair no ícone padrão do Electron em vez do nosso —
+// mesmo com o ícone certo já embutido no executável e no atalho (esses
+// dois usam o recurso de ícone do arquivo, não o AppUserModelID). Precisa
+// bater com o `appId` do electron-builder.yml.
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.engecom.golias");
+}
+
 const UMA_HORA_MS = 60 * 60 * 1000;
 
 /**

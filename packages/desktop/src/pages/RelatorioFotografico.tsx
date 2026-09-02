@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
@@ -22,11 +22,40 @@ interface RelatorioFotograficoResponse {
   fotos: FotoRelatorio[];
 }
 
+interface ParDeFotos {
+  indice: number;
+  antes: FotoRelatorio | null;
+  depois: FotoRelatorio | null;
+}
+
+/**
+ * Um par de fotos (Antes/Depois) por item da intervenção — ver
+ * montarOrdemPareada() no servidor (routes/relatoriosFotograficos.ts):
+ * par N ocupa sempre `ordem` 2N (Antes) e 2N+1 (Depois), mesmo quando um
+ * dos lados ainda não tem foto (aí a tela mostra a caixa vazia daquele
+ * lado). Fotos sem legenda reconhecida caem sozinhas do lado Antes de um
+ * par próprio, no final.
+ */
+function montarPares(fotos: FotoRelatorio[], paresVaziosLocais: number[]): ParDeFotos[] {
+  const mapa = new Map<number, ParDeFotos>();
+  for (const foto of fotos) {
+    const indice = Math.floor(foto.ordem / 2);
+    const atual = mapa.get(indice) ?? { indice, antes: null, depois: null };
+    if (foto.ordem % 2 === 0) atual.antes = foto;
+    else atual.depois = foto;
+    mapa.set(indice, atual);
+  }
+  for (const indice of paresVaziosLocais) {
+    if (!mapa.has(indice)) mapa.set(indice, { indice, antes: null, depois: null });
+  }
+  return [...mapa.values()].sort((a, b) => a.indice - b.indice);
+}
+
 /**
  * "Check List de Conclusão de Manutenção Preventiva/Corretiva -
  * Infraestrutura" (documento oficial da Vale/EFC) de uma OM. Abre já
  * pré-preenchido com as fotos que o encarregado marcou pra essa OM no
- * lançamento de campo — a ideia é só ajustar (trocar/legendar/reordenar
+ * lançamento de campo — a ideia é só ajustar (completar um par, trocar
  * foto, escrever o comentário) e gerar o PDF, não montar do zero.
  */
 export default function RelatorioFotografico(): ReactElement {
@@ -43,8 +72,13 @@ export default function RelatorioFotografico(): ReactElement {
   const [salvo, setSalvo] = useState(false);
 
   const [sincronizando, setSincronizando] = useState(false);
-  const [enviandoFoto, setEnviandoFoto] = useState(false);
+  const [enviandoSlot, setEnviandoSlot] = useState<string | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+
+  // Pares que o usuário clicou "adicionar" mas ainda não têm nenhuma foto —
+  // só existem no navegador até a primeira foto ser enviada nele (a partir
+  // daí passam a vir naturalmente do servidor, via montarPares).
+  const [paresVaziosLocais, setParesVaziosLocais] = useState<number[]>([]);
 
   async function carregar(): Promise<void> {
     if (!id) return;
@@ -101,9 +135,11 @@ export default function RelatorioFotografico(): ReactElement {
     }
   }
 
-  async function enviarFotoExtra(arquivo: File): Promise<void> {
+  /** Manda a foto e já move ela pro slot certo do par (Antes/Depois de um par específico). */
+  async function enviarFotoNoSlot(parIndice: number, lado: "antes" | "depois", arquivo: File): Promise<void> {
     if (!id) return;
-    setEnviandoFoto(true);
+    const chaveSlot = `${parIndice}-${lado}`;
+    setEnviandoSlot(chaveSlot);
     setErro(null);
     try {
       const form = new FormData();
@@ -112,41 +148,22 @@ export default function RelatorioFotografico(): ReactElement {
         `/ordens-manutencao/${id}/relatorio-fotografico/fotos`,
         form,
       );
-      setRelatorio(resposta);
+      // A foto acabou de ser criada com o maior `ordem` da lista (ver
+      // rota) — move ela pro slot certo do par que o usuário clicou.
+      const novaFoto = [...resposta.fotos].sort((a, b) => b.ordem - a.ordem)[0];
+      if (novaFoto) {
+        const ordemAlvo = parIndice * 2 + (lado === "antes" ? 0 : 1);
+        await api.patch(`/ordens-manutencao/${id}/relatorio-fotografico/fotos/${novaFoto.id}`, {
+          ordem: ordemAlvo,
+          legenda: lado === "antes" ? "Antes" : "Depois",
+        });
+      }
+      setParesVaziosLocais((atual) => atual.filter((indice) => indice !== parIndice));
+      await carregar();
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível enviar a foto.");
     } finally {
-      setEnviandoFoto(false);
-    }
-  }
-
-  async function salvarLegenda(fotoId: string, legenda: string): Promise<void> {
-    if (!id) return;
-    setRelatorio((atual) =>
-      atual ? { ...atual, fotos: atual.fotos.map((f) => (f.id === fotoId ? { ...f, legenda } : f)) } : atual,
-    );
-    try {
-      await api.patch(`/ordens-manutencao/${id}/relatorio-fotografico/fotos/${fotoId}`, { legenda: legenda || null });
-    } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível salvar a legenda.");
-    }
-  }
-
-  async function moverFoto(indice: number, direcao: -1 | 1): Promise<void> {
-    if (!id || !relatorio) return;
-    const fotos = [...relatorio.fotos].sort((a, b) => a.ordem - b.ordem);
-    const alvo = indice + direcao;
-    if (alvo < 0 || alvo >= fotos.length) return;
-    const a = fotos[indice]!;
-    const b = fotos[alvo]!;
-    try {
-      await Promise.all([
-        api.patch(`/ordens-manutencao/${id}/relatorio-fotografico/fotos/${a.id}`, { ordem: b.ordem }),
-        api.patch(`/ordens-manutencao/${id}/relatorio-fotografico/fotos/${b.id}`, { ordem: a.ordem }),
-      ]);
-      await carregar();
-    } catch (error) {
-      setErro(error instanceof ApiError ? error.message : "Não foi possível reordenar as fotos.");
+      setEnviandoSlot(null);
     }
   }
 
@@ -158,6 +175,21 @@ export default function RelatorioFotografico(): ReactElement {
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível remover a foto.");
     }
+  }
+
+  async function removerPar(par: ParDeFotos): Promise<void> {
+    const idsParaRemover = [par.antes?.id, par.depois?.id].filter((valor): valor is string => valor != null);
+    if (idsParaRemover.length === 0) {
+      // Par ainda vazio (só existe no navegador) — não tem nada pra apagar no servidor.
+      setParesVaziosLocais((atual) => atual.filter((indice) => indice !== par.indice));
+      return;
+    }
+    await Promise.all(idsParaRemover.map((fotoId) => removerFoto(fotoId)));
+  }
+
+  function adicionarParVazio(): void {
+    const maiorIndice = pares.length > 0 ? Math.max(...pares.map((par) => par.indice)) : -1;
+    setParesVaziosLocais((atual) => [...atual, maiorIndice + 1]);
   }
 
   async function gerarPdf(): Promise<void> {
@@ -180,7 +212,57 @@ export default function RelatorioFotografico(): ReactElement {
     await abrirExterno(`${settings.apiUrl.replace(/\/$/, "")}/ordens-manutencao/${id}/relatorio-fotografico/pdf`);
   }
 
-  const fotosOrdenadas = relatorio ? [...relatorio.fotos].sort((a, b) => a.ordem - b.ordem) : [];
+  const pares = useMemo(
+    () => montarPares(relatorio?.fotos ?? [], paresVaziosLocais),
+    [relatorio, paresVaziosLocais],
+  );
+
+  function urlDaFoto(fotoId: string): string {
+    return `${apiUrl.replace(/\/$/, "")}/ordens-manutencao/${id}/relatorio-fotografico/fotos/${fotoId}/arquivo`;
+  }
+
+  function Slot({ par, lado }: { par: ParDeFotos; lado: "antes" | "depois" }): ReactElement {
+    const foto = lado === "antes" ? par.antes : par.depois;
+    const chaveSlot = `${par.indice}-${lado}`;
+    const enviando = enviandoSlot === chaveSlot;
+
+    if (foto) {
+      return (
+        <div className="foto-slot-preenchido">
+          <img src={urlDaFoto(foto.id)} alt={lado === "antes" ? "Antes" : "Depois"} />
+          <button type="button" className="foto-slot-remover" onClick={() => void removerFoto(foto.id)} title="Remover esta foto">
+            ✕
+          </button>
+        </div>
+      );
+    }
+
+    return (
+      <label className="foto-slot-vazio">
+        {enviando ? (
+          <span>Enviando…</span>
+        ) : (
+          <>
+            <span aria-hidden="true" style={{ fontSize: "1.6rem" }}>
+              📷
+            </span>
+            <span>Clique para inserir imagem</span>
+          </>
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          style={{ display: "none" }}
+          disabled={enviando}
+          onChange={(event) => {
+            const arquivo = event.target.files?.[0];
+            event.target.value = "";
+            if (arquivo) void enviarFotoNoSlot(par.indice, lado, arquivo);
+          }}
+        />
+      </label>
+    );
+  }
 
   return (
     <div className="app-shell">
@@ -192,7 +274,7 @@ export default function RelatorioFotografico(): ReactElement {
             <p className="list-subtitle">Check List de Conclusão de Manutenção — Infraestrutura</p>
           </div>
           <div style={{ display: "flex", gap: 12 }}>
-            <button type="button" className="button button--secondary" onClick={() => navigate("/ordens-manutencao")}>
+            <button type="button" className="button button--secondary" onClick={() => navigate("/relatorios-fotograficos")}>
               Voltar
             </button>
             <button type="button" className="button button--secondary" onClick={() => void gerarPdf()} disabled={gerandoPdf}>
@@ -266,87 +348,67 @@ export default function RelatorioFotografico(): ReactElement {
 
             <section className="form-section">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h2 className="form-section-title">Registro fotográfico</h2>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    type="button"
-                    className="button button--secondary button--small"
-                    onClick={() => void sincronizarFotos()}
-                    disabled={sincronizando}
-                  >
-                    {sincronizando ? "Sincronizando…" : "Atualizar com fotos do campo"}
-                  </button>
-                  <label className="button button--secondary button--small" style={{ cursor: "pointer" }}>
-                    {enviandoFoto ? "Enviando…" : "+ Adicionar foto"}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: "none" }}
-                      disabled={enviandoFoto}
-                      onChange={(event) => {
-                        const arquivo = event.target.files?.[0];
-                        event.target.value = "";
-                        if (arquivo) void enviarFotoExtra(arquivo);
-                      }}
-                    />
-                  </label>
+                <div>
+                  <h2 className="form-section-title" style={{ marginBottom: 0 }}>
+                    Registro fotográfico
+                  </h2>
+                  <p className="form-section-subtitle" style={{ marginBottom: 0 }}>
+                    Um par de fotos (antes/depois) por item da intervenção
+                  </p>
                 </div>
+                <button
+                  type="button"
+                  className="button button--secondary button--small"
+                  onClick={() => void sincronizarFotos()}
+                  disabled={sincronizando}
+                >
+                  {sincronizando ? "Sincronizando…" : "Atualizar com fotos do campo"}
+                </button>
               </div>
 
-              {fotosOrdenadas.length === 0 ? (
-                <p className="table-empty">
-                  Nenhuma foto ainda — o encarregado ainda não marcou fotos pra essa OM, ou clique em "Adicionar foto".
-                </p>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
-                  {fotosOrdenadas.map((foto, indice) => (
-                    <div key={foto.id} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                      <img
-                        src={`${apiUrl.replace(/\/$/, "")}/ordens-manutencao/${id}/relatorio-fotografico/fotos/${foto.id}/arquivo`}
-                        alt={foto.legenda ?? ""}
-                        style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", borderRadius: 8, border: "1px solid var(--border)" }}
-                      />
-                      <select
-                        className="field-input"
-                        style={{ fontSize: "0.8rem" }}
-                        value={foto.legenda ?? ""}
-                        onChange={(event) => void salvarLegenda(foto.id, event.target.value)}
-                      >
-                        <option value="">Sem legenda</option>
-                        <option value="Antes">Antes</option>
-                        <option value="Depois">Depois</option>
-                      </select>
-                      <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
-                        <div style={{ display: "flex", gap: 4 }}>
-                          <button
-                            type="button"
-                            className="button button--ghost button--small"
-                            onClick={() => void moverFoto(indice, -1)}
-                            disabled={indice === 0}
-                          >
-                            ▲
-                          </button>
-                          <button
-                            type="button"
-                            className="button button--ghost button--small"
-                            onClick={() => void moverFoto(indice, 1)}
-                            disabled={indice === fotosOrdenadas.length - 1}
-                          >
-                            ▼
-                          </button>
-                        </div>
+              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+                {pares.length === 0 ? (
+                  <p className="table-empty">
+                    Nenhuma foto ainda — o encarregado ainda não marcou fotos pra essa OM, ou clique em "Adicionar par de
+                    fotos".
+                  </p>
+                ) : (
+                  pares.map((par) => (
+                    <div key={par.indice} className="repeatable-item">
+                      <div className="repeatable-item-header">
+                        <span className="repeatable-item-titulo">Par {par.indice + 1}</span>
                         <button
                           type="button"
                           className="button button--ghost button--small"
-                          onClick={() => void removerFoto(foto.id)}
+                          onClick={() => void removerPar(par)}
+                          title="Remover este par"
                         >
-                          Remover
+                          🗑
                         </button>
                       </div>
+                      <div className="grid-2">
+                        <div>
+                          <label className="field-label">Antes</label>
+                          <Slot par={par} lado="antes" />
+                        </div>
+                        <div>
+                          <label className="field-label">Depois</label>
+                          <Slot par={par} lado="depois" />
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="button button--secondary button--small"
+                style={{ marginTop: 12 }}
+                onClick={adicionarParVazio}
+              >
+                + Adicionar par de fotos
+              </button>
             </section>
           </>
         )}

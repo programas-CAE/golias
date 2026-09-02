@@ -43,7 +43,19 @@ export default function RelatoriosFotograficos(): ReactElement {
         (ordem) =>
           termo === "" ||
           [ordem.numero, ordem.frente.nome, ordem.detalhes].some((campo) => normalizarBusca(campo ?? "").includes(termo)),
-      );
+      )
+      .sort((a, b) => {
+        // Pendente sempre antes de OK — é o que precisa de atenção, então
+        // fica fácil de achar sem se perder no meio dos já finalizados. O
+        // que já foi feito (conferido com calma) vai pro final da lista,
+        // fora do caminho.
+        if (a.precisaRelatorioFotografico !== b.precisaRelatorioFotografico) {
+          return a.precisaRelatorioFotografico ? -1 : 1;
+        }
+        // Dentro de cada grupo, os mais novos (que acabaram de chegar)
+        // primeiro.
+        return b.dataEmissao.localeCompare(a.dataEmissao);
+      });
   }, [ordens, busca, somentePendentes]);
 
   const totalPendentes = (ordens ?? []).filter((o) => o.precisaRelatorioFotografico).length;

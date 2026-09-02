@@ -52,6 +52,44 @@ function semCaminhosInternos<T extends { pdfPath: string | null; fotos: Array<{ 
   };
 }
 
+/**
+ * Monta o `ordem` de cada foto pareando Antes com Depois — a N-ésima foto
+ * "Antes" fica ao lado da N-ésima foto "Depois" (na ordem cronológica em
+ * que cada uma foi lançada), em vez de simplesmente empilhar na ordem de
+ * chegada. Antes disso, quando o encarregado mandava as fotos fora de
+ * ordem (ex.: várias "Antes" seguidas, "Depois" só depois), o Antes e o
+ * Depois do mesmo item acabavam longe um do outro na grade 2 colunas do
+ * PDF/edição — bug real visto em produção.
+ *
+ * Cada par ocupa sempre 2 posições de `ordem` (par N = 2N e 2N+1, Antes e
+ * Depois respectivamente) MESMO quando um dos lados ainda não existe — é
+ * assim que a tela sabe desenhar um par "incompleto" com uma caixa vazia
+ * do lado que falta, em vez de desalinhar o par seguinte. Fotos sem
+ * legenda (Antes/Depois) viram pares próprios no final, sozinhas do lado
+ * Antes, depois de todos os pares reconhecidos.
+ *
+ * `ordemBase` desloca tudo pra depois de fotos que já estavam no
+ * relatório (usado por /sincronizar-fotos, que só deve mexer no que é
+ * novo — nunca reordenar o que o escritório já ajustou manualmente).
+ */
+function montarOrdemPareada<T extends { legenda: string | null }>(itens: T[], ordemBase = 0): Array<T & { ordem: number }> {
+  const antes = itens.filter((item) => item.legenda === "Antes");
+  const depois = itens.filter((item) => item.legenda === "Depois");
+  const semLegenda = itens.filter((item) => item.legenda !== "Antes" && item.legenda !== "Depois");
+
+  const resultado: Array<T & { ordem: number }> = [];
+  const totalPares = Math.max(antes.length, depois.length);
+  for (let i = 0; i < totalPares; i++) {
+    if (antes[i]) resultado.push({ ...antes[i]!, ordem: ordemBase + i * 2 });
+    if (depois[i]) resultado.push({ ...depois[i]!, ordem: ordemBase + i * 2 + 1 });
+  }
+  const baseSemLegenda = ordemBase + totalPares * 2;
+  semLegenda.forEach((item, indice) => {
+    resultado.push({ ...item, ordem: baseSemLegenda + indice * 2 });
+  });
+  return resultado;
+}
+
 async function buscarOuCriarRelatorio(ordemManutencaoId: string) {
   const existente = await prisma.relatorioFotografico.findUnique({
     where: { ordemManutencaoId },
@@ -65,14 +103,17 @@ async function buscarOuCriarRelatorio(ordemManutencaoId: string) {
     select: { id: true, descricao: true },
   });
 
+  // A legenda (ex.: "Antes"/"Depois") que o encarregado já marcou no anexo
+  // vem junto — a foto chega no relatório já identificada, sem precisar
+  // legendar de novo no escritório. montarOrdemPareada() já entrega elas
+  // agrupadas em pares Antes/Depois.
+  const pareadas = montarOrdemPareada(fotosDaOm.map((anexo) => ({ ...anexo, legenda: anexo.descricao })));
+
   return prisma.relatorioFotografico.create({
     data: {
       ordemManutencaoId,
-      // A legenda (ex.: "Antes"/"Depois") que o encarregado já marcou no
-      // anexo vem junto — a foto chega no relatório já identificada, sem
-      // precisar legendar de novo no escritório.
       fotos: {
-        create: fotosDaOm.map((anexo, indice) => ({ ordem: indice, rdoAnexoId: anexo.id, legenda: anexo.descricao })),
+        create: pareadas.map((anexo) => ({ ordem: anexo.ordem, rdoAnexoId: anexo.id, legenda: anexo.legenda })),
       },
     },
     select: relatorioSelect,
@@ -142,13 +183,22 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
       });
       const novas = todasFotosDaOm.filter((f) => !jaReferenciadas.has(f.id));
       if (novas.length > 0) {
-        const ordemInicial = relatorio.fotos.length;
+        // Começa depois do maior `ordem` já usado no relatório, arredondado
+        // pro início de um par (par sempre começa em ordem par) — só
+        // organiza em pares o que está chegando agora, sem tocar no que já
+        // estava lá (o escritório pode já ter mexido manualmente).
+        const maiorOrdemAtual = relatorio.fotos.reduce((maior, foto) => Math.max(maior, foto.ordem), -1);
+        const ordemInicial = maiorOrdemAtual % 2 === 0 ? maiorOrdemAtual + 2 : maiorOrdemAtual + 1;
+        const pareadas = montarOrdemPareada(
+          novas.map((anexo) => ({ ...anexo, legenda: anexo.descricao })),
+          ordemInicial,
+        );
         await prisma.relatorioFotograficoFoto.createMany({
-          data: novas.map((anexo, indice) => ({
+          data: pareadas.map((anexo) => ({
             relatorioFotograficoId: relatorio.id,
             rdoAnexoId: anexo.id,
-            legenda: anexo.descricao,
-            ordem: ordemInicial + indice,
+            legenda: anexo.legenda,
+            ordem: anexo.ordem,
           })),
         });
       }
@@ -179,10 +229,17 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
     const relatorio = await buscarOuCriarRelatorio(om.id);
     const { caminhoArquivo } = await salvarArquivoAnexo(buffer, file.mimetype, "relatorios-fotograficos", relatorio.id);
 
+    // Não dá pra usar `relatorio.fotos.length` como próximo `ordem` — com
+    // pares Antes/Depois pode haver buracos (par incompleto), então o
+    // comprimento da lista não é o maior `ordem` + 1. A tela move essa
+    // foto pro slot certo do par logo em seguida (PATCH em ordem+legenda);
+    // aqui só precisa de um `ordem` que não colida com nada existente.
+    const maiorOrdem = relatorio.fotos.reduce((maior, foto) => Math.max(maior, foto.ordem), -1);
+
     await prisma.relatorioFotograficoFoto.create({
       data: {
         relatorioFotograficoId: relatorio.id,
-        ordem: relatorio.fotos.length,
+        ordem: maiorOrdem + 1,
         caminhoArquivo,
         nomeOriginal: file.filename,
         mimeType: file.mimetype,
@@ -271,10 +328,10 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
     if (!om) return reply.status(404).send({ error: "Ordem de manutenção não encontrada" });
     const relatorio = await buscarOuCriarRelatorio(om.id);
 
-    const fotos: { imagem: Buffer; legenda: string | null }[] = [];
+    const fotos: { imagem: Buffer; legenda: string | null; ordem: number }[] = [];
     for (const foto of relatorio.fotos) {
       const imagem = await lerBytesDaFoto(foto);
-      if (imagem) fotos.push({ imagem, legenda: foto.legenda });
+      if (imagem) fotos.push({ imagem, legenda: foto.legenda, ordem: foto.ordem });
     }
 
     const buffer = await gerarRelatorioFotograficoPdf({

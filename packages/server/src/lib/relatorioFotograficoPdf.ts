@@ -12,6 +12,11 @@ import PDFDocument from "pdfkit";
 export interface RelatorioFotograficoFotoDados {
   imagem: Buffer;
   legenda: string | null;
+  // Par N = ordem 2N (Antes) / 2N+1 (Depois) — ver montarOrdemPareada() em
+  // routes/relatoriosFotograficos.ts. Usado aqui pra desenhar cada par como
+  // uma linha da grade (Antes à esquerda, Depois à direita), não só
+  // empilhar por ordem de chegada.
+  ordem: number;
 }
 
 export interface RelatorioFotograficoDados {
@@ -193,32 +198,41 @@ function desenharFotos(doc: PDFKit.PDFDocument, dados: RelatorioFotograficoDados
     return;
   }
 
+  // Agrupa por par (ver RelatorioFotograficoFotoDados.ordem) — cada par
+  // vira uma linha da grade, Antes sempre à esquerda e Depois à direita,
+  // com uma caixa vazia do lado que ainda não tem foto (em vez de deixar o
+  // Antes e o Depois do mesmo item longe um do outro quando um dos dois
+  // falta ou chega fora de ordem — bug real visto em produção).
+  const porPar = new Map<number, { antes?: RelatorioFotograficoFotoDados; depois?: RelatorioFotograficoFotoDados }>();
+  for (const foto of dados.fotos) {
+    const parIndice = Math.floor(foto.ordem / 2);
+    const atual = porPar.get(parIndice) ?? {};
+    if (foto.ordem % 2 === 0) atual.antes = foto;
+    else atual.depois = foto;
+    porPar.set(parIndice, atual);
+  }
+  const pares = [...porPar.entries()].sort(([a], [b]) => a - b).map(([, par]) => par);
+
   const colX = [MARGEM, MARGEM + FOTO_LARGURA + 20];
   const alturaCartao = FOTO_ALTURA + 22;
-  let coluna = 0;
 
-  for (const foto of dados.fotos) {
-    if (coluna === 0) garantirEspaco(doc, alturaCartao);
-    const x = colX[coluna]!;
+  for (const par of pares) {
+    garantirEspaco(doc, alturaCartao);
     const y = doc.y;
-    doc.rect(x, y, FOTO_LARGURA, FOTO_ALTURA).lineWidth(0.5).strokeColor("#cccccc").stroke();
-    try {
-      doc.image(foto.imagem, x, y, { fit: [FOTO_LARGURA, FOTO_ALTURA], align: "center", valign: "center" });
-    } catch {
-      // Arquivo corrompido/formato inesperado — mantém o quadro vazio em vez de derrubar a geração do PDF.
+    for (const [coluna, foto] of [par.antes, par.depois].entries()) {
+      const x = colX[coluna]!;
+      doc.rect(x, y, FOTO_LARGURA, FOTO_ALTURA).lineWidth(0.5).strokeColor("#cccccc").stroke();
+      if (!foto) continue;
+      try {
+        doc.image(foto.imagem, x, y, { fit: [FOTO_LARGURA, FOTO_ALTURA], align: "center", valign: "center" });
+      } catch {
+        // Arquivo corrompido/formato inesperado — mantém o quadro vazio em vez de derrubar a geração do PDF.
+      }
+      const rotulo = foto.legenda ?? (coluna === 0 ? "Antes" : "Depois");
+      doc.font("Helvetica").fontSize(7).fillColor("#000000").text(rotulo, x, y + FOTO_ALTURA + 2, { width: FOTO_LARGURA });
     }
-    if (foto.legenda) {
-      doc.font("Helvetica").fontSize(7).fillColor("#000000").text(foto.legenda, x, y + FOTO_ALTURA + 2, { width: FOTO_LARGURA });
-    }
-
-    if (coluna === 0) {
-      coluna = 1;
-    } else {
-      coluna = 0;
-      doc.y = y + alturaCartao;
-    }
+    doc.y = y + alturaCartao;
   }
-  if (coluna !== 0) doc.y += alturaCartao;
 }
 
 function desenharRodapes(doc: PDFKit.PDFDocument): void {
