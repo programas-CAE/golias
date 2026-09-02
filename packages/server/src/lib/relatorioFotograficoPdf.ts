@@ -47,17 +47,23 @@ function garantirEspaco(doc: PDFKit.PDFDocument, alturaNecessaria: number): void
   }
 }
 
+// Logo Vale a 110pt de largura renderiza a ~59.5pt de altura (proporção
+// original 170x92) — o título centralizado abaixo dele precisa começar
+// depois disso, senão as duas coisas se sobrepõem (bug real visto em
+// produção: "VALE" ficava por cima de "Check List de Conc...").
+const ALTURA_LOGO_VALE = 60;
+
 function desenharCabecalho(doc: PDFKit.PDFDocument): void {
   doc.image(LOGO_VALE, MARGEM, MARGEM, { width: 110 });
   doc
     .font("Helvetica-Bold")
     .fontSize(13)
     .fillColor("#000000")
-    .text("Check List de Conclusão de Manutenção Preventiva - Infraestrutura", MARGEM, MARGEM + 40, {
+    .text("Check List de Conclusão de Manutenção Preventiva - Infraestrutura", MARGEM, MARGEM + ALTURA_LOGO_VALE + 8, {
       width: LARGURA_UTIL,
       align: "center",
     });
-  doc.y = MARGEM + 70;
+  doc.y = MARGEM + ALTURA_LOGO_VALE + 38;
 
   doc
     .font("Helvetica")

@@ -1,6 +1,7 @@
 import { useState, type ReactElement } from "react";
 import { NavLink } from "react-router-dom";
 import { definirTema, temaAtual, type Tema } from "../lib/theme";
+import { getAppVersion } from "../lib/settingsStore";
 
 const LINKS: Array<{ to: string; label: string }> = [
   { to: "/", label: "Início" },
@@ -58,6 +59,10 @@ export default function Nav(): ReactElement {
         <button type="button" className="nav-theme-toggle" onClick={alternarTema}>
           {tema === "dark" ? "☀️ Modo claro" : "🌙 Modo escuro"}
         </button>
+        {/* Sem isso não tinha como conferir se uma atualização já chegou —
+            "ainda tá dando esse bug" sem saber a versão instalada é difícil
+            de diagnosticar. */}
+        <p className="nav-versao">v{getAppVersion()}</p>
       </div>
     </nav>
   );
