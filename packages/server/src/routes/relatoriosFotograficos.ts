@@ -89,10 +89,13 @@ async function lerBytesDaFoto(foto: {
 
 export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void {
   app.get<{ Params: { id: string } }>("/ordens-manutencao/:id/relatorio-fotografico", async (request, reply) => {
-    const om = await prisma.ordemManutencao.findUnique({ where: { id: request.params.id }, select: { id: true } });
+    const om = await prisma.ordemManutencao.findUnique({
+      where: { id: request.params.id },
+      select: { id: true, numero: true },
+    });
     if (!om) return reply.status(404).send({ error: "Ordem de manutenção não encontrada" });
     const relatorio = await buscarOuCriarRelatorio(om.id);
-    return semCaminhosInternos(relatorio);
+    return { ...semCaminhosInternos(relatorio), omNumero: om.numero };
   });
 
   app.patch<{ Params: { id: string } }>("/ordens-manutencao/:id/relatorio-fotografico", async (request, reply) => {

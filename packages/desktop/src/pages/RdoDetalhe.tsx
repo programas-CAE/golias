@@ -61,6 +61,16 @@ interface MaterialDetalhe {
   quantidade: string;
 }
 
+interface AnexoDetalhe {
+  id: string;
+  tipo: string;
+  nomeOriginal: string;
+  tamanhoBytes: number;
+  descricao: string | null;
+  ordemManutencaoId: string | null;
+  ordemManutencao: { id: string; numero: string } | null;
+}
+
 interface UltimaDecisaoFiscal {
   status: "APROVADO" | "REPROVADO";
   comentario: string | null;
@@ -87,6 +97,7 @@ interface RdoDetalheResponse {
   maoDeObra: MaoDeObraDetalhe[];
   equipamentos: EquipamentoDetalhe[];
   materiais: MaterialDetalhe[];
+  anexos: AnexoDetalhe[];
   ultimaDecisaoFiscal: UltimaDecisaoFiscal | null;
 }
 
@@ -104,6 +115,20 @@ const STATUS_OM_LABEL: Record<string, string> = {
   CONCLUIDA: "Concluída",
 };
 
+/** Agrupa as fotos do RDO pela OM que o encarregado marcou ao enviar cada uma — mesma lógica do PDF e do Campo.tsx. */
+function agruparFotosPorOm(anexos: AnexoDetalhe[]): { omNumero: string | null; fotos: AnexoDetalhe[] }[] {
+  const grupos = new Map<string, { omNumero: string | null; fotos: AnexoDetalhe[] }>();
+  for (const anexo of anexos) {
+    if (anexo.tipo !== "FOTO") continue;
+    const chave = anexo.ordemManutencaoId ?? "__geral__";
+    if (!grupos.has(chave)) grupos.set(chave, { omNumero: anexo.ordemManutencao?.numero ?? null, fotos: [] });
+    grupos.get(chave)!.fotos.push(anexo);
+  }
+  const comOm = [...grupos.entries()].filter(([chave]) => chave !== "__geral__").map(([, grupo]) => grupo);
+  const geral = grupos.get("__geral__");
+  return geral ? [...comOm, geral] : comOm;
+}
+
 export default function RdoDetalhe(): ReactElement {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -112,6 +137,7 @@ export default function RdoDetalhe(): ReactElement {
   const [gerando, setGerando] = useState(false);
   const [pdfGerado, setPdfGerado] = useState(false);
   const [webUrl, setWebUrl] = useState("");
+  const [apiUrl, setApiUrl] = useState("");
   const [linkCopiado, setLinkCopiado] = useState(false);
   const [enviandoFiscal, setEnviandoFiscal] = useState(false);
 
@@ -121,7 +147,10 @@ export default function RdoDetalhe(): ReactElement {
       .get<RdoDetalheResponse>(`/rdos/${id}`)
       .then(setRdo)
       .catch((error) => setErro(error instanceof ApiError ? error.message : "Não foi possível carregar o RDO."));
-    void getSettings().then((settings) => setWebUrl(settings.webUrl));
+    void getSettings().then((settings) => {
+      setWebUrl(settings.webUrl);
+      setApiUrl(settings.apiUrl);
+    });
   }, [id]);
 
   async function copiarLinkCampo(): Promise<void> {
@@ -383,6 +412,35 @@ export default function RdoDetalhe(): ReactElement {
                     ))}
                   </tbody>
                 </table>
+              </section>
+            )}
+
+            {rdo.anexos.some((anexo) => anexo.tipo === "FOTO") && (
+              <section className="form-section">
+                <h2 className="form-section-title">Fotos</h2>
+                {agruparFotosPorOm(rdo.anexos).map((grupo) => (
+                  <div key={grupo.omNumero ?? "geral"} style={{ marginBottom: 16 }}>
+                    <p className="list-subtitle">{grupo.omNumero ? `OM ${grupo.omNumero}` : "Fotos gerais"}</p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                      {grupo.fotos.map((foto) => (
+                        <a
+                          key={foto.id}
+                          href="#"
+                          onClick={(event) => {
+                            event.preventDefault();
+                            void abrirExterno(`${apiUrl.replace(/\/$/, "")}/rdos/${rdo.id}/anexos/${foto.id}`);
+                          }}
+                        >
+                          <img
+                            src={`${apiUrl.replace(/\/$/, "")}/rdos/${rdo.id}/anexos/${foto.id}`}
+                            alt={foto.nomeOriginal}
+                            style={{ width: 100, height: 100, objectFit: "cover", borderRadius: 8, border: "1px solid #d8e4de" }}
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </section>
             )}
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
+import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
 
@@ -18,6 +19,7 @@ interface OrdemManutencao {
   kmFinal: string | null;
   lado: string | null;
   detalhes: string | null;
+  precisaRelatorioFotografico: boolean;
 }
 
 interface OrdemForm {
@@ -44,6 +46,7 @@ function normalizarBusca(texto: string): string {
 }
 
 export default function OrdensManutencao(): ReactElement {
+  const navigate = useNavigate();
   const [ordens, setOrdens] = useState<OrdemManutencao[] | null>(null);
   const [frentes, setFrentes] = useState<Frente[]>([]);
   const [erro, setErro] = useState<string | null>(null);
@@ -140,6 +143,7 @@ export default function OrdensManutencao(): ReactElement {
                   <th>Frente</th>
                   <th>Emissão</th>
                   <th>Lado</th>
+                  <th>Relatório fotográfico</th>
                   <th />
                 </tr>
               </thead>
@@ -151,6 +155,20 @@ export default function OrdensManutencao(): ReactElement {
                     <td>{ordem.dataEmissao.slice(0, 10)}</td>
                     <td>{ordem.lado ?? "—"}</td>
                     <td>
+                      {ordem.precisaRelatorioFotografico ? (
+                        <span className="badge badge--atrasada">Pendente</span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        className="button button--ghost button--small"
+                        onClick={() => navigate(`/ordens-manutencao/${ordem.id}/relatorio-fotografico`)}
+                      >
+                        Relatório fotográfico
+                      </button>
                       <button
                         type="button"
                         className="button button--ghost button--small"

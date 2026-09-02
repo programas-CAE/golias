@@ -26,6 +26,7 @@ interface ItemFarolOm {
   lado: string | null;
   detalhes: string | null;
   status: string;
+  precisaRelatorioFotografico: boolean;
 }
 
 interface CelulaFarolOm {
@@ -563,12 +564,13 @@ export default function Farol(): ReactElement {
                       <th>Data programada</th>
                       <th>Data realizada</th>
                       <th>Status do farol</th>
+                      <th>Relatório fotográfico</th>
                     </tr>
                   </thead>
                   <tbody>
                     {itensOmFiltrados.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="table-empty">
+                        <td colSpan={7} className="table-empty">
                           Nenhuma OM programada nesse período.
                         </td>
                       </tr>
@@ -586,6 +588,20 @@ export default function Farol(): ReactElement {
                             <span className={`badge ${OM_STATUS_BADGE_CLASSE[item.status] ?? "badge--inativo"}`}>
                               {OM_STATUS_LABEL[item.status] ?? item.status}
                             </span>
+                          </td>
+                          <td>
+                            {item.precisaRelatorioFotografico ? (
+                              <button
+                                type="button"
+                                className="badge badge--atrasada"
+                                style={{ border: "none", cursor: "pointer" }}
+                                onClick={() => navigate(`/ordens-manutencao/${item.id}/relatorio-fotografico`)}
+                              >
+                                Pendente
+                              </button>
+                            ) : (
+                              "—"
+                            )}
                           </td>
                         </tr>
                       ))

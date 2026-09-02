@@ -243,6 +243,66 @@ body {
   color: #5b7268;
 }
 
+.campo-foto-upload {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.campo-foto-upload select {
+  flex: 1;
+  min-width: 180px;
+}
+
+.campo-foto-dica {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: #5b7268;
+}
+
+.campo-foto-grupo {
+  margin-top: 16px;
+}
+
+.campo-foto-grupo-titulo {
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin: 0 0 8px;
+}
+
+.campo-foto-grade {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.campo-foto-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.campo-foto-item img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #d8e4de;
+}
+
+.campo-foto-remover {
+  background: none;
+  border: none;
+  color: #b3413a;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0;
+}
+
 .campo-textarea {
   min-height: 100px;
   resize: vertical;

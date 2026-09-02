@@ -16,8 +16,11 @@ export default function Nav(): ReactElement {
   return (
     <nav className="nav">
       <div className="nav-brand">
-        <p className="nav-brand-title">GOLIAS</p>
-        <p className="nav-brand-subtitle">Gestão de contratos</p>
+        <img src="/icon.png" alt="" className="nav-brand-icon" />
+        <div>
+          <p className="nav-brand-title">GOLIAS</p>
+          <p className="nav-brand-subtitle">Gestão de contratos</p>
+        </div>
       </div>
       <div className="nav-links">
         {LINKS.map((link) => (

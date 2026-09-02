@@ -5,9 +5,11 @@ directories:
 files:
   - dist/**
   - dist-electron/**
+  - build/icon.png
   - package.json
 win:
   target: nsis
+  icon: build/icon.ico
 nsis:
   oneClick: false
   perMachine: true

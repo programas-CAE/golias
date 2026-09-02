@@ -5,6 +5,7 @@ import Frentes from "./pages/Frentes";
 import FrenteDistritos from "./pages/FrenteDistritos";
 import DistritoDetalhe from "./pages/DistritoDetalhe";
 import OrdensManutencao from "./pages/OrdensManutencao";
+import RelatorioFotografico from "./pages/RelatorioFotografico";
 import Catalogos from "./pages/Catalogos";
 import MedicaoMensal from "./pages/MedicaoMensal";
 import Rdos from "./pages/Rdos";
@@ -25,6 +26,7 @@ export default function App(): ReactElement {
         <Route path="/frentes/:frenteId/distritos" element={<FrenteDistritos />} />
         <Route path="/distritos/:distritoId" element={<DistritoDetalhe />} />
         <Route path="/ordens-manutencao" element={<OrdensManutencao />} />
+        <Route path="/ordens-manutencao/:id/relatorio-fotografico" element={<RelatorioFotografico />} />
         <Route path="/farol" element={<Farol />} />
         <Route path="/links" element={<Links />} />
         <Route path="/catalogos" element={<Catalogos />} />

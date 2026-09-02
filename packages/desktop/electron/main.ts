@@ -64,6 +64,7 @@ function createWindow(): void {
     height: 800,
     title: "GOLIAS",
     backgroundColor: "#f4faf6",
+    icon: path.join(__dirname, "../build/icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { useParams } from "react-router-dom";
-import { ApiError, api } from "../lib/apiClient";
+import { API_URL, ApiError, api } from "../lib/apiClient";
 import Autocomplete from "../components/Autocomplete";
 import AssinaturaCanvas, { type AssinaturaCanvasHandle } from "../components/AssinaturaCanvas";
 import CroquiAtividade from "../components/CroquiAtividade";
@@ -42,6 +42,11 @@ interface RdoAnexo {
   tipo: string;
   nomeOriginal: string;
   tamanhoBytes: number;
+  // A OM que o encarregado marcou ao mandar a foto — null pra foto geral do
+  // dia (não veio de nenhuma OM específica). Usada pra agrupar a galeria
+  // aqui e, mais pra frente, no PDF do RDO e no Relatório Fotográfico da OM.
+  ordemManutencaoId: string | null;
+  ordemManutencao: { id: string; numero: string } | null;
 }
 
 interface RdoAtividadeMaoDeObraSalva {
@@ -305,6 +310,8 @@ export default function Campo(): ReactElement {
   const [materiaisCatalogo, setMateriaisCatalogo] = useState<MaterialCatalogoRef[]>([]);
   const [funcoes, setFuncoes] = useState<FuncaoRef[]>([]);
   const [anexos, setAnexos] = useState<RdoAnexo[]>([]);
+  const [omFotoSelecionada, setOmFotoSelecionada] = useState("");
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
 
   const [clima, setClima] = useState<string>("");
   const [horaExtraInicio, setHoraExtraInicio] = useState("");
@@ -444,6 +451,33 @@ export default function Campo(): ReactElement {
   }, [token]);
 
   const horasApontadasDia = useMemo(() => calcularHorasApontadasDia(blocos, locais), [blocos, locais]);
+
+  // OMs já usadas em alguma atividade lançada neste RDO — é dessa lista que
+  // o seletor de "foto pra qual OM" abaixo é montado, pra bater com o que já
+  // está sendo apontado no dia (não precisa digitar/achar a OM de novo).
+  const omsUsadasNoRdo = useMemo(() => {
+    const idsUsados = new Set(
+      locais.flatMap((local) => local.atividades.map((atividade) => atividade.ordemManutencaoId)).filter(Boolean),
+    );
+    return (dados?.ordensManutencao ?? []).filter((om) => idsUsados.has(om.id));
+  }, [locais, dados?.ordensManutencao]);
+
+  const anexosPorOm = useMemo(() => {
+    const grupos = new Map<string, { omNumero: string | null; fotos: RdoAnexo[] }>();
+    for (const anexo of anexos) {
+      if (anexo.tipo !== "FOTO") continue;
+      const chave = anexo.ordemManutencaoId ?? "__geral__";
+      if (!grupos.has(chave)) {
+        grupos.set(chave, { omNumero: anexo.ordemManutencao?.numero ?? null, fotos: [] });
+      }
+      grupos.get(chave)!.fotos.push(anexo);
+    }
+    const comOm = [...grupos.entries()].filter(([chave]) => chave !== "__geral__").map(([, grupo]) => grupo);
+    const geral = grupos.get("__geral__");
+    return geral ? [...comOm, geral] : comOm;
+  }, [anexos]);
+
+  const outrosAnexos = anexos.filter((anexo) => anexo.tipo !== "FOTO");
 
   function atualizarBloco(indice: number, campo: keyof BlocoDraft, valor: string): void {
     setBlocos((atual) => atual.map((bloco, i) => (i === indice ? { ...bloco, [campo]: valor } : bloco)));
@@ -661,11 +695,27 @@ export default function Campo(): ReactElement {
 
     const form = new FormData();
     form.append("arquivo", arquivo);
+    const qs = new URLSearchParams({ tipo: "FOTO" });
+    if (omFotoSelecionada) qs.set("ordemManutencaoId", omFotoSelecionada);
+
+    setEnviandoFoto(true);
     try {
-      const anexo = await api.postForm<RdoAnexo>(`/rdos/campo/${token}/anexos?tipo=FOTO`, form);
+      const anexo = await api.postForm<RdoAnexo>(`/rdos/campo/${token}/anexos?${qs}`, form);
       setAnexos((atual) => [...atual, anexo]);
     } catch (error) {
       setErroSalvar(error instanceof ApiError ? error.message : "Não foi possível enviar a foto.");
+    } finally {
+      setEnviandoFoto(false);
+    }
+  }
+
+  async function removerFoto(anexoId: string): Promise<void> {
+    if (!dados) return;
+    try {
+      await api.delete(`/rdos/${dados.rdo.id}/anexos/${anexoId}`);
+      setAnexos((atual) => atual.filter((anexo) => anexo.id !== anexoId));
+    } catch (error) {
+      setErroSalvar(error instanceof ApiError ? error.message : "Não foi possível remover a foto.");
     }
   }
 
@@ -1470,14 +1520,57 @@ export default function Campo(): ReactElement {
 
       <section className="campo-secao">
         <h2>Fotos</h2>
-        <input type="file" accept="image/*" capture="environment" onChange={(event) => void handleUploadFoto(event)} />
-        <ul className="campo-anexos-lista">
-          {anexos.map((anexo) => (
-            <li key={anexo.id}>
-              {anexo.nomeOriginal} ({Math.round(anexo.tamanhoBytes / 1024)} KB)
-            </li>
-          ))}
-        </ul>
+        <div className="campo-foto-upload">
+          <select
+            className="field-input"
+            value={omFotoSelecionada}
+            onChange={(event) => setOmFotoSelecionada(event.target.value)}
+          >
+            <option value="">Foto geral (sem OM específica)</option>
+            {omsUsadasNoRdo.map((om) => (
+              <option key={om.id} value={om.id}>
+                OM {om.numero}
+              </option>
+            ))}
+          </select>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            disabled={enviandoFoto}
+            onChange={(event) => void handleUploadFoto(event)}
+          />
+        </div>
+        <p className="campo-foto-dica">
+          Escolha a OM antes de tirar a foto — cada foto fica registrada na OM certa, pra aparecer organizada no
+          relatório fotográfico dela.
+        </p>
+
+        {anexosPorOm.map((grupo) => (
+          <div key={grupo.omNumero ?? "geral"} className="campo-foto-grupo">
+            <p className="campo-foto-grupo-titulo">{grupo.omNumero ? `OM ${grupo.omNumero}` : "Fotos gerais"}</p>
+            <ul className="campo-foto-grade">
+              {grupo.fotos.map((anexo) => (
+                <li key={anexo.id} className="campo-foto-item">
+                  <img src={`${API_URL}/rdos/${dados?.rdo.id}/anexos/${anexo.id}`} alt={anexo.nomeOriginal} />
+                  <button type="button" className="campo-foto-remover" onClick={() => void removerFoto(anexo.id)}>
+                    Remover
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+
+        {outrosAnexos.length > 0 && (
+          <ul className="campo-anexos-lista">
+            {outrosAnexos.map((anexo) => (
+              <li key={anexo.id}>
+                {anexo.nomeOriginal} ({Math.round(anexo.tamanhoBytes / 1024)} KB)
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="campo-secao">
