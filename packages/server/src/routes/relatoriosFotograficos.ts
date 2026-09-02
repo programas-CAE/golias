@@ -62,13 +62,18 @@ async function buscarOuCriarRelatorio(ordemManutencaoId: string) {
   const fotosDaOm = await prisma.rdoAnexo.findMany({
     where: { ordemManutencaoId, tipo: "FOTO" },
     orderBy: { criadoEm: "asc" },
-    select: { id: true },
+    select: { id: true, descricao: true },
   });
 
   return prisma.relatorioFotografico.create({
     data: {
       ordemManutencaoId,
-      fotos: { create: fotosDaOm.map((anexo, indice) => ({ ordem: indice, rdoAnexoId: anexo.id })) },
+      // A legenda (ex.: "Antes"/"Depois") que o encarregado já marcou no
+      // anexo vem junto — a foto chega no relatório já identificada, sem
+      // precisar legendar de novo no escritório.
+      fotos: {
+        create: fotosDaOm.map((anexo, indice) => ({ ordem: indice, rdoAnexoId: anexo.id, legenda: anexo.descricao })),
+      },
     },
     select: relatorioSelect,
   });
@@ -133,7 +138,7 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
       const todasFotosDaOm = await prisma.rdoAnexo.findMany({
         where: { ordemManutencaoId: om.id, tipo: "FOTO" },
         orderBy: { criadoEm: "asc" },
-        select: { id: true },
+        select: { id: true, descricao: true },
       });
       const novas = todasFotosDaOm.filter((f) => !jaReferenciadas.has(f.id));
       if (novas.length > 0) {
@@ -142,6 +147,7 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
           data: novas.map((anexo, indice) => ({
             relatorioFotograficoId: relatorio.id,
             rdoAnexoId: anexo.id,
+            legenda: anexo.descricao,
             ordem: ordemInicial + indice,
           })),
         });

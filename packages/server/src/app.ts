@@ -3,11 +3,14 @@ import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAtividadesRoutes } from "./routes/atividades.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 import { registerColaboradoresRoutes } from "./routes/colaboradores.js";
 import { registerContratosRoutes } from "./routes/contratos.js";
 import { registerDistritosRoutes } from "./routes/distritos.js";
+import { registerEncarregadoRoutes } from "./routes/encarregado.js";
 import { registerEquipamentosRoutes } from "./routes/equipamentos.js";
 import { registerEquipesRoutes } from "./routes/equipes.js";
+import { registerFiscalRoutes } from "./routes/fiscal.js";
 import { registerFrentesRoutes } from "./routes/frentes.js";
 import { registerFuncoesRoutes } from "./routes/funcoes.js";
 import { registerIndicadoresRoutes } from "./routes/indicadores.js";
@@ -19,6 +22,7 @@ import { registerPortalFiscalRoutes } from "./routes/portalFiscal.js";
 import { registerPowerBiRoutes } from "./routes/powerbi.js";
 import { registerRdosRoutes } from "./routes/rdos.js";
 import { registerRelatoriosFotograficosRoutes } from "./routes/relatoriosFotograficos.js";
+import { registerUsuariosRoutes } from "./routes/usuarios.js";
 
 /**
  * Cria e configura a instância Fastify da API GOLIAS, sem colocá-la para
@@ -67,6 +71,10 @@ export function buildApp(): FastifyInstance {
   registerRdosRoutes(app);
   registerPortalFiscalRoutes(app);
   registerPortalEncarregadoRoutes(app);
+  registerFiscalRoutes(app);
+  registerEncarregadoRoutes(app);
+  registerAuthRoutes(app);
+  registerUsuariosRoutes(app);
   registerIndicadoresRoutes(app);
   registerMedicoesRoutes(app);
   registerPowerBiRoutes(app);

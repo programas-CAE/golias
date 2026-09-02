@@ -8,7 +8,7 @@ import { prisma } from "../lib/prisma.js";
 import { generateToken } from "../lib/tokens.js";
 import { parseBody } from "../lib/validate.js";
 
-const STATUS_PENDENTES = ["AGUARDANDO_APROVACAO", "EM_CORRECAO"] as const;
+export const STATUS_PENDENTES = ["AGUARDANDO_APROVACAO", "EM_CORRECAO"] as const;
 
 const rdoResumoSelect = {
   id: true,
@@ -25,6 +25,111 @@ async function buscarFrentePorToken(token: string) {
   });
 }
 
+/** Reaproveitado pela rota de token (portal fixo) e pela autenticada (routes/fiscal.ts). */
+export async function listarRdosDaFrente(frenteId: string) {
+  const [pendentes, historico] = await Promise.all([
+    prisma.rdo.findMany({
+      where: { frenteId, status: { in: [...STATUS_PENDENTES] } },
+      orderBy: { data: "desc" },
+      select: rdoResumoSelect,
+    }),
+    prisma.rdo.findMany({
+      where: { frenteId, status: { in: ["APROVADO", "REPROVADO"] } },
+      orderBy: { data: "desc" },
+      take: 30,
+      select: rdoResumoSelect,
+    }),
+  ]);
+  return { pendentes, historico };
+}
+
+export async function buscarRdoDaFrente(rdoId: string, frenteId: string) {
+  const rdo = await prisma.rdo.findUnique({ where: { id: rdoId }, select: rdoCampoSelect });
+  if (!rdo || rdo.frenteId !== frenteId) return null;
+  return rdo;
+}
+
+interface AssinarRdoInput {
+  rdoId: string;
+  frenteId: string;
+  fiscalNome: string;
+  fiscalEmail: string;
+  observacao: string | null;
+  arquivo: Buffer;
+  ip: string;
+}
+
+/** Grava a assinatura/aprovação e regera o PDF — quem chama já validou o RDO (existe, é dessa frente, está pendente) e o PNG da assinatura. */
+export async function assinarRdo({ rdoId, fiscalNome, fiscalEmail, observacao, arquivo, ip }: AssinarRdoInput) {
+  const rdo = await prisma.rdo.findUniqueOrThrow({ where: { id: rdoId }, select: { id: true, status: true, pdfHash: true } });
+
+  const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
+  const rdoDir = path.join(uploadsRoot, "rdos", rdo.id);
+  await mkdir(rdoDir, { recursive: true });
+  const caminhoAssinatura = path.join(rdoDir, "assinatura-fiscal.png");
+  await writeFile(caminhoAssinatura, arquivo);
+
+  await prisma.$transaction([
+    prisma.aprovacaoFiscal.create({
+      data: {
+        rdoId: rdo.id,
+        fiscalNome,
+        fiscalEmail,
+        token: generateToken(),
+        tokenExpiraEm: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        status: "APROVADO",
+        assinanteNome: fiscalNome,
+        assinadoEm: new Date(),
+        assinadoIp: ip,
+        documentoHash: rdo.pdfHash,
+        assinaturaImagemPath: caminhoAssinatura,
+        observacao: observacao || null,
+      },
+    }),
+    prisma.rdo.update({ where: { id: rdo.id }, data: { status: "APROVADO" } }),
+    prisma.rdoHistorico.create({
+      data: { rdoId: rdo.id, deStatus: rdo.status, paraStatus: "APROVADO", ator: fiscalNome },
+    }),
+  ]);
+
+  return gerarEArmazenarPdf(rdo.id);
+}
+
+interface ReprovarRdoInput {
+  rdoId: string;
+  fiscalNome: string;
+  fiscalEmail: string;
+  comentario: string;
+  ip: string;
+}
+
+export async function reprovarRdo({ rdoId, fiscalNome, fiscalEmail, comentario, ip }: ReprovarRdoInput) {
+  const rdo = await prisma.rdo.findUniqueOrThrow({ where: { id: rdoId }, select: { id: true, status: true } });
+
+  await prisma.$transaction([
+    prisma.aprovacaoFiscal.create({
+      data: {
+        rdoId: rdo.id,
+        fiscalNome,
+        fiscalEmail,
+        token: generateToken(),
+        tokenExpiraEm: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        status: "REPROVADO",
+        assinanteNome: fiscalNome,
+        assinadoEm: new Date(),
+        assinadoIp: ip,
+        comentarioReprovacao: comentario,
+      },
+    }),
+    prisma.rdo.update({ where: { id: rdo.id }, data: { status: "REPROVADO" } }),
+    prisma.rdoHistorico.create({
+      data: { rdoId: rdo.id, deStatus: rdo.status, paraStatus: "REPROVADO", ator: fiscalNome, observacao: comentario },
+    }),
+  ]);
+
+  return prisma.rdo.findUnique({ where: { id: rdo.id }, select: rdoCampoSelect });
+}
+
 export function registerPortalFiscalRoutes(app: FastifyInstance): void {
   /**
    * Portal fixo do fiscal, por frente (não por RDO) — o link não expira,
@@ -35,20 +140,7 @@ export function registerPortalFiscalRoutes(app: FastifyInstance): void {
     const frente = await buscarFrentePorToken(request.params.token);
     if (!frente) return reply.status(404).send({ error: "Link inválido" });
 
-    const [pendentes, historico] = await Promise.all([
-      prisma.rdo.findMany({
-        where: { frenteId: frente.id, status: { in: [...STATUS_PENDENTES] } },
-        orderBy: { data: "desc" },
-        select: rdoResumoSelect,
-      }),
-      prisma.rdo.findMany({
-        where: { frenteId: frente.id, status: { in: ["APROVADO", "REPROVADO"] } },
-        orderBy: { data: "desc" },
-        take: 30,
-        select: rdoResumoSelect,
-      }),
-    ]);
-
+    const { pendentes, historico } = await listarRdosDaFrente(frente.id);
     return { frente, pendentes, historico };
   });
 
@@ -58,10 +150,8 @@ export function registerPortalFiscalRoutes(app: FastifyInstance): void {
       const frente = await buscarFrentePorToken(request.params.token);
       if (!frente) return reply.status(404).send({ error: "Link inválido" });
 
-      const rdo = await prisma.rdo.findUnique({ where: { id: request.params.rdoId }, select: rdoCampoSelect });
-      if (!rdo || rdo.frenteId !== frente.id) {
-        return reply.status(404).send({ error: "RDO não encontrado" });
-      }
+      const rdo = await buscarRdoDaFrente(request.params.rdoId, frente.id);
+      if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
 
       return rdo;
     },
@@ -115,36 +205,7 @@ export function registerPortalFiscalRoutes(app: FastifyInstance): void {
         return reply.status(400).send({ error: "Assinatura inválida" });
       }
 
-      const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
-      const rdoDir = path.join(uploadsRoot, "rdos", rdo.id);
-      await mkdir(rdoDir, { recursive: true });
-      const caminhoAssinatura = path.join(rdoDir, "assinatura-fiscal.png");
-      await writeFile(caminhoAssinatura, arquivo);
-
-      await prisma.$transaction([
-        prisma.aprovacaoFiscal.create({
-          data: {
-            rdoId: rdo.id,
-            fiscalNome,
-            fiscalEmail,
-            token: generateToken(),
-            tokenExpiraEm: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-            status: "APROVADO",
-            assinanteNome: fiscalNome,
-            assinadoEm: new Date(),
-            assinadoIp: request.ip,
-            documentoHash: rdo.pdfHash,
-            assinaturaImagemPath: caminhoAssinatura,
-            observacao: observacao || null,
-          },
-        }),
-        prisma.rdo.update({ where: { id: rdo.id }, data: { status: "APROVADO" } }),
-        prisma.rdoHistorico.create({
-          data: { rdoId: rdo.id, deStatus: rdo.status, paraStatus: "APROVADO", ator: fiscalNome },
-        }),
-      ]);
-
-      return gerarEArmazenarPdf(rdo.id);
+      return assinarRdo({ rdoId: rdo.id, frenteId: frente.id, fiscalNome, fiscalEmail, observacao: observacao || null, arquivo, ip: request.ip });
     },
   );
 
@@ -169,34 +230,7 @@ export function registerPortalFiscalRoutes(app: FastifyInstance): void {
         return reply.status(409).send({ error: "Este RDO não está aguardando aprovação" });
       }
 
-      await prisma.$transaction([
-        prisma.aprovacaoFiscal.create({
-          data: {
-            rdoId: rdo.id,
-            fiscalNome: data.fiscalNome,
-            fiscalEmail: data.fiscalEmail,
-            token: generateToken(),
-            tokenExpiraEm: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-            status: "REPROVADO",
-            assinanteNome: data.fiscalNome,
-            assinadoEm: new Date(),
-            assinadoIp: request.ip,
-            comentarioReprovacao: data.comentario,
-          },
-        }),
-        prisma.rdo.update({ where: { id: rdo.id }, data: { status: "REPROVADO" } }),
-        prisma.rdoHistorico.create({
-          data: {
-            rdoId: rdo.id,
-            deStatus: rdo.status,
-            paraStatus: "REPROVADO",
-            ator: data.fiscalNome,
-            observacao: data.comentario,
-          },
-        }),
-      ]);
-
-      return prisma.rdo.findUnique({ where: { id: rdo.id }, select: rdoCampoSelect });
+      return reprovarRdo({ rdoId: rdo.id, fiscalNome: data.fiscalNome, fiscalEmail: data.fiscalEmail, comentario: data.comentario, ip: request.ip });
     },
   );
 }

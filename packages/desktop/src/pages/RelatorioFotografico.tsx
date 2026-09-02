@@ -306,13 +306,16 @@ export default function RelatorioFotografico(): ReactElement {
                         alt={foto.legenda ?? ""}
                         style={{ width: "100%", aspectRatio: "1 / 1", objectFit: "cover", borderRadius: 8, border: "1px solid #d8e4de" }}
                       />
-                      <input
+                      <select
                         className="field-input"
                         style={{ fontSize: "0.8rem" }}
-                        placeholder="Legenda (ex.: Antes, Depois)"
-                        defaultValue={foto.legenda ?? ""}
-                        onBlur={(event) => void salvarLegenda(foto.id, event.target.value)}
-                      />
+                        value={foto.legenda ?? ""}
+                        onChange={(event) => void salvarLegenda(foto.id, event.target.value)}
+                      >
+                        <option value="">Sem legenda</option>
+                        <option value="Antes">Antes</option>
+                        <option value="Depois">Depois</option>
+                      </select>
                       <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
                         <div style={{ display: "flex", gap: 4 }}>
                           <button

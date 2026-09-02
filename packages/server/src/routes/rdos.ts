@@ -12,6 +12,7 @@ import { ANEXO_MIME_EXTENSAO, ANEXO_TIPOS, assinaturaValida, salvarArquivoAnexo 
 import { comCodigoRastreio } from "../lib/codigoRastreio.js";
 import { prisma } from "../lib/prisma.js";
 import { calcularHashConteudo, gerarPdfRdo, type RdoConteudo, type RdoPdfGrupoFotos } from "../lib/rdoPdf.js";
+import { gerarPdfRdoSuperestrutura } from "../lib/rdoSuperestruturaPdf.js";
 import { generateToken } from "../lib/tokens.js";
 import { parseBody } from "../lib/validate.js";
 
@@ -215,6 +216,7 @@ const rdoListSelect = {
   id: true,
   codigoRastreio: true,
   data: true,
+  tipo: true,
   status: true,
   frente: { select: { id: true, nome: true } },
   equipe: { select: { id: true, nome: true } },
@@ -251,6 +253,7 @@ export const rdoCampoSelect = {
     },
   },
   data: true,
+  tipo: true,
   status: true,
   clima: true,
   horaExtraInicio: true,
@@ -498,6 +501,46 @@ function montarUrlVerificacao(rdoId: string, hash: string): string {
  * manual de gerar PDF e pelos fluxos de envio/assinatura/reprovação, que
  * precisam de um PDF atualizado a cada mudança de status.
  */
+/** Só usado quando `rdo.tipo === "SUPERESTRUTURA"` — intervalos + leituras de temperatura + serviços executados, ver RdoSuperestrutura em schema.prisma. */
+async function montarDadosSuperestrutura(rdoId: string) {
+  const dados = await prisma.rdoSuperestrutura.findUnique({
+    where: { rdoId },
+    select: {
+      intervaloProgramadoInicio: true,
+      intervaloProgramadoFim: true,
+      intervaloRealizadoInicio: true,
+      intervaloRealizadoFim: true,
+      tempoTotalPerdas: true,
+      leiturasTemperatura: { orderBy: { ordem: "asc" }, select: { hora: true, temperaturaC: true } },
+      servicos: {
+        orderBy: { ordem: "asc" },
+        select: { codigo: true, descricao: true, unidade: true, quantidade: true, linha: true, kmInicial: true, kmFinal: true },
+      },
+    },
+  });
+
+  return {
+    intervaloProgramadoInicio: dados?.intervaloProgramadoInicio ?? null,
+    intervaloProgramadoFim: dados?.intervaloProgramadoFim ?? null,
+    intervaloRealizadoInicio: dados?.intervaloRealizadoInicio ?? null,
+    intervaloRealizadoFim: dados?.intervaloRealizadoFim ?? null,
+    tempoTotalPerdas: dados?.tempoTotalPerdas ?? null,
+    leiturasTemperatura: (dados?.leiturasTemperatura ?? []).map((l) => ({
+      hora: l.hora,
+      temperaturaC: l.temperaturaC != null ? Number(l.temperaturaC) : null,
+    })),
+    servicos: (dados?.servicos ?? []).map((s) => ({
+      codigo: s.codigo,
+      descricao: s.descricao,
+      unidade: s.unidade,
+      quantidade: s.quantidade != null ? Number(s.quantidade) : null,
+      linha: s.linha,
+      kmInicial: s.kmInicial != null ? Number(s.kmInicial) : null,
+      kmFinal: s.kmFinal != null ? Number(s.kmFinal) : null,
+    })),
+  };
+}
+
 export async function gerarEArmazenarPdf(rdoId: string): Promise<{ id: string; pdfPath: string | null; pdfHash: string | null }> {
   const rdo = await prisma.rdo.findUnique({ where: { id: rdoId }, select: rdoCampoSelect });
   if (!rdo) throw new Error(`RDO ${rdoId} não encontrado ao gerar PDF`);
@@ -543,7 +586,25 @@ export async function gerarEArmazenarPdf(rdoId: string): Promise<{ id: string; p
         }
       : null;
 
-  const buffer = await gerarPdfRdo({ ...conteudo, urlVerificacao, assinaturaEncarregado, assinaturaFiscal, gruposFotos });
+  const buffer =
+    rdo.tipo === "SUPERESTRUTURA"
+      ? await gerarPdfRdoSuperestrutura({
+          numeroSap: conteudo.numeroSap,
+          liderNome: conteudo.encarregadoNome,
+          frenteNome: conteudo.frenteNome,
+          equipeNome: conteudo.equipeNome,
+          data: conteudo.data,
+          maoDeObra: conteudo.maoDeObra,
+          equipamentos: conteudo.equipamentos,
+          materiais: conteudo.materiais,
+          observacoesContratada: conteudo.observacoesContratada,
+          observacoesCliente: conteudo.observacoesCliente,
+          ...(await montarDadosSuperestrutura(rdo.id)),
+          urlVerificacao,
+          assinaturaEncarregado,
+          assinaturaFiscal,
+        })
+      : await gerarPdfRdo({ ...conteudo, urlVerificacao, assinaturaEncarregado, assinaturaFiscal, gruposFotos });
 
   const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
   const rdoDir = path.join(uploadsRoot, "rdos", rdo.id);
@@ -640,6 +701,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
               equipeId: data.equipeId,
               data: data.data,
               codigoRastreio,
+              tipo: data.tipo,
               horaExtraInicio: data.horaExtraInicio,
               horaExtraFim: data.horaExtraFim,
               clima: data.clima,
@@ -666,6 +728,21 @@ export function registerRdosRoutes(app: FastifyInstance): void {
               atividades: {
                 create: local.atividades.map((atividade) => montarDadosCriacaoAtividade(atividade)),
               },
+            },
+          });
+        }
+
+        if (data.tipo === "SUPERESTRUTURA" && data.superestrutura) {
+          await tx.rdoSuperestrutura.create({
+            data: {
+              rdoId: rdo.id,
+              intervaloProgramadoInicio: data.superestrutura.intervaloProgramadoInicio,
+              intervaloProgramadoFim: data.superestrutura.intervaloProgramadoFim,
+              intervaloRealizadoInicio: data.superestrutura.intervaloRealizadoInicio,
+              intervaloRealizadoFim: data.superestrutura.intervaloRealizadoFim,
+              tempoTotalPerdas: data.superestrutura.tempoTotalPerdas,
+              leiturasTemperatura: { create: data.superestrutura.leiturasTemperatura },
+              servicos: { create: data.superestrutura.servicos },
             },
           });
         }

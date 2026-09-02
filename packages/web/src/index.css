@@ -294,6 +294,12 @@ body {
   border: 1px solid #d8e4de;
 }
 
+.campo-foto-legenda {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #2c3d33;
+}
+
 .campo-foto-remover {
   background: none;
   border: none;

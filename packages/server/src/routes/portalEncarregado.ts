@@ -33,6 +33,70 @@ function inicioDeHoje(): Date {
   return new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
 }
 
+/** Reaproveitado pela rota de token (portal fixo) e pela autenticada (routes/encarregado.ts). */
+export async function listarDistritosDaFrente(frenteId: string) {
+  const [distritos, funcoes, colaboradores] = await Promise.all([
+    prisma.distrito.findMany({
+      where: { frenteId, ativo: true },
+      orderBy: { nome: "asc" },
+      select: {
+        id: true,
+        nome: true,
+        equipes: { where: { ativo: true }, orderBy: { nome: "asc" }, select: equipeSelect },
+      },
+    }),
+    prisma.funcaoCatalogo.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
+    prisma.colaborador.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true, funcaoId: true } }),
+  ]);
+  return { distritos, funcoes, colaboradores };
+}
+
+interface CriarOuAcharRdoHojeInput {
+  frenteId: string;
+  equipeId: string;
+  encarregadoId?: string | null;
+  tipo?: "PREVENTIVA_CORRETIVA" | "TERRAPLENAGEM" | "SUPERESTRUTURA";
+}
+
+/**
+ * Acha o RDO de hoje da equipe (se o encarregado já começou) ou cria um
+ * rascunho novo — e devolve o id + token de campo pra abrir a tela de
+ * lançamento, igual ao que `POST /rdos` já faz pro escritório, só que sem
+ * duplicar RDO a cada visita no mesmo dia.
+ */
+export async function criarOuAcharRdoHoje({ frenteId, equipeId, encarregadoId, tipo }: CriarOuAcharRdoHojeInput) {
+  const hoje = inicioDeHoje();
+  const amanha = new Date(hoje.getTime() + 24 * 60 * 60 * 1000);
+
+  const existente = await prisma.rdo.findFirst({
+    where: { equipeId, data: { gte: hoje, lt: amanha } },
+    orderBy: { criadoEm: "desc" },
+    select: { id: true, linkCampoToken: true, tipo: true },
+  });
+  if (existente?.linkCampoToken) {
+    return existente;
+  }
+
+  const linkCampoExpiraEm = new Date();
+  linkCampoExpiraEm.setDate(linkCampoExpiraEm.getDate() + LINK_CAMPO_DIAS_VALIDADE);
+
+  return comCodigoRastreio((codigoRastreio) =>
+    prisma.rdo.create({
+      data: {
+        frenteId,
+        equipeId,
+        data: hoje,
+        codigoRastreio,
+        encarregadoId: encarregadoId ?? null,
+        tipo,
+        linkCampoToken: generateToken(),
+        linkCampoExpiraEm,
+      },
+      select: { id: true, linkCampoToken: true, tipo: true },
+    }),
+  );
+}
+
 export function registerPortalEncarregadoRoutes(app: FastifyInstance): void {
   /**
    * Portal fixo do encarregado, por frente (mesma filosofia do portal do
@@ -44,20 +108,7 @@ export function registerPortalEncarregadoRoutes(app: FastifyInstance): void {
     const frente = await buscarFrentePorToken(request.params.token);
     if (!frente) return reply.status(404).send({ error: "Link inválido" });
 
-    const [distritos, funcoes, colaboradores] = await Promise.all([
-      prisma.distrito.findMany({
-        where: { frenteId: frente.id, ativo: true },
-        orderBy: { nome: "asc" },
-        select: {
-          id: true,
-          nome: true,
-          equipes: { where: { ativo: true }, orderBy: { nome: "asc" }, select: equipeSelect },
-        },
-      }),
-      prisma.funcaoCatalogo.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } }),
-      prisma.colaborador.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true, funcaoId: true } }),
-    ]);
-
+    const { distritos, funcoes, colaboradores } = await listarDistritosDaFrente(frente.id);
     return { frente, distritos, funcoes, colaboradores };
   });
 
@@ -108,27 +159,7 @@ export function registerPortalEncarregadoRoutes(app: FastifyInstance): void {
         return reply.status(404).send({ error: "Equipe não encontrada" });
       }
 
-      const hoje = inicioDeHoje();
-      const amanha = new Date(hoje.getTime() + 24 * 60 * 60 * 1000);
-
-      const existente = await prisma.rdo.findFirst({
-        where: { equipeId: equipe.id, data: { gte: hoje, lt: amanha } },
-        orderBy: { criadoEm: "desc" },
-        select: { linkCampoToken: true },
-      });
-      if (existente?.linkCampoToken) {
-        return { linkCampoToken: existente.linkCampoToken };
-      }
-
-      const linkCampoExpiraEm = new Date();
-      linkCampoExpiraEm.setDate(linkCampoExpiraEm.getDate() + LINK_CAMPO_DIAS_VALIDADE);
-
-      const rdo = await comCodigoRastreio((codigoRastreio) =>
-        prisma.rdo.create({
-          data: { frenteId: frente.id, equipeId: equipe.id, data: hoje, codigoRastreio, linkCampoToken: generateToken(), linkCampoExpiraEm },
-          select: { linkCampoToken: true },
-        }),
-      );
+      const rdo = await criarOuAcharRdoHoje({ frenteId: frente.id, equipeId: equipe.id });
       return reply.status(201).send({ linkCampoToken: rdo.linkCampoToken });
     },
   );

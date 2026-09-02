@@ -66,6 +66,8 @@ enum AprovacaoStatus {
 enum UsuarioRole {
   ADMIN
   ESCRITORIO
+  FISCAL
+  ENCARREGADO
 }
 
 enum PeriodoMedicaoStatus {
@@ -140,6 +142,7 @@ model Frente {
   distritos              Distrito[]
   ordensManutencao       OrdemManutencao[]
   rdos                   Rdo[]
+  usuarios               Usuario[]
 }
 
 // Subdivisão geográfica de uma Frente (ex.: Marabá, Bom Jesus das Selvas).
@@ -165,6 +168,7 @@ model Colaborador {
   ativo         Boolean        @default(true)
   equipeMembros EquipeMembro[]
   rdoMaoDeObra  RdoMaoDeObra[]
+  usuarioLogin  Usuario?
 }
 
 model Equipe {
@@ -256,14 +260,30 @@ model RelatorioFotograficoFoto {
   criadoEm               DateTime             @default(now())
 }
 
+// Login de fiscal/encarregado (substitui os links públicos por frente) e,
+// futuramente, do próprio escritório. Fiscal loga com email; encarregado
+// loga com a matrícula que já tem em Colaborador (matriculaLogin é uma
+// cópia pra buscar direto no login, sem precisar de join) — por isso os
+// dois campos são opcionais e únicos (Postgres permite vários NULL sob um
+// unique index, mesmo padrão já usado em EquipeMembro).
 model Usuario {
-  id            String               @id @default(cuid())
-  nome          String
-  email         String               @unique
-  senhaHash     String
-  role          UsuarioRole          @default(ESCRITORIO)
-  ativo         Boolean              @default(true)
-  refreshTokens SessaoRefreshToken[]
+  id             String               @id @default(cuid())
+  nome           String
+  email          String?              @unique
+  matriculaLogin String?              @unique
+  senhaHash      String
+  role           UsuarioRole          @default(ESCRITORIO)
+  ativo          Boolean              @default(true)
+  // Localidade do fiscal/encarregado — várias pessoas (várias linhas de
+  // Usuario) podem repetir a mesma frente, cobrindo "mais de um fiscal por
+  // localidade". Null pra ADMIN/ESCRITORIO (não são escopados por frente).
+  frenteId       String?
+  frente         Frente?              @relation(fields: [frenteId], references: [id])
+  // Só preenchido pra role ENCARREGADO — liga o login ao Colaborador já
+  // cadastrado (nome, matrícula, função continuam vindo de lá).
+  colaboradorId  String?              @unique
+  colaborador    Colaborador?         @relation(fields: [colaboradorId], references: [id])
+  refreshTokens  SessaoRefreshToken[]
 }
 
 model SessaoRefreshToken {
@@ -284,6 +304,12 @@ model Rdo {
   equipeId              String
   equipe                Equipe      @relation(fields: [equipeId], references: [id])
   data                  DateTime    @db.Date
+  // Preventiva/Corretiva e Terraplenagem usam a mesma forma hoje (locais/
+  // atividades OU produção por equipamento — ver RdoLocal/RdoEquipamento);
+  // Superestrutura é um formulário totalmente diferente (ferrovia, sem OM,
+  // ver RdoSuperestrutura). Escolhido pelo encarregado ao abrir o RDO do
+  // dia.
+  tipo                  RdoTipo     @default(PREVENTIVA_CORRETIVA)
   // Código de busca rápida (AAAAMMDD + sequência do dia, ex.: "20260830001")
   // — pelo dia em que o RDO foi lançado no sistema, não pelo dia do campo
   // (`data`), pra bater com o que a pessoa tem na cabeça quando cadastra.
@@ -325,17 +351,71 @@ model Rdo {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  blocosHorario RdoBlocoHorario[]
-  locais        RdoLocal[]
-  maoDeObra     RdoMaoDeObra[]
-  equipamentos  RdoEquipamento[]
-  materiais     RdoMaterial[]
-  anexos        RdoAnexo[]
-  aprovacoes    AprovacaoFiscal[]
-  historico     RdoHistorico[]
+  blocosHorario  RdoBlocoHorario[]
+  locais         RdoLocal[]
+  maoDeObra      RdoMaoDeObra[]
+  equipamentos   RdoEquipamento[]
+  materiais      RdoMaterial[]
+  anexos         RdoAnexo[]
+  aprovacoes     AprovacaoFiscal[]
+  historico      RdoHistorico[]
+  superestrutura RdoSuperestrutura?
 
   @@index([frenteId, data])
   @@index([status])
+}
+
+enum RdoTipo {
+  PREVENTIVA_CORRETIVA
+  TERRAPLENAGEM
+  SUPERESTRUTURA
+}
+
+// Dados extras de um RDO tipo SUPERESTRUTURA (manutenção de via férrea —
+// dormente, trilho, "Linha"+km, sem Ordem de Manutenção) — baseado no
+// formulário em papel próprio dessa equipe, diferente do "Relatório Diário
+// de Obra" usado por Preventiva/Corretiva/Terraplenagem. Efetivo e
+// equipamentos continuam em RdoMaoDeObra/RdoEquipamento (só catálogo
+// novo); materiais (dormente, tirefond...) continuam em RdoMaterial/
+// MaterialCatalogo. Um por Rdo.
+model RdoSuperestrutura {
+  id                        String                         @id @default(cuid())
+  rdoId                     String                         @unique
+  rdo                       Rdo                            @relation(fields: [rdoId], references: [id])
+  intervaloProgramadoInicio String?
+  intervaloProgramadoFim    String?
+  intervaloRealizadoInicio  String?
+  intervaloRealizadoFim     String?
+  tempoTotalPerdas          String?
+  leiturasTemperatura       RdoSuperestruturaTemperatura[]
+  servicos                  RdoSuperestruturaServico[]
+}
+
+model RdoSuperestruturaTemperatura {
+  id                  String            @id @default(cuid())
+  rdoSuperestruturaId String
+  rdoSuperestrutura   RdoSuperestrutura @relation(fields: [rdoSuperestruturaId], references: [id])
+  hora                String
+  temperaturaC        Decimal?          @db.Decimal(5, 2)
+  ordem               Int
+}
+
+// "Serviços Executados" do papel — Código/Descrição livres (digitados pelo
+// encarregado): diferente da Price List de AtividadeCatalogo, não existe
+// uma lista fechada de códigos de manutenção de via pronta pra virar
+// catálogo.
+model RdoSuperestruturaServico {
+  id                  String            @id @default(cuid())
+  rdoSuperestruturaId String
+  rdoSuperestrutura   RdoSuperestrutura @relation(fields: [rdoSuperestruturaId], references: [id])
+  codigo              String?
+  descricao           String
+  unidade             String?
+  quantidade          Decimal?          @db.Decimal(12, 3)
+  linha               String?
+  kmInicial           Decimal?          @db.Decimal(10, 3)
+  kmFinal             Decimal?          @db.Decimal(10, 3)
+  ordem               Int
 }
 
 // Linha do tempo do dia (ex.: 07:00–08:50 deslocamento, 08:50–09:10 montagem

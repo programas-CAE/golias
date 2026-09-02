@@ -205,11 +205,56 @@ export const rdoMaterialInputSchema = z.object({
 
 export type RdoMaterialInput = z.infer<typeof rdoMaterialInputSchema>;
 
+export const RDO_TIPO_VALUES = ["PREVENTIVA_CORRETIVA", "TERRAPLENAGEM", "SUPERESTRUTURA"] as const;
+export const rdoTipoSchema = z.enum(RDO_TIPO_VALUES);
+export type RdoTipo = z.infer<typeof rdoTipoSchema>;
+
+/** Uma leitura de temperatura na grade "Temperatura/Hora" do papel de Superestrutura. */
+export const rdoSuperestruturaTemperaturaInputSchema = z.object({
+  hora: horarioSchema,
+  temperaturaC: z.number().nullable().optional(),
+  ordem: z.number().int().nonnegative().default(0),
+});
+
+export type RdoSuperestruturaTemperaturaInput = z.infer<typeof rdoSuperestruturaTemperaturaInputSchema>;
+
+/**
+ * Linha da tabela "Serviços Executados" — código/descrição livres (o
+ * encarregado digita): diferente da Price List de AtividadeCatalogo, não
+ * existe uma lista fechada de códigos de manutenção de via pronta.
+ */
+export const rdoSuperestruturaServicoInputSchema = z.object({
+  codigo: z.string().trim().max(40).nullable().optional(),
+  descricao: z.string().trim().min(1, "Descrição do serviço é obrigatória").max(300),
+  unidade: z.string().trim().max(20).nullable().optional(),
+  quantidade: z.number().nonnegative().nullable().optional(),
+  linha: z.string().trim().max(60).nullable().optional(),
+  kmInicial: z.number().nonnegative().nullable().optional(),
+  kmFinal: z.number().nonnegative().nullable().optional(),
+  ordem: z.number().int().nonnegative().default(0),
+});
+
+export type RdoSuperestruturaServicoInput = z.infer<typeof rdoSuperestruturaServicoInputSchema>;
+
+/** Dados extras só de um RDO tipo SUPERESTRUTURA — ver RdoSuperestrutura em packages/server/prisma/schema.prisma. */
+export const rdoSuperestruturaInputSchema = z.object({
+  intervaloProgramadoInicio: horarioSchema.nullable().optional(),
+  intervaloProgramadoFim: horarioSchema.nullable().optional(),
+  intervaloRealizadoInicio: horarioSchema.nullable().optional(),
+  intervaloRealizadoFim: horarioSchema.nullable().optional(),
+  tempoTotalPerdas: z.string().trim().max(60).nullable().optional(),
+  leiturasTemperatura: z.array(rdoSuperestruturaTemperaturaInputSchema).default([]),
+  servicos: z.array(rdoSuperestruturaServicoInputSchema).default([]),
+});
+
+export type RdoSuperestruturaInput = z.infer<typeof rdoSuperestruturaInputSchema>;
+
 export const rdoCreateInputSchema = z
   .object({
     frenteId: z.string().cuid(),
     equipeId: z.string().cuid(),
     data: z.coerce.date(),
+    tipo: rdoTipoSchema.default("PREVENTIVA_CORRETIVA"),
     blocosHorario: z.array(rdoBlocoHorarioInputSchema).default([]),
     horaExtraInicio: horarioSchema.nullable().optional(),
     horaExtraFim: horarioSchema.nullable().optional(),
@@ -217,12 +262,32 @@ export const rdoCreateInputSchema = z
     encarregadoId: z.string().cuid().nullable().optional(),
     totalDesvios: z.number().int().nonnegative().nullable().optional(),
     observacoesContratada: z.string().max(4000).nullable().optional(),
-    locais: z.array(rdoLocalInputSchema).min(1, "Informe ao menos um local trabalhado"),
+    // Sem mínimo aqui: um RDO SUPERESTRUTURA não usa "locais" (ver
+    // superRefine abaixo) — os outros dois tipos continuam exigindo pelo
+    // menos 1, só que a checagem agora mora no superRefine, junto com o
+    // resto das regras de "RDO não pode ficar vazio".
+    locais: z.array(rdoLocalInputSchema).default([]),
     maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),
     equipamentos: z.array(rdoEquipamentoInputSchema).default([]),
     materiais: z.array(rdoMaterialInputSchema).default([]),
+    superestrutura: rdoSuperestruturaInputSchema.nullable().optional(),
   })
   .superRefine((data, ctx) => {
+    if (data.tipo === "SUPERESTRUTURA") {
+      if (!data.superestrutura || data.superestrutura.servicos.length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe ao menos um serviço executado",
+          path: ["superestrutura", "servicos"],
+        });
+      }
+      return;
+    }
+
+    if (data.locais.length === 0) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Informe ao menos um local trabalhado", path: ["locais"] });
+      return;
+    }
     // Um RDO precisa de algum conteúdo mensurável — ou atividade(s) do
     // catálogo (Preventiva, com dimensões), ou produção de equipamento
     // (terraplenagem, ver rdoEquipamentoInputSchema). Local sem atividade

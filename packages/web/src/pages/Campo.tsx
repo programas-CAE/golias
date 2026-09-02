@@ -47,7 +47,12 @@ interface RdoAnexo {
   // aqui e, mais pra frente, no PDF do RDO e no Relatório Fotográfico da OM.
   ordemManutencaoId: string | null;
   ordemManutencao: { id: string; numero: string } | null;
+  // "Antes"/"Depois", igual ao Relatório Fotográfico da OM (que reaproveita
+  // esse texto como legenda quando puxa essa foto automaticamente).
+  descricao: string | null;
 }
+
+const LEGENDA_FOTO_OPCOES = ["", "Antes", "Depois"] as const;
 
 interface RdoAtividadeMaoDeObraSalva {
   funcaoId: string;
@@ -311,6 +316,7 @@ export default function Campo(): ReactElement {
   const [funcoes, setFuncoes] = useState<FuncaoRef[]>([]);
   const [anexos, setAnexos] = useState<RdoAnexo[]>([]);
   const [omFotoSelecionada, setOmFotoSelecionada] = useState("");
+  const [legendaFotoSelecionada, setLegendaFotoSelecionada] = useState("");
   const [enviandoFoto, setEnviandoFoto] = useState(false);
 
   const [clima, setClima] = useState<string>("");
@@ -697,6 +703,7 @@ export default function Campo(): ReactElement {
     form.append("arquivo", arquivo);
     const qs = new URLSearchParams({ tipo: "FOTO" });
     if (omFotoSelecionada) qs.set("ordemManutencaoId", omFotoSelecionada);
+    if (legendaFotoSelecionada) qs.set("descricao", legendaFotoSelecionada);
 
     setEnviandoFoto(true);
     try {
@@ -1533,6 +1540,17 @@ export default function Campo(): ReactElement {
               </option>
             ))}
           </select>
+          <select
+            className="field-input"
+            value={legendaFotoSelecionada}
+            onChange={(event) => setLegendaFotoSelecionada(event.target.value)}
+          >
+            {LEGENDA_FOTO_OPCOES.map((opcao) => (
+              <option key={opcao} value={opcao}>
+                {opcao || "Sem legenda"}
+              </option>
+            ))}
+          </select>
           <input
             type="file"
             accept="image/*"
@@ -1553,6 +1571,7 @@ export default function Campo(): ReactElement {
               {grupo.fotos.map((anexo) => (
                 <li key={anexo.id} className="campo-foto-item">
                   <img src={`${API_URL}/rdos/${dados?.rdo.id}/anexos/${anexo.id}`} alt={anexo.nomeOriginal} />
+                  {anexo.descricao && <span className="campo-foto-legenda">{anexo.descricao}</span>}
                   <button type="button" className="campo-foto-remover" onClick={() => void removerFoto(anexo.id)}>
                     Remover
                   </button>

@@ -111,6 +111,14 @@ export const FUNCOES: readonly FuncaoCatalogoItem[] = [
   { nome: "Engenheiro" },
   { nome: "Oficial" },
   { nome: "Operador de Máquina Leve" },
+  // Efetivo do RDO de Superestrutura (manutenção de via férrea) — ver
+  // model RdoSuperestrutura em packages/server/prisma/schema.prisma.
+  { nome: "Auxiliar de Encarregado" },
+  { nome: "Motorista/Operador de Munck" },
+  { nome: "Operador de Máquinas Pesada" },
+  { nome: "Operador de Equipamento de Pequeno Porte" },
+  { nome: "Soldador/Maçariqueiro" },
+  { nome: "Apontador" },
 ] as const;
 
 export interface EquipamentoCatalogoItem {
@@ -132,6 +140,13 @@ export const EQUIPAMENTOS: readonly EquipamentoCatalogoItem[] = [
   { nome: "Container Almoxarifado" },
   { nome: "Tenda" },
   { nome: "REE 105" },
+  // Equipamentos do RDO de Superestrutura.
+  { nome: "Caminhão Munck" },
+  { nome: "Caminhão Prancha" },
+  { nome: "Miniescavadeira" },
+  { nome: "Retroescavadeira" },
+  { nome: "Pá Carregadeira" },
+  { nome: "Equipamentos de Pequeno Porte" },
 ] as const;
 
 export interface AtividadeCatalogoItem {
