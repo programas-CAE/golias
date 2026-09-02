@@ -332,6 +332,7 @@ export const rdoCampoUpdateInputSchema = z.object({
   maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),
   equipamentos: z.array(rdoEquipamentoInputSchema).default([]),
   materiais: z.array(rdoMaterialInputSchema).default([]),
+  superestrutura: rdoSuperestruturaInputSchema.nullable().optional(),
 });
 
 export type RdoCampoUpdateInput = z.infer<typeof rdoCampoUpdateInputSchema>;

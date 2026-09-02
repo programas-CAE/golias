@@ -1,9 +1,14 @@
 import type { ReactElement } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Campo from "./pages/Campo";
+import CampoSuperestrutura from "./pages/CampoSuperestrutura";
+import EncarregadoDashboard from "./pages/EncarregadoDashboard";
+import FiscalDashboard from "./pages/FiscalDashboard";
+import Login from "./pages/Login";
 import PortalEncarregado from "./pages/PortalEncarregado";
 import PortalFiscal from "./pages/PortalFiscal";
 import Verificar from "./pages/Verificar";
+import RequireAuth from "./components/RequireAuth";
 
 function HomePage(): ReactElement {
   return (
@@ -24,10 +29,28 @@ export default function App(): ReactElement {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/campo/:token" element={<Campo />} />
+        <Route path="/campo-superestrutura/:token" element={<CampoSuperestrutura />} />
         <Route path="/verificar/:id" element={<Verificar />} />
         <Route path="/portal-fiscal/:token" element={<PortalFiscal />} />
         <Route path="/encarregado/:token" element={<PortalEncarregado />} />
+        <Route
+          path="/fiscal"
+          element={
+            <RequireAuth roles={["FISCAL"]}>
+              <FiscalDashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/encarregado"
+          element={
+            <RequireAuth roles={["ENCARREGADO"]}>
+              <EncarregadoDashboard />
+            </RequireAuth>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

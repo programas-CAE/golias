@@ -128,6 +128,8 @@ async function substituirConteudoRdo(
   await tx.rdoMaoDeObra.deleteMany({ where: { rdoId } });
   await tx.rdoEquipamento.deleteMany({ where: { rdoId } });
   await tx.rdoMaterial.deleteMany({ where: { rdoId } });
+  await tx.rdoSuperestruturaTemperatura.deleteMany({ where: { rdoSuperestrutura: { rdoId } } });
+  await tx.rdoSuperestruturaServico.deleteMany({ where: { rdoSuperestrutura: { rdoId } } });
 
   await tx.rdo.update({
     where: { id: rdoId },
@@ -158,6 +160,23 @@ async function substituirConteudoRdo(
       },
     });
   }
+
+  if (data.superestrutura) {
+    const dadosSuperestrutura = {
+      intervaloProgramadoInicio: data.superestrutura.intervaloProgramadoInicio,
+      intervaloProgramadoFim: data.superestrutura.intervaloProgramadoFim,
+      intervaloRealizadoInicio: data.superestrutura.intervaloRealizadoInicio,
+      intervaloRealizadoFim: data.superestrutura.intervaloRealizadoFim,
+      tempoTotalPerdas: data.superestrutura.tempoTotalPerdas,
+      leiturasTemperatura: { create: data.superestrutura.leiturasTemperatura },
+      servicos: { create: data.superestrutura.servicos },
+    };
+    await tx.rdoSuperestrutura.upsert({
+      where: { rdoId },
+      create: { rdoId, ...dadosSuperestrutura },
+      update: dadosSuperestrutura,
+    });
+  }
 }
 
 /**
@@ -170,9 +189,14 @@ async function substituirConteudoRdo(
  * schema só depois, ao enviar.
  */
 function rdoTemConteudo(rdo: {
+  tipo?: string;
   locais: Array<{ atividades: Array<{ id: string }> }>;
   equipamentos: Array<{ producaoValor: unknown }>;
+  superestrutura?: { servicos: Array<{ id: string }> } | null;
 }): boolean {
+  if (rdo.tipo === "SUPERESTRUTURA") {
+    return (rdo.superestrutura?.servicos.length ?? 0) > 0;
+  }
   const temAtividade = rdo.locais.some((local) => local.atividades.length > 0);
   const temProducaoEquipamento = rdo.equipamentos.some((equipamento) => equipamento.producaoValor != null);
   return temAtividade || temProducaoEquipamento;
@@ -359,6 +383,32 @@ export const rdoCampoSelect = {
       ordemManutencaoId: true,
       ordemManutencao: { select: { id: true, numero: true } },
       criadoEm: true,
+    },
+  },
+  // Só existe quando tipo === "SUPERESTRUTURA" (relação 1:1 opcional) — os
+  // outros dois tipos vêm sempre null aqui, custo desprezível.
+  superestrutura: {
+    select: {
+      intervaloProgramadoInicio: true,
+      intervaloProgramadoFim: true,
+      intervaloRealizadoInicio: true,
+      intervaloRealizadoFim: true,
+      tempoTotalPerdas: true,
+      leiturasTemperatura: { orderBy: { ordem: "asc" }, select: { hora: true, temperaturaC: true, ordem: true } },
+      servicos: {
+        orderBy: { ordem: "asc" },
+        select: {
+          id: true,
+          codigo: true,
+          descricao: true,
+          unidade: true,
+          quantidade: true,
+          linha: true,
+          kmInicial: true,
+          kmFinal: true,
+          ordem: true,
+        },
+      },
     },
   },
 } as const;
@@ -969,10 +1019,12 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         select: {
           id: true,
           status: true,
+          tipo: true,
           linkCampoExpiraEm: true,
           encarregadoId: true,
           locais: { select: { atividades: { select: { id: true } } } },
           equipamentos: { select: { producaoValor: true } },
+          superestrutura: { select: { servicos: { select: { id: true } } } },
         },
       });
       if (!rdo) {
@@ -1182,8 +1234,10 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       select: {
         id: true,
         status: true,
+        tipo: true,
         locais: { select: { atividades: { select: { id: true } } } },
         equipamentos: { select: { producaoValor: true } },
+        superestrutura: { select: { servicos: { select: { id: true } } } },
       },
     });
     if (!rdo) return reply.status(404).send({ error: "RDO não encontrado" });
