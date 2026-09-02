@@ -51,6 +51,7 @@ interface Indicadores {
   rdosEmitidos: number;
   ordensManutencao: number;
   maoDeObraMedia: number;
+  qlp: number;
   totalDesvios: number;
   eficienciaGeral: number | null;
   horasImprodutivas: number;
@@ -235,7 +236,12 @@ export default function Home(): ReactElement {
             <div className="dashboard-kpis">
               <KpiCard label="RDOs emitidos" valor={String(dados.rdosEmitidos)} vazio={dados.rdosEmitidos === 0} />
               <KpiCard label="Ordens de manutenção" valor={String(dados.ordensManutencao)} vazio={dados.ordensManutencao === 0} />
-              <KpiCard label="Mão de obra média" valor={dados.maoDeObraMedia.toFixed(1)} vazio={dados.rdosEmitidos === 0} />
+              <KpiCard
+                label="QLP"
+                valor={String(dados.qlp)}
+                meta="Efetivo distinto no período"
+                vazio={dados.rdosEmitidos === 0}
+              />
               <KpiCard
                 label="PUS geral"
                 valor={dados.eficienciaGeral != null ? `${dados.eficienciaGeral.toFixed(1)}%` : "—"}

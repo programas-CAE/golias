@@ -14,8 +14,12 @@ export const rdoIndicadorSelect = {
   id: true,
   data: true,
   frenteId: true,
+  equipeId: true,
+  encarregadoId: true,
   totalDesvios: true,
-  maoDeObra: { select: { quantidade: true, horasImprodutivas: true, causaImprodutividade: true } },
+  maoDeObra: {
+    select: { quantidade: true, horasImprodutivas: true, causaImprodutividade: true, colaboradorId: true, funcaoId: true },
+  },
   locais: {
     select: {
       atividades: {
@@ -35,6 +39,47 @@ export type RdoIndicador = Prisma.RdoGetPayload<{ select: typeof rdoIndicadorSel
 function horasEquipe(rdo: RdoIndicador): number {
   const efetivo = rdo.maoDeObra.reduce((soma, mdo) => soma + mdo.quantidade, 0);
   return efetivo * JORNADA_HORAS_DIA;
+}
+
+/**
+ * QLP (Quadro de Lotação de Pessoal) — efetivo DISTINTO no período: quantas
+ * pessoas diferentes passaram pelas equipes, sem contar de novo quem
+ * apareceu em vários RDOs (ao contrário de `maoDeObraMedia`, que é uma
+ * média por RDO). Pedido do usuário pra substituir o KPI "Mão de obra
+ * média" nos Indicadores — primeira versão, ainda vai ser refinada.
+ *
+ * Duas fontes de gente contam:
+ * - Nomeada (`RdoMaoDeObra.colaboradorId`) e o encarregado de cada RDO
+ *   (`Rdo.encarregadoId`) — hoje o encarregado só entra na mão de obra se
+ *   alguém lembrou de cadastrá-lo como `EquipeMembro`, o que nem sempre
+ *   acontece; contando o campo do RDO direto, ele nunca fica de fora.
+ *   Cada pessoa nomeada conta uma vez só, não importa em quantos dias
+ *   apareceu.
+ * - Posto genérico (`colaboradorId` ausente, ex.: "3 Pedreiro" sem nomear
+ *   quem) não tem identidade pra deduplicar entre dias — não dá pra saber
+ *   se os "3 Pedreiro" de segunda são as mesmas 3 pessoas de terça. Usamos
+ *   o MAIOR valor visto num único RDO por (equipe, função) como estimativa
+ *   do tamanho desse posto, não a soma entre todos os dias (que contaria a
+ *   mesma vaga várias vezes e infla o número conforme o período cresce).
+ */
+export function calcularQlp(rdos: RdoIndicador[]): number {
+  const pessoasNomeadas = new Set<string>();
+  const maiorPostoAnonimo = new Map<string, number>();
+
+  for (const rdo of rdos) {
+    if (rdo.encarregadoId) pessoasNomeadas.add(rdo.encarregadoId);
+    for (const mdo of rdo.maoDeObra) {
+      if (mdo.colaboradorId) {
+        pessoasNomeadas.add(mdo.colaboradorId);
+      } else {
+        const chave = `${rdo.equipeId}|${mdo.funcaoId}`;
+        maiorPostoAnonimo.set(chave, Math.max(maiorPostoAnonimo.get(chave) ?? 0, mdo.quantidade));
+      }
+    }
+  }
+
+  const totalAnonimo = [...maiorPostoAnonimo.values()].reduce((soma, quantidade) => soma + quantidade, 0);
+  return pessoasNomeadas.size + totalAnonimo;
 }
 
 interface ProdutividadeAtividade {
@@ -308,6 +353,7 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
         rdosEmitidos > 0
           ? rdos.reduce((soma, rdo) => soma + rdo.maoDeObra.reduce((s, mdo) => s + mdo.quantidade, 0), 0) / rdosEmitidos
           : 0;
+      const qlp = calcularQlp(rdos);
       const totalDesvios = rdos.reduce((soma, rdo) => soma + (rdo.totalDesvios ?? 0), 0);
 
       const porFrente = frentes.map((frente) => {
@@ -359,6 +405,7 @@ export function registerIndicadoresRoutes(app: FastifyInstance): void {
         rdosEmitidos,
         ordensManutencao,
         maoDeObraMedia,
+        qlp,
         totalDesvios,
         eficienciaGeral: geral.eficiencia,
         horasTrabalhadas: geral.horasTrabalhadas,

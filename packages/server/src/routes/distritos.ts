@@ -3,7 +3,14 @@ import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { parseBody } from "../lib/validate.js";
-import { calcularProdutividade, extrairMetasDoMesAnterior, intervaloDoMes, periodoAnterior, rdoIndicadorSelect } from "./indicadores.js";
+import {
+  calcularProdutividade,
+  calcularQlp,
+  extrairMetasDoMesAnterior,
+  intervaloDoMes,
+  periodoAnterior,
+  rdoIndicadorSelect,
+} from "./indicadores.js";
 
 const distritoSelect = {
   id: true,
@@ -105,12 +112,14 @@ export function registerDistritosRoutes(app: FastifyInstance): void {
       rdosEmitidos > 0
         ? rdos.reduce((soma, rdo) => soma + rdo.maoDeObra.reduce((s, mdo) => s + mdo.quantidade, 0), 0) / rdosEmitidos
         : 0;
+    const qlp = calcularQlp(rdos);
     const totalDesvios = rdos.reduce((soma, rdo) => soma + (rdo.totalDesvios ?? 0), 0);
 
     return {
       periodo,
       rdosEmitidos,
       maoDeObraMedia,
+      qlp,
       totalDesvios,
       eficienciaGeral: resumo.eficiencia,
       horasTrabalhadas: resumo.horasTrabalhadas,

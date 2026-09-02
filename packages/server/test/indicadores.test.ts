@@ -127,4 +127,58 @@ describe("GET /indicadores", () => {
     const body = response.json() as { rdosEmitidos: number };
     expect(body.rdosEmitidos).toBe(1);
   });
+
+  it("QLP conta efetivo distinto: pessoas nomeadas uma vez só (mesmo em vários dias), encarregado mesmo sem ser membro cadastrado, e o maior posto anônimo visto por função", async () => {
+    const { frenteA, equipeA, atividade1 } = await criarCenario();
+    const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "Servente de Obras" } });
+    const encarregado = await prisma.colaborador.create({ data: { matricula: "900", nome: "Chefe", funcaoId: funcao.id } });
+    const nomeado = await prisma.colaborador.create({ data: { matricula: "901", nome: "João", funcaoId: funcao.id } });
+    const app = buildApp();
+
+    // Dia 1: encarregado (não cadastrado como membro da equipe — só no
+    // campo do RDO), João nomeado, e um posto anônimo de 3 "Servente".
+    await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frenteA.id,
+        equipeId: equipeA.id,
+        data: "2026-09-01",
+        encarregadoId: encarregado.id,
+        locais: [
+          { descricao: "Km 0", ordem: 0, atividades: [{ atividadeCatalogoId: atividade1.id, largura: 4, comprimento: 100, unidade: "M2" }] },
+        ],
+        maoDeObra: [
+          { funcaoId: funcao.id, colaboradorId: nomeado.id, quantidade: 1 },
+          { funcaoId: funcao.id, colaboradorId: null, quantidade: 3 },
+        ],
+      },
+    });
+
+    // Dia 2: mesmo encarregado e mesmo João de novo (não podem contar 2x),
+    // e o posto anônimo agora com 5 (maior que os 3 do dia 1).
+    await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frenteA.id,
+        equipeId: equipeA.id,
+        data: "2026-09-02",
+        encarregadoId: encarregado.id,
+        locais: [
+          { descricao: "Km 0", ordem: 0, atividades: [{ atividadeCatalogoId: atividade1.id, largura: 4, comprimento: 100, unidade: "M2" }] },
+        ],
+        maoDeObra: [
+          { funcaoId: funcao.id, colaboradorId: nomeado.id, quantidade: 1 },
+          { funcaoId: funcao.id, colaboradorId: null, quantidade: 5 },
+        ],
+      },
+    });
+
+    const response = await app.inject({ method: "GET", url: "/indicadores?mes=2026-09" });
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { qlp: number };
+    // encarregado (1) + João (1) + maior posto anônimo (5) = 7
+    expect(body.qlp).toBe(7);
+  });
 });

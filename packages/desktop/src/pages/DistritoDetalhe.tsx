@@ -60,6 +60,7 @@ interface IndicadoresDistrito {
   periodo: string;
   rdosEmitidos: number;
   maoDeObraMedia: number;
+  qlp: number;
   totalDesvios: number;
   eficienciaGeral: number | null;
   produtividadePorAtividade: ProdutividadeAtividade[];
@@ -357,7 +358,12 @@ export default function DistritoDetalhe(): ReactElement {
               <>
                 <div className="dashboard-kpis">
                   <KpiCard label="RDOs emitidos" valor={String(indicadores.rdosEmitidos)} vazio={indicadores.rdosEmitidos === 0} />
-                  <KpiCard label="Mão de obra média" valor={indicadores.maoDeObraMedia.toFixed(1)} vazio={indicadores.rdosEmitidos === 0} />
+                  <KpiCard
+                    label="QLP"
+                    valor={String(indicadores.qlp)}
+                    meta="Efetivo distinto no período"
+                    vazio={indicadores.rdosEmitidos === 0}
+                  />
                   <KpiCard
                     label="Eficiência geral"
                     valor={indicadores.eficienciaGeral != null ? `${indicadores.eficienciaGeral.toFixed(1)}%` : "—"}
