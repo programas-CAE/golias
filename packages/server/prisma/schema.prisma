@@ -552,6 +552,13 @@ model RdoEquipamento {
   producaoDescricao     String?
   producaoValor         Decimal?            @db.Decimal(12, 3)
   producaoUnidade       String?
+  // Horímetro do equipamento (leitura inicial/final do dia) — outra forma
+  // de apontar produção de terraplenagem, pra máquinas cujo trabalho se
+  // mede em horas de operação (não em carradas/metros). Preenchido junto
+  // com producaoValor/producaoUnidade não faz sentido — são alternativas,
+  // não campos que se somam; a tela decide qual mostrar por equipamento.
+  horimetroInicial      Decimal?            @db.Decimal(10, 2)
+  horimetroFinal        Decimal?            @db.Decimal(10, 2)
 }
 
 // Catálogo oficial de materiais/serviços com preço unitário (Price List do

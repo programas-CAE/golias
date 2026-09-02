@@ -53,6 +53,8 @@ interface EquipamentoDetalhe {
   producaoDescricao: string | null;
   producaoValor: string | null;
   producaoUnidade: string | null;
+  horimetroInicial: string | null;
+  horimetroFinal: string | null;
 }
 
 interface MaterialDetalhe {
@@ -465,7 +467,9 @@ export default function RdoDetalhe(): ReactElement {
                       <td>
                         {item.producaoValor != null
                           ? `${item.producaoDescricao ? `${item.producaoDescricao}: ` : ""}${Number(item.producaoValor).toLocaleString("pt-BR")}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`
-                          : "—"}
+                          : item.horimetroFinal != null
+                            ? `Horímetro: ${item.horimetroInicial != null ? `${Number(item.horimetroInicial).toLocaleString("pt-BR")} a ` : ""}${Number(item.horimetroFinal).toLocaleString("pt-BR")} h`
+                            : "—"}
                       </td>
                     </tr>
                   ))}

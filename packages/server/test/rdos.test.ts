@@ -527,6 +527,57 @@ describe("GET /rdos/campo/:token", () => {
     const response = await app.inject({ method: "GET", url: "/rdos/campo/token-expirado" });
     expect(response.statusCode).toBe(410);
   });
+
+  it("sugere o horímetro final do RDO anterior da mesma equipe como ultimosHorimetros", async () => {
+    const { frente, equipe, equipamento } = await criarCenario();
+    await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: new Date("2026-07-20"),
+        linkCampoToken: "token-dia-1",
+        linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+        equipamentos: { create: [{ equipamentoCatalogoId: equipamento.id, quantidade: 1, horimetroFinal: 1234.5 }] },
+      },
+    });
+    await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: new Date("2026-07-21"),
+        linkCampoToken: "token-dia-2",
+        linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+      },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: "/rdos/campo/token-dia-2" });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { ultimosHorimetros: Record<string, number> };
+    expect(body.ultimosHorimetros[equipamento.id]).toBe(1234.5);
+  });
+
+  it("não sugere o horímetro do próprio RDO em edição, só de RDOs de dias anteriores", async () => {
+    const { frente, equipe, equipamento } = await criarCenario();
+    await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: new Date("2026-07-21"),
+        linkCampoToken: "token-mesmo-dia",
+        linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+        equipamentos: { create: [{ equipamentoCatalogoId: equipamento.id, quantidade: 1, horimetroFinal: 999 }] },
+      },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: "/rdos/campo/token-mesmo-dia" });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { ultimosHorimetros: Record<string, number> };
+    expect(body.ultimosHorimetros[equipamento.id]).toBeUndefined();
+  });
 });
 
 describe("PATCH /rdos/campo/:token", () => {

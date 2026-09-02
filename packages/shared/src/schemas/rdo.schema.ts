@@ -189,6 +189,14 @@ export const rdoEquipamentoInputSchema = z.object({
   producaoDescricao: z.string().trim().max(200).nullable().optional(),
   producaoValor: z.number().nonnegative().nullable().optional(),
   producaoUnidade: z.string().trim().max(20).nullable().optional(),
+  // Alternativa a producaoValor/producaoUnidade pra máquinas cujo trabalho
+  // se mede em horas de operação (não em carradas/metros) — ex.: motoniveladora,
+  // escavadeira. horimetroInicial normalmente vem pré-preenchido com o
+  // horimetroFinal do dia anterior da mesma máquina (ver
+  // GET /rdos/campo/:token), o encarregado só ajusta se precisar e informa
+  // o final de hoje.
+  horimetroInicial: z.number().nonnegative().nullable().optional(),
+  horimetroFinal: z.number().nonnegative().nullable().optional(),
 });
 
 export type RdoEquipamentoInput = z.infer<typeof rdoEquipamentoInputSchema>;
@@ -293,7 +301,9 @@ export const rdoCreateInputSchema = z
     // (terraplenagem, ver rdoEquipamentoInputSchema). Local sem atividade
     // sozinho (só descrevendo o trecho) não basta.
     const temAtividade = data.locais.some((local) => local.atividades.length > 0);
-    const temProducaoEquipamento = data.equipamentos.some((equipamento) => equipamento.producaoValor != null);
+    const temProducaoEquipamento = data.equipamentos.some(
+      (equipamento) => equipamento.producaoValor != null || equipamento.horimetroFinal != null,
+    );
     if (!temAtividade && !temProducaoEquipamento) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

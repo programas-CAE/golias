@@ -191,15 +191,44 @@ async function substituirConteudoRdo(
 function rdoTemConteudo(rdo: {
   tipo?: string;
   locais: Array<{ atividades: Array<{ id: string }> }>;
-  equipamentos: Array<{ producaoValor: unknown }>;
+  equipamentos: Array<{ producaoValor: unknown; horimetroFinal?: unknown }>;
   superestrutura?: { servicos: Array<{ id: string }> } | null;
 }): boolean {
   if (rdo.tipo === "SUPERESTRUTURA") {
     return (rdo.superestrutura?.servicos.length ?? 0) > 0;
   }
   const temAtividade = rdo.locais.some((local) => local.atividades.length > 0);
-  const temProducaoEquipamento = rdo.equipamentos.some((equipamento) => equipamento.producaoValor != null);
+  const temProducaoEquipamento = rdo.equipamentos.some(
+    (equipamento) => equipamento.producaoValor != null || equipamento.horimetroFinal != null,
+  );
   return temAtividade || temProducaoEquipamento;
+}
+
+/**
+ * Última leitura de horímetro (final) de cada equipamento já usado por essa
+ * equipe, em RDOs de dias anteriores — pra sugerir o horimetroInicial de
+ * hoje sem o encarregado precisar ir atrás do valor (ele só confere/ajusta
+ * e informa o final de hoje). Exclui o próprio RDO (relevante ao reabrir um
+ * RASCUNHO/EM_CORRECAO pra editar de novo — senão os dados de hoje
+ * "sugeririam" a si mesmos).
+ */
+async function montarUltimosHorimetros(equipeId: string, data: Date, rdoIdAtual: string): Promise<Record<string, number>> {
+  const registros = await prisma.rdoEquipamento.findMany({
+    where: {
+      horimetroFinal: { not: null },
+      rdo: { equipeId, data: { lt: data }, id: { not: rdoIdAtual } },
+    },
+    orderBy: { rdo: { data: "desc" } },
+    select: { equipamentoCatalogoId: true, horimetroFinal: true },
+  });
+
+  const resultado: Record<string, number> = {};
+  for (const registro of registros) {
+    if (!(registro.equipamentoCatalogoId in resultado) && registro.horimetroFinal != null) {
+      resultado[registro.equipamentoCatalogoId] = Number(registro.horimetroFinal);
+    }
+  }
+  return resultado;
 }
 
 interface UltimaDecisaoFiscal {
@@ -360,6 +389,8 @@ export const rdoCampoSelect = {
       producaoDescricao: true,
       producaoValor: true,
       producaoUnidade: true,
+      horimetroInicial: true,
+      horimetroFinal: true,
     },
   },
   materiais: {
@@ -527,6 +558,8 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
         producaoDescricao: item.producaoDescricao,
         producaoValor: item.producaoValor != null ? Number(item.producaoValor) : null,
         producaoUnidade: item.producaoUnidade,
+        horimetroInicial: item.horimetroInicial != null ? Number(item.horimetroInicial) : null,
+        horimetroFinal: item.horimetroFinal != null ? Number(item.horimetroFinal) : null,
       })),
     materiais: rdo.materiais
       .filter((item) => Number(item.quantidade) > 0)
@@ -820,7 +853,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       return reply.status(410).send({ error: "Link expirado" });
     }
 
-    const [ordensManutencao, atividadesCatalogo, ultimaReprovacao] = await Promise.all([
+    const [ordensManutencao, atividadesCatalogo, ultimaReprovacao, ultimosHorimetros] = await Promise.all([
       prisma.ordemManutencao.findMany({
         where: { frenteId: rdo.frenteId },
         select: { id: true, numero: true, detalhes: true, kmInicial: true, kmFinal: true },
@@ -837,9 +870,10 @@ export function registerRdosRoutes(app: FastifyInstance): void {
             select: { comentarioReprovacao: true, assinanteNome: true, assinadoEm: true },
           })
         : null,
+      montarUltimosHorimetros(rdo.equipeId, rdo.data, rdo.id),
     ]);
 
-    return { rdo, ordensManutencao, atividadesCatalogo, ultimaReprovacao };
+    return { rdo, ordensManutencao, atividadesCatalogo, ultimaReprovacao, ultimosHorimetros };
   });
 
   app.patch<{ Params: { token: string } }>(
@@ -1023,7 +1057,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
           linkCampoExpiraEm: true,
           encarregadoId: true,
           locais: { select: { atividades: { select: { id: true } } } },
-          equipamentos: { select: { producaoValor: true } },
+          equipamentos: { select: { producaoValor: true, horimetroFinal: true } },
           superestrutura: { select: { servicos: { select: { id: true } } } },
         },
       });
@@ -1236,7 +1270,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         status: true,
         tipo: true,
         locais: { select: { atividades: { select: { id: true } } } },
-        equipamentos: { select: { producaoValor: true } },
+        equipamentos: { select: { producaoValor: true, horimetroFinal: true } },
         superestrutura: { select: { servicos: { select: { id: true } } } },
       },
     });

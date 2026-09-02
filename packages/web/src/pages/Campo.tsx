@@ -112,6 +112,8 @@ interface RdoEquipamentoSalvo {
   producaoDescricao: string | null;
   producaoValor: string | null;
   producaoUnidade: string | null;
+  horimetroInicial: string | null;
+  horimetroFinal: string | null;
 }
 
 interface MaterialCatalogoRef {
@@ -158,6 +160,9 @@ interface CampoResponse {
   ordensManutencao: OrdemManutencaoRef[];
   atividadesCatalogo: AtividadeCatalogo[];
   ultimaReprovacao: UltimaReprovacao | null;
+  // Última leitura de horímetro (final) de cada equipamento, do RDO
+  // anterior mais recente dessa mesma equipe — chave é equipamentoCatalogoId.
+  ultimosHorimetros: Record<string, number>;
 }
 
 interface AtividadeMaoDeObraDraft {
@@ -221,6 +226,20 @@ interface EquipamentoDraft {
   producaoDescricao: string;
   producaoValor: string;
   producaoUnidade: string;
+  horimetroInicial: string;
+  horimetroFinal: string;
+}
+
+function novoEquipamento(): EquipamentoDraft {
+  return {
+    equipamentoCatalogoId: "",
+    quantidade: "1",
+    producaoDescricao: "",
+    producaoValor: "",
+    producaoUnidade: "",
+    horimetroInicial: "",
+    horimetroFinal: "",
+  };
 }
 
 function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft {
@@ -440,6 +459,8 @@ export default function Campo(): ReactElement {
             producaoDescricao: eq.producaoDescricao ?? "",
             producaoValor: eq.producaoValor ?? "",
             producaoUnidade: eq.producaoUnidade ?? "",
+            horimetroInicial: eq.horimetroInicial ?? "",
+            horimetroFinal: eq.horimetroFinal ?? "",
           })),
         );
       } catch (error) {
@@ -676,14 +697,24 @@ export default function Campo(): ReactElement {
   }
 
   function adicionarEquipamento(): void {
-    setEquipamentos((atual) => [
-      ...atual,
-      { equipamentoCatalogoId: "", quantidade: "", producaoDescricao: "", producaoValor: "", producaoUnidade: "" },
-    ]);
+    setEquipamentos((atual) => [...atual, novoEquipamento()]);
   }
 
   function atualizarEquipamento(indice: number, campo: keyof EquipamentoDraft, valor: string): void {
-    setEquipamentos((atual) => atual.map((equipamento, i) => (i === indice ? { ...equipamento, [campo]: valor } : equipamento)));
+    setEquipamentos((atual) =>
+      atual.map((equipamento, i) => {
+        if (i !== indice) return equipamento;
+        const atualizado = { ...equipamento, [campo]: valor };
+        // Ao escolher a máquina, já sugere o horímetro inicial de hoje com
+        // o final do último RDO dela dessa equipe — o encarregado só
+        // confere/ajusta e informa o final de hoje.
+        if (campo === "equipamentoCatalogoId" && !equipamento.horimetroInicial) {
+          const sugestao = dados?.ultimosHorimetros[valor];
+          if (sugestao != null) atualizado.horimetroInicial = String(sugestao);
+        }
+        return atualizado;
+      }),
+    );
   }
 
   function removerEquipamento(indice: number): void {
@@ -789,6 +820,8 @@ export default function Campo(): ReactElement {
           producaoDescricao: equipamento.producaoDescricao.trim() || null,
           producaoValor: equipamento.producaoValor !== "" ? Number(equipamento.producaoValor) : null,
           producaoUnidade: equipamento.producaoUnidade.trim() || null,
+          horimetroInicial: equipamento.horimetroInicial !== "" ? Number(equipamento.horimetroInicial) : null,
+          horimetroFinal: equipamento.horimetroFinal !== "" ? Number(equipamento.horimetroFinal) : null,
         })),
       materiais: materiais
         .filter((material) => material.materialCatalogoId !== "" && Number(material.quantidade) > 0)
@@ -1480,6 +1513,36 @@ export default function Campo(): ReactElement {
                 value={equipamento.producaoUnidade}
                 onChange={(event) => atualizarEquipamento(indice, "producaoUnidade", event.target.value)}
               />
+            </div>
+            <p className="list-subtitle">
+              Ou, se a máquina é apontada por horímetro (ex.: retroescavadeira, pá carregadeira): informe o horímetro
+              inicial e final de hoje.
+            </p>
+            <div className="campo-grid-2">
+              <div>
+                <label className="field-label">Horímetro inicial</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  className="field-input"
+                  placeholder="Ex.: 1234.50"
+                  value={equipamento.horimetroInicial}
+                  onChange={(event) => atualizarEquipamento(indice, "horimetroInicial", event.target.value)}
+                />
+              </div>
+              <div>
+                <label className="field-label">Horímetro final</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  className="field-input"
+                  placeholder="Ex.: 1240.00"
+                  value={equipamento.horimetroFinal}
+                  onChange={(event) => atualizarEquipamento(indice, "horimetroFinal", event.target.value)}
+                />
+              </div>
             </div>
             <button type="button" className="button button--ghost button--small" onClick={() => removerEquipamento(indice)}>
               Remover equipamento

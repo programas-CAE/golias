@@ -138,6 +138,8 @@ interface EquipamentoDraft {
   producaoDescricao: string;
   producaoValor: string;
   producaoUnidade: string;
+  horimetroInicial: string;
+  horimetroFinal: string;
 }
 
 /** Formato retornado por `GET /rdos/:id` — usado só quando a tela abre em modo de edição. */
@@ -197,6 +199,8 @@ interface RdoExistente {
     producaoDescricao: string | null;
     producaoValor: string | null;
     producaoUnidade: string | null;
+    horimetroInicial: string | null;
+    horimetroFinal: string | null;
   }>;
   materiais: Array<{ materialCatalogoId: string; quantidade: string }>;
 }
@@ -446,6 +450,8 @@ export default function RdoCompleto(): ReactElement {
               producaoDescricao: eq.producaoDescricao ?? "",
               producaoValor: eq.producaoValor ?? "",
               producaoUnidade: eq.producaoUnidade ?? "",
+              horimetroInicial: eq.horimetroInicial ?? "",
+              horimetroFinal: eq.horimetroFinal ?? "",
             })),
           );
           setMateriais(rdo.materiais.map((m) => ({ materialCatalogoId: m.materialCatalogoId, quantidade: String(m.quantidade) })));
@@ -688,7 +694,15 @@ export default function RdoCompleto(): ReactElement {
   function adicionarEquipamento(): void {
     setEquipamentos((atual) => [
       ...atual,
-      { equipamentoCatalogoId: "", quantidade: "", producaoDescricao: "", producaoValor: "", producaoUnidade: "" },
+      {
+        equipamentoCatalogoId: "",
+        quantidade: "",
+        producaoDescricao: "",
+        producaoValor: "",
+        producaoUnidade: "",
+        horimetroInicial: "",
+        horimetroFinal: "",
+      },
     ]);
   }
 
@@ -780,6 +794,8 @@ export default function RdoCompleto(): ReactElement {
           producaoDescricao: equipamento.producaoDescricao.trim() || null,
           producaoValor: equipamento.producaoValor !== "" ? Number(equipamento.producaoValor) : null,
           producaoUnidade: equipamento.producaoUnidade.trim() || null,
+          horimetroInicial: equipamento.horimetroInicial !== "" ? Number(equipamento.horimetroInicial) : null,
+          horimetroFinal: equipamento.horimetroFinal !== "" ? Number(equipamento.horimetroFinal) : null,
         })),
       materiais: materiais
         .filter((material) => material.materialCatalogoId !== "" && Number(material.quantidade) > 0)
@@ -1641,6 +1657,36 @@ export default function RdoCompleto(): ReactElement {
                   value={equipamento.producaoUnidade}
                   onChange={(event) => atualizarEquipamento(indice, "producaoUnidade", event.target.value)}
                 />
+              </div>
+              <p className="form-section-subtitle" style={{ marginTop: 8 }}>
+                Ou, se a máquina é apontada por horímetro (ex.: retroescavadeira, pá carregadeira): horímetro inicial
+                e final do dia.
+              </p>
+              <div className="grid-2">
+                <div>
+                  <label className="field-label">Horímetro inicial</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    className="field-input"
+                    placeholder="Ex.: 1234.50"
+                    value={equipamento.horimetroInicial}
+                    onChange={(event) => atualizarEquipamento(indice, "horimetroInicial", event.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="field-label">Horímetro final</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    className="field-input"
+                    placeholder="Ex.: 1240.00"
+                    value={equipamento.horimetroFinal}
+                    onChange={(event) => atualizarEquipamento(indice, "horimetroFinal", event.target.value)}
+                  />
+                </div>
               </div>
             </div>
           ))}

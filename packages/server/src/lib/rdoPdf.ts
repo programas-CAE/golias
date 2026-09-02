@@ -69,6 +69,8 @@ export interface RdoPdfEquipamentoItem {
   producaoDescricao: string | null;
   producaoValor: number | null;
   producaoUnidade: string | null;
+  horimetroInicial: number | null;
+  horimetroFinal: number | null;
 }
 
 export interface RdoPdfMaterialItem {
@@ -465,13 +467,18 @@ function desenharColunaDireita(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yIni
     "OUTROS CUSTOS INDIRETOS",
     X_COLUNA_DIREITA,
     y,
-    dados.equipamentos.map((item) => ({
-      nome:
-        item.producaoValor != null
-          ? `${item.nome}${item.producaoDescricao ? ` — ${item.producaoDescricao}` : ""}: ${formatarNumero(item.producaoValor)}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`
-          : item.nome,
-      quantidade: item.quantidade,
-    })),
+    dados.equipamentos.map((item) => {
+      let nome = item.nome;
+      if (item.producaoValor != null) {
+        nome = `${item.nome}${item.producaoDescricao ? ` — ${item.producaoDescricao}` : ""}: ${formatarNumero(item.producaoValor)}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`;
+      } else if (item.horimetroFinal != null) {
+        nome =
+          item.horimetroInicial != null
+            ? `${item.nome} — horímetro: ${formatarNumero(item.horimetroInicial)} a ${formatarNumero(item.horimetroFinal)} h`
+            : `${item.nome} — horímetro final: ${formatarNumero(item.horimetroFinal)} h`;
+      }
+      return { nome, quantidade: item.quantidade };
+    }),
   );
   y += 8;
   desenharListaChecklist(
