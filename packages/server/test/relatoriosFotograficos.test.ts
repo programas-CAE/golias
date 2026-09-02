@@ -380,8 +380,45 @@ describe("GET /ordens-manutencao — precisaRelatorioFotografico", () => {
 
     const app = buildApp();
     const response = await app.inject({ method: "GET", url: "/ordens-manutencao" });
-    const ordens = response.json() as { id: string; precisaRelatorioFotografico: boolean }[];
+    const ordens = response.json() as { id: string; precisaRelatorioFotografico: boolean; foiLancada: boolean }[];
     const encontrada = ordens.find((o) => o.id === om.id);
     expect(encontrada?.precisaRelatorioFotografico).toBe(true);
+    expect(encontrada?.foiLancada).toBe(true);
+  });
+
+  it("foiLancada é false pra OM que nunca teve nenhuma atividade lançada", async () => {
+    const { om } = await montarCenario();
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: "/ordens-manutencao" });
+    const ordens = response.json() as { id: string; foiLancada: boolean }[];
+    const encontrada = ordens.find((o) => o.id === om.id);
+    expect(encontrada?.foiLancada).toBe(false);
+  });
+
+  it("foiLancada é true mesmo só EM_ANDAMENTO — uma OM pode levar vários lançamentos até ser finalizada", async () => {
+    const { om, rdo } = await montarCenario();
+    const atividadeCatalogo = await prisma.atividadeCatalogo.create({
+      data: { codigo: "2.1.3", descricao: "Roçada", unidade: "M2" },
+    });
+    const local = await prisma.rdoLocal.create({ data: { rdoId: rdo.id, descricao: "Trecho", ordem: 0 } });
+    await prisma.rdoAtividade.create({
+      data: {
+        rdoLocalId: local.id,
+        atividadeCatalogoId: atividadeCatalogo.id,
+        ordemManutencaoId: om.id,
+        statusOm: "EM_ANDAMENTO",
+        percentualConcluido: 40,
+        unidade: "M2",
+        totalCalculado: 5,
+      },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: "/ordens-manutencao" });
+    const ordens = response.json() as { id: string; foiLancada: boolean; precisaRelatorioFotografico: boolean }[];
+    const encontrada = ordens.find((o) => o.id === om.id);
+    expect(encontrada?.foiLancada).toBe(true);
+    // Em andamento (não concluída) ainda não pede relatório fotográfico.
+    expect(encontrada?.precisaRelatorioFotografico).toBe(false);
   });
 });

@@ -12,6 +12,10 @@ interface OrdemManutencao {
   lado: string | null;
   detalhes: string | null;
   precisaRelatorioFotografico: boolean;
+  // Já teve alguma atividade lançada (em andamento ou concluída) em algum
+  // RDO — OM que ainda nem começou não entra nessa lista (isso é
+  // planejamento, não documentação do que já foi feito).
+  foiLancada: boolean;
 }
 
 const MARCAS_DIACRITICAS = /[̀-ͯ]/g;
@@ -38,6 +42,10 @@ export default function RelatoriosFotograficos(): ReactElement {
   const ordensFiltradas = useMemo(() => {
     const termo = normalizarBusca(busca);
     return (ordens ?? [])
+      // OM que ainda não teve nenhuma atividade lançada não entra aqui —
+      // essa lista é sobre documentar o que já foi feito, não sobre o que
+      // falta planejar (isso já é o Farol de OM).
+      .filter((ordem) => ordem.foiLancada)
       .filter((ordem) => !somentePendentes || ordem.precisaRelatorioFotografico)
       .filter(
         (ordem) =>

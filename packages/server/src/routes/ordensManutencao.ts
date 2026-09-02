@@ -79,6 +79,19 @@ function precisaRelatorioFotografico(
   return temAtividadeConcluida && !temRelatorioComFoto;
 }
 
+/**
+ * A OM já foi "lançada" quando pelo menos um RDO já declarou alguma
+ * atividade dela (em andamento ou concluída) — uma mesma OM pode ter mais
+ * de uma atividade lançada ao longo do tempo, até ser dada como concluída.
+ * Usado pra tirar da lista do Relatório Fotográfico as OMs que ainda nem
+ * começaram, que só confundiam (misturadas com as que já têm o que
+ * conferir) — essa lista não é sobre planejamento (isso é o Farol de OM),
+ * é sobre o que já foi feito e precisa ser documentado.
+ */
+function foiLancada(atividades: { statusOm: string | null }[]): boolean {
+  return atividades.some((a) => a.statusOm === "EM_ANDAMENTO" || a.statusOm === "CONCLUIDA");
+}
+
 export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
   /**
    * Painel do ciclo de medição (dia 19 do mês anterior ao dia 20 do mês
@@ -248,6 +261,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
     return ordens.map(({ atividades, relatorioFotografico, ...ordem }) => ({
       ...ordem,
       precisaRelatorioFotografico: precisaRelatorioFotografico(atividades, relatorioFotografico),
+      foiLancada: foiLancada(atividades),
     }));
   });
 
