@@ -51,6 +51,7 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
                 data: true,
                 frente: { select: { nome: true, contrato: { select: { numero: true } } } },
                 equipe: { select: { nome: true } },
+                obra: { select: { nome: true } },
                 encarregadoId: true,
               },
             },
@@ -84,6 +85,7 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
         Contrato: rdo.frente.contrato.numero,
         Distrito: rdo.frente.nome,
         Equipe: rdo.equipe.nome,
+        Obra: rdo.obra?.nome ?? null,
         Colaborador: rdo.encarregadoId ? (nomePorEncarregadoId.get(rdo.encarregadoId) ?? null) : null,
         Atividade_Codigo: atividade.atividadeCatalogo.codigo,
         Atividade_Descricao: atividade.atividadeCatalogo.descricao,
@@ -134,5 +136,17 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
     });
 
     return frentes.map((frente) => ({ Distrito: frente.nome, Sigla_Origem: frente.codigo }));
+  });
+
+  /** Réplica de Dim_Obra — projetos cadastrados na tela Obras, ativos ou não. */
+  app.get("/powerbi/dim-obra", async (request, reply) => {
+    if (!autenticarPowerBi(request, reply)) return;
+
+    const obras = await prisma.obra.findMany({
+      orderBy: { nome: "asc" },
+      select: { nome: true, ativo: true },
+    });
+
+    return obras.map((obra) => ({ Obra: obra.nome, Ativo: obra.ativo }));
   });
 }

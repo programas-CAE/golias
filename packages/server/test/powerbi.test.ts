@@ -39,8 +39,16 @@ describe("GET /powerbi/fato-rdo-detalhe", () => {
 
   it("retorna uma linha por atividade de RDO aprovado, com PUS calculado", async () => {
     const { frente, equipe, encarregado, atividade } = await criarCenario();
+    const obra = await prisma.obra.create({ data: { nome: "Duplicação Km 40-60" } });
     const rdo = await prisma.rdo.create({
-      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21"), status: "APROVADO", encarregadoId: encarregado.id },
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        obraId: obra.id,
+        data: new Date("2026-07-21"),
+        status: "APROVADO",
+        encarregadoId: encarregado.id,
+      },
     });
     await prisma.rdoLocal.create({
       data: {
@@ -77,6 +85,7 @@ describe("GET /powerbi/fato-rdo-detalhe", () => {
       Contrato: "5900000000",
       Distrito: "Marabá",
       Equipe: "Preventiva",
+      Obra: "Duplicação Km 40-60",
       Colaborador: "João",
       Atividade_Codigo: "2.2.1",
       Producao: 200,
@@ -104,5 +113,22 @@ describe("GET /powerbi/dim-atividade e /powerbi/dim-distrito", () => {
     expect(dimDistrito.statusCode).toBe(200);
     const distritos = dimDistrito.json() as Array<{ Distrito: string; Sigla_Origem: string }>;
     expect(distritos).toContainEqual({ Distrito: "Marabá", Sigla_Origem: "MAB" });
+  });
+});
+
+describe("GET /powerbi/dim-obra", () => {
+  it("retorna as obras cadastradas, ativas ou não, com token válido", async () => {
+    await prisma.obra.create({ data: { nome: "Duplicação Km 40-60" } });
+    await prisma.obra.create({ data: { nome: "Obra encerrada", ativo: false } });
+
+    const app = buildApp();
+    const semToken = await app.inject({ method: "GET", url: "/powerbi/dim-obra" });
+    expect(semToken.statusCode).toBe(401);
+
+    const response = await app.inject({ method: "GET", url: `/powerbi/dim-obra?token=${TOKEN}` });
+    expect(response.statusCode).toBe(200);
+    const obras = response.json() as Array<{ Obra: string; Ativo: boolean }>;
+    expect(obras).toContainEqual({ Obra: "Duplicação Km 40-60", Ativo: true });
+    expect(obras).toContainEqual({ Obra: "Obra encerrada", Ativo: false });
   });
 });
