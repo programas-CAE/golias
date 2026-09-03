@@ -60,6 +60,7 @@ function PainelAtividades(): ReactElement {
   const [atividades, setAtividades] = useState<Atividade[] | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [editando, setEditando] = useState<Atividade | null>(null);
+  const [criando, setCriando] = useState(false);
 
   async function carregar(): Promise<void> {
     setErro(null);
@@ -76,9 +77,15 @@ function PainelAtividades(): ReactElement {
 
   return (
     <>
-      <p className="list-subtitle" style={{ marginTop: 4 }}>
-        Catálogo oficial (código, descrição e unidade não são editáveis aqui)
-      </p>
+      <div className="list-header" style={{ marginTop: 4 }}>
+        <p className="list-subtitle">
+          Catálogo oficial da Price List do contrato (código, descrição e unidade de uma atividade já cadastrada não
+          são editáveis aqui). Use "Adicionar atividade" só pra um serviço novo que não está na lista original.
+        </p>
+        <button type="button" className="button" onClick={() => setCriando(true)}>
+          + Adicionar atividade
+        </button>
+      </div>
 
       {erro && <p className="feedback feedback--erro">{erro}</p>}
 
@@ -123,6 +130,16 @@ function PainelAtividades(): ReactElement {
         )}
       </div>
 
+      {criando && (
+        <NovaAtividadeModal
+          onClose={() => setCriando(false)}
+          onCriada={(nova) => {
+            setAtividades((atual) => [...(atual ?? []), nova].sort((a, b) => a.ordem - b.ordem));
+            setCriando(false);
+          }}
+        />
+      )}
+
       {editando && (
         <EditarAtividadeModal
           atividade={editando}
@@ -134,6 +151,127 @@ function PainelAtividades(): ReactElement {
         />
       )}
     </>
+  );
+}
+
+const UNIDADES: Atividade["unidade"][] = ["M", "M2", "M3", "UND", "HH", "M3KM"];
+
+function NovaAtividadeModal({
+  onClose,
+  onCriada,
+}: {
+  onClose: () => void;
+  onCriada: (atividade: Atividade) => void;
+}): ReactElement {
+  const [codigo, setCodigo] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [unidade, setUnidade] = useState<Atividade["unidade"]>("UND");
+  const [usaDimensoes, setUsaDimensoes] = useState(false);
+  const [metaPus, setMetaPus] = useState("");
+  const [ordem, setOrdem] = useState("0");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const criada = await api.post<Atividade>("/atividades", {
+        codigo,
+        descricao,
+        unidade,
+        usaDimensoes,
+        metaPus: metaPus === "" ? null : Number(metaPus),
+        ordem: ordem === "" ? 0 : Number(ordem),
+      });
+      onCriada(criada);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível criar a atividade.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">Adicionar atividade</h2>
+        <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="field-label" htmlFor="codigo">
+            Código
+          </label>
+          <input
+            id="codigo"
+            className="field-input"
+            value={codigo}
+            onChange={(event) => setCodigo(event.target.value)}
+            autoComplete="off"
+            autoFocus
+          />
+
+          <label className="field-label" htmlFor="descricao">
+            Descrição
+          </label>
+          <input
+            id="descricao"
+            className="field-input"
+            value={descricao}
+            onChange={(event) => setDescricao(event.target.value)}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="unidade">
+            Unidade
+          </label>
+          <select
+            id="unidade"
+            className="field-input"
+            value={unidade}
+            onChange={(event) => setUnidade(event.target.value as Atividade["unidade"])}
+          >
+            {UNIDADES.map((valor) => (
+              <option key={valor} value={valor}>
+                {valor}
+              </option>
+            ))}
+          </select>
+
+          <label className="checkbox-row">
+            <input type="checkbox" checked={usaDimensoes} onChange={(event) => setUsaDimensoes(event.target.checked)} />
+            Medida por dimensões (altura/largura/comprimento) em vez de quantidade direta
+          </label>
+
+          <label className="field-label" htmlFor="metaPus">
+            Meta de produtividade (PUS) — opcional
+          </label>
+          <input
+            id="metaPus"
+            type="number"
+            step="0.0001"
+            className="field-input"
+            value={metaPus}
+            onChange={(event) => setMetaPus(event.target.value)}
+          />
+
+          <label className="field-label" htmlFor="ordem">
+            Ordem de exibição
+          </label>
+          <input id="ordem" type="number" className="field-input" value={ordem} onChange={(event) => setOrdem(event.target.value)} />
+
+          {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+          <div className="form-actions">
+            <button type="submit" className="button" disabled={salvando || codigo.trim() === "" || descricao.trim() === ""}>
+              {salvando ? "Salvando…" : "Adicionar"}
+            </button>
+            <button type="button" className="button button--secondary" onClick={onClose}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 

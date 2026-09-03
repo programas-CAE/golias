@@ -1,4 +1,4 @@
-import { atividadeCatalogoUpdateInputSchema } from "@golias/shared";
+import { atividadeCatalogoCreateInputSchema, atividadeCatalogoUpdateInputSchema } from "@golias/shared";
 import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
@@ -21,6 +21,14 @@ export function registerAtividadesRoutes(app: FastifyInstance): void {
       orderBy: { ordem: "asc" },
       select: atividadeSelect,
     });
+  });
+
+  app.post("/atividades", async (request, reply) => {
+    const data = parseBody(atividadeCatalogoCreateInputSchema, request.body, reply);
+    if (!data) return;
+
+    const criada = await prisma.atividadeCatalogo.create({ data, select: atividadeSelect });
+    return await reply.status(201).send(criada);
   });
 
   app.patch<{ Params: { id: string } }>("/atividades/:id", async (request, reply) => {
