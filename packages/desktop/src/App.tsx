@@ -15,6 +15,8 @@ import RdoCompleto from "./pages/RdoCompleto";
 import RdoDetalhe from "./pages/RdoDetalhe";
 import Farol from "./pages/Farol";
 import Links from "./pages/Links";
+import Obras from "./pages/Obras";
+import ObraDetalhe from "./pages/ObraDetalhe";
 
 // Usamos HashRouter (em vez de BrowserRouter) porque, em produção, o
 // Electron carrega a interface a partir de um arquivo local (file://), onde
@@ -32,6 +34,8 @@ export default function App(): ReactElement {
         <Route path="/relatorios-fotograficos" element={<RelatoriosFotograficos />} />
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/farol" element={<Farol />} />
+        <Route path="/obras" element={<Obras />} />
+        <Route path="/obras/:id" element={<ObraDetalhe />} />
         <Route path="/links" element={<Links />} />
         <Route path="/catalogos" element={<Catalogos />} />
         <Route path="/medicoes" element={<MedicaoMensal />} />

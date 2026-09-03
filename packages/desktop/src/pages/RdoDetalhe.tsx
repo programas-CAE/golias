@@ -112,6 +112,7 @@ interface RdoDetalheResponse {
   observacoesContratada: string | null;
   observacoesCliente: string | null;
   frente: { nome: string };
+  obra: { id: string; nome: string } | null;
   equipe: { nome: string };
   linkCampoToken: string | null;
   blocosHorario: BlocoDetalhe[];
@@ -238,7 +239,21 @@ export default function RdoDetalhe(): ReactElement {
               <div>
                 <h1 className="list-title">RDO {rdo.codigoRastreio} — {rdo.data.slice(0, 10)}</h1>
                 <p className="list-subtitle">
-                  {rdo.frente.nome} · Equipe {rdo.equipe.nome} · {TIPO_LABEL[rdo.tipo] ?? rdo.tipo} ·{" "}
+                  {rdo.frente.nome} · Equipe {rdo.equipe.nome} · {TIPO_LABEL[rdo.tipo] ?? rdo.tipo}
+                  {rdo.obra && (
+                    <>
+                      {" · "}
+                      <button
+                        type="button"
+                        className="button button--ghost button--small"
+                        style={{ padding: "1px 8px" }}
+                        onClick={() => navigate(`/obras/${rdo.obra!.id}`)}
+                      >
+                        Obra: {rdo.obra.nome}
+                      </button>
+                    </>
+                  )}
+                  {" · "}
                   <span className="badge badge--ativo">{STATUS_LABEL[rdo.status] ?? rdo.status}</span>
                 </p>
               </div>

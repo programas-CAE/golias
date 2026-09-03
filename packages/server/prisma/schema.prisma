@@ -303,6 +303,13 @@ model Rdo {
   frente                Frente      @relation(fields: [frenteId], references: [id])
   equipeId              String
   equipe                Equipe      @relation(fields: [equipeId], references: [id])
+  // Projeto/empreendimento que esse RDO pertence, pra acompanhar cronograma
+  // e materiais consolidados por obra (ver model Obra) — o encarregado
+  // escolhe ao lançar o RDO do dia. Opcional porque nem todo RDO precisa
+  // estar amarrado a uma obra específica (e RDOs lançados antes desse
+  // recurso existir não têm).
+  obraId                String?
+  obra                  Obra?       @relation(fields: [obraId], references: [id])
   data                  DateTime    @db.Date
   // Preventiva/Corretiva e Terraplenagem usam a mesma forma hoje (locais/
   // atividades OU produção por equipamento — ver RdoLocal/RdoEquipamento);
@@ -363,6 +370,21 @@ model Rdo {
 
   @@index([frenteId, data])
   @@index([status])
+  @@index([obraId])
+}
+
+// Projeto/empreendimento com nome próprio (ex.: "Duplicação Km 40-60") que
+// agrupa RDOs de uma ou mais equipes ao longo do tempo — usado pra
+// acompanhar cronograma (calendário de lançamentos) e consolidar a lista
+// de materiais usados, na tela "Obras" do escritório. Diferente de
+// Frente/Equipe (estrutura organizacional fixa do contrato): uma Obra é
+// específica de um trabalho, cadastrada livremente pelo escritório.
+model Obra {
+  id       String   @id @default(cuid())
+  nome     String
+  ativo    Boolean  @default(true)
+  criadoEm DateTime @default(now())
+  rdos     Rdo[]
 }
 
 enum RdoTipo {

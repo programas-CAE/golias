@@ -56,6 +56,7 @@ interface CriarOuAcharRdoHojeInput {
   equipeId: string;
   encarregadoId?: string | null;
   tipo?: "PREVENTIVA_CORRETIVA" | "TERRAPLENAGEM" | "SUPERESTRUTURA";
+  obraId?: string | null;
 }
 
 /**
@@ -64,7 +65,7 @@ interface CriarOuAcharRdoHojeInput {
  * lançamento, igual ao que `POST /rdos` já faz pro escritório, só que sem
  * duplicar RDO a cada visita no mesmo dia.
  */
-export async function criarOuAcharRdoHoje({ frenteId, equipeId, encarregadoId, tipo }: CriarOuAcharRdoHojeInput) {
+export async function criarOuAcharRdoHoje({ frenteId, equipeId, encarregadoId, tipo, obraId }: CriarOuAcharRdoHojeInput) {
   const hoje = inicioDeHoje();
   const amanha = new Date(hoje.getTime() + 24 * 60 * 60 * 1000);
 
@@ -89,6 +90,7 @@ export async function criarOuAcharRdoHoje({ frenteId, equipeId, encarregadoId, t
         codigoRastreio,
         encarregadoId: encarregadoId ?? null,
         tipo,
+        obraId: obraId ?? null,
         linkCampoToken: generateToken(),
         linkCampoExpiraEm,
       },

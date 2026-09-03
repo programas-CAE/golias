@@ -6,6 +6,7 @@ import { getAppVersion } from "../lib/settingsStore";
 const LINKS: Array<{ to: string; label: string }> = [
   { to: "/", label: "Início" },
   { to: "/rdos", label: "RDOs" },
+  { to: "/obras", label: "Obras" },
   { to: "/frentes", label: "Frentes" },
   { to: "/ordens-manutencao", label: "Ordens de Manutenção" },
   { to: "/relatorios-fotograficos", label: "Relatórios Fotográficos" },

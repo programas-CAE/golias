@@ -42,7 +42,11 @@ export function registerEncarregadoRoutes(app: FastifyInstance): void {
     if (!frente) return reply.status(404).send({ error: "Frente não encontrada" });
 
     const { distritos, funcoes, colaboradores } = await listarDistritosDaFrente(frente.id);
-    return { frente, distritos, funcoes, colaboradores };
+    // Obras ativas, pra ele escolher qual projeto o RDO de hoje pertence —
+    // lista global (Obra não é escopada por frente, uma obra pode ter
+    // equipes de frentes diferentes trabalhando nela).
+    const obras = await prisma.obra.findMany({ where: { ativo: true }, orderBy: { nome: "asc" }, select: { id: true, nome: true } });
+    return { frente, distritos, funcoes, colaboradores, obras };
   });
 
   app.post<{ Body: { nome: string; distritoId: string } }>("/encarregado/equipes", async (request, reply) => {
@@ -134,32 +138,41 @@ export function registerEncarregadoRoutes(app: FastifyInstance): void {
     },
   );
 
-  app.post<{ Body: { equipeId: string; tipo?: string } }>("/encarregado/rdo-hoje", async (request, reply) => {
-    const usuario = await exigirRole(["ENCARREGADO"])(request, reply);
-    if (!usuario) return;
-    if (!usuario.frenteId) return reply.status(400).send({ error: "Usuário sem frente cadastrada" });
+  app.post<{ Body: { equipeId: string; tipo?: string; obraId?: string | null } }>(
+    "/encarregado/rdo-hoje",
+    async (request, reply) => {
+      const usuario = await exigirRole(["ENCARREGADO"])(request, reply);
+      if (!usuario) return;
+      if (!usuario.frenteId) return reply.status(400).send({ error: "Usuário sem frente cadastrada" });
 
-    const equipeId = String(request.body?.equipeId ?? "");
-    const tipoBody = request.body?.tipo;
-    const tipo = (RDO_TIPO_VALUES as readonly string[]).includes(tipoBody ?? "")
-      ? (tipoBody as (typeof RDO_TIPO_VALUES)[number])
-      : undefined;
-    if (!equipeId) return reply.status(400).send({ error: "Informe a equipe" });
+      const equipeId = String(request.body?.equipeId ?? "");
+      const tipoBody = request.body?.tipo;
+      const tipo = (RDO_TIPO_VALUES as readonly string[]).includes(tipoBody ?? "")
+        ? (tipoBody as (typeof RDO_TIPO_VALUES)[number])
+        : undefined;
+      if (!equipeId) return reply.status(400).send({ error: "Informe a equipe" });
 
-    const equipe = await prisma.equipe.findUnique({
-      where: { id: equipeId },
-      select: { id: true, distrito: { select: { frenteId: true } } },
-    });
-    if (!equipe || equipe.distrito.frenteId !== usuario.frenteId) {
-      return reply.status(404).send({ error: "Equipe não encontrada" });
-    }
+      const equipe = await prisma.equipe.findUnique({
+        where: { id: equipeId },
+        select: { id: true, distrito: { select: { frenteId: true } } },
+      });
+      if (!equipe || equipe.distrito.frenteId !== usuario.frenteId) {
+        return reply.status(404).send({ error: "Equipe não encontrada" });
+      }
 
-    const rdo = await criarOuAcharRdoHoje({
-      frenteId: usuario.frenteId,
-      equipeId: equipe.id,
-      encarregadoId: usuario.colaboradorId,
-      tipo,
-    });
-    return reply.status(201).send(rdo);
-  });
+      const obraId = request.body?.obraId || null;
+      if (obraId && !(await prisma.obra.findUnique({ where: { id: obraId }, select: { id: true } }))) {
+        return reply.status(400).send({ error: "Obra inválida" });
+      }
+
+      const rdo = await criarOuAcharRdoHoje({
+        frenteId: usuario.frenteId,
+        equipeId: equipe.id,
+        encarregadoId: usuario.colaboradorId,
+        tipo,
+        obraId,
+      });
+      return reply.status(201).send(rdo);
+    },
+  );
 }

@@ -261,6 +261,7 @@ export const rdoCreateInputSchema = z
   .object({
     frenteId: z.string().cuid(),
     equipeId: z.string().cuid(),
+    obraId: z.string().cuid().nullable().optional(),
     data: z.coerce.date(),
     tipo: rdoTipoSchema.default("PREVENTIVA_CORRETIVA"),
     blocosHorario: z.array(rdoBlocoHorarioInputSchema).default([]),
@@ -319,6 +320,7 @@ export type RdoCreateInput = z.infer<typeof rdoCreateInputSchema>;
 export const rdoDraftCreateInputSchema = z.object({
   frenteId: z.string().cuid(),
   equipeId: z.string().cuid(),
+  obraId: z.string().cuid().nullable().optional(),
   data: z.coerce.date(),
 });
 

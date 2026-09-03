@@ -60,6 +60,11 @@ interface OrdemManutencao {
   kmFinal: string | null;
 }
 
+interface Obra {
+  id: string;
+  nome: string;
+}
+
 interface AtividadeMaoDeObraDraft {
   funcaoId: string;
   quantidade: string;
@@ -159,6 +164,7 @@ interface UltimaDecisaoFiscal {
 interface RdoExistente {
   frenteId: string;
   equipeId: string;
+  obraId: string | null;
   status: string;
   ultimaDecisaoFiscal: UltimaDecisaoFiscal | null;
   data: string;
@@ -316,11 +322,13 @@ export default function RdoCompleto(): ReactElement {
   const [equipamentosCatalogo, setEquipamentosCatalogo] = useState<EquipamentoCatalogo[]>([]);
   const [materiaisCatalogo, setMateriaisCatalogo] = useState<MaterialCatalogo[]>([]);
   const [ordensManutencao, setOrdensManutencao] = useState<OrdemManutencao[]>([]);
+  const [obras, setObras] = useState<Obra[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
 
   const [frenteId, setFrenteId] = useState("");
   const [equipeId, setEquipeId] = useState("");
+  const [obraId, setObraId] = useState("");
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [encarregadoId, setEncarregadoId] = useState("");
   const [clima, setClima] = useState("");
@@ -357,6 +365,7 @@ export default function RdoCompleto(): ReactElement {
           listaEquipamentos,
           listaMateriais,
           listaOrdens,
+          listaObras,
         ] = await Promise.all([
           api.get<Frente[]>("/frentes"),
           api.get<Equipe[]>("/equipes"),
@@ -366,6 +375,7 @@ export default function RdoCompleto(): ReactElement {
           api.get<EquipamentoCatalogo[]>("/equipamentos"),
           api.get<MaterialCatalogo[]>("/materiais"),
           api.get<OrdemManutencao[]>("/ordens-manutencao"),
+          api.get<Obra[]>("/obras"),
         ]);
         setFrentes(listaFrentes);
         setEquipes(listaEquipes);
@@ -375,11 +385,13 @@ export default function RdoCompleto(): ReactElement {
         setEquipamentosCatalogo(listaEquipamentos);
         setMateriaisCatalogo(listaMateriais);
         setOrdensManutencao(listaOrdens);
+        setObras(listaObras);
 
         if (id) {
           const rdo = await api.get<RdoExistente>(`/rdos/${id}`);
           setFrenteId(rdo.frenteId);
           setEquipeId(rdo.equipeId);
+          setObraId(rdo.obraId ?? "");
           setData(rdo.data.slice(0, 10));
           setEncarregadoId(rdo.encarregadoId ?? "");
           setClima(rdo.clima ?? "");
@@ -738,6 +750,7 @@ export default function RdoCompleto(): ReactElement {
     const payload = {
       frenteId,
       equipeId,
+      obraId: obraId === "" ? null : obraId,
       data,
       clima: clima === "" ? null : clima,
       encarregadoId: encarregadoId === "" ? null : encarregadoId,
@@ -933,6 +946,28 @@ export default function RdoCompleto(): ReactElement {
                 onChange={(event) => setData(event.target.value)}
                 disabled={emEdicao}
               />
+            </div>
+          </div>
+
+          <div className="grid-2">
+            <div>
+              <label className="field-label" htmlFor="obraId">
+                Obra (opcional)
+              </label>
+              <select
+                id="obraId"
+                className="field-input"
+                value={obraId}
+                onChange={(event) => setObraId(event.target.value)}
+                disabled={emEdicao}
+              >
+                <option value="">Sem obra vinculada</option>
+                {obras.map((obra) => (
+                  <option key={obra.id} value={obra.id}>
+                    {obra.nome}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

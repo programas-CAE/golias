@@ -288,6 +288,8 @@ export const rdoCampoSelect = {
   codigoRastreio: true,
   frenteId: true,
   frente: { select: { id: true, nome: true, codigo: true, contrato: { select: { numero: true } } } },
+  obraId: true,
+  obra: { select: { id: true, nome: true } },
   equipeId: true,
   equipe: {
     select: {
@@ -782,6 +784,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
             data: {
               frenteId: data.frenteId,
               equipeId: data.equipeId,
+              obraId: data.obraId,
               data: data.data,
               codigoRastreio,
               tipo: data.tipo,

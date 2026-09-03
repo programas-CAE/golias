@@ -39,6 +39,7 @@ interface EncarregadoResponse {
   distritos: DistritoResumo[];
   funcoes: Ref[];
   colaboradores: ColaboradorResumo[];
+  obras: Ref[];
 }
 
 const TIPO_RDO_LABEL: Record<string, string> = {
@@ -54,6 +55,10 @@ function chaveMemoriaEquipe(): string {
 
 function chaveMemoriaTipo(equipeId: string): string {
   return `golias:encarregado:${equipeId}:ultimoTipo`;
+}
+
+function chaveMemoriaObra(equipeId: string): string {
+  return `golias:encarregado:${equipeId}:ultimaObraId`;
 }
 
 function lerMemoria(chave: string): string | null {
@@ -90,6 +95,7 @@ export default function EncarregadoDashboard(): ReactElement {
   const [distritoId, setDistritoId] = useState("");
   const [equipeId, setEquipeId] = useState("");
   const [tipoRdo, setTipoRdo] = useState<(typeof TIPOS_RDO)[number]>("PREVENTIVA_CORRETIVA");
+  const [obraId, setObraId] = useState("");
 
   const [mostrarNovaEquipe, setMostrarNovaEquipe] = useState(false);
   const [novaEquipeNome, setNovaEquipeNome] = useState("");
@@ -117,6 +123,10 @@ export default function EncarregadoDashboard(): ReactElement {
               const ultimoTipo = lerMemoria(chaveMemoriaTipo(ultimaEquipeId));
               if (ultimoTipo && (TIPOS_RDO as readonly string[]).includes(ultimoTipo)) {
                 setTipoRdo(ultimoTipo as (typeof TIPOS_RDO)[number]);
+              }
+              const ultimaObraId = lerMemoria(chaveMemoriaObra(ultimaEquipeId));
+              if (ultimaObraId && resposta.obras.some((obra) => obra.id === ultimaObraId)) {
+                setObraId(ultimaObraId);
               }
               break;
             }
@@ -160,6 +170,8 @@ export default function EncarregadoDashboard(): ReactElement {
       if (ultimoTipo && (TIPOS_RDO as readonly string[]).includes(ultimoTipo)) {
         setTipoRdo(ultimoTipo as (typeof TIPOS_RDO)[number]);
       }
+      const ultimaObraId = lerMemoria(chaveMemoriaObra(id));
+      setObraId(ultimaObraId && (dados?.obras ?? []).some((obra) => obra.id === ultimaObraId) ? ultimaObraId : "");
     }
   }
 
@@ -237,9 +249,11 @@ export default function EncarregadoDashboard(): ReactElement {
     setErro(null);
     try {
       salvarMemoria(chaveMemoriaTipo(equipeId), tipoRdo);
+      if (obraId) salvarMemoria(chaveMemoriaObra(equipeId), obraId);
       const resposta = await api.post<{ linkCampoToken: string; tipo: string }>("/encarregado/rdo-hoje", {
         equipeId,
         tipo: tipoRdo,
+        obraId: obraId || null,
       });
       if (resposta.tipo === "SUPERESTRUTURA") {
         navigate(`/campo-superestrutura/${resposta.linkCampoToken}`);
@@ -432,6 +446,20 @@ export default function EncarregadoDashboard(): ReactElement {
           >
             {salvandoMembro ? "Adicionando…" : "+ Adicionar"}
           </button>
+
+          {dados.obras.length > 0 && (
+            <>
+              <h3 className="campo-subtitulo">Obra</h3>
+              <select className="field-input" value={obraId} onChange={(event) => setObraId(event.target.value)}>
+                <option value="">Sem obra vinculada</option>
+                {dados.obras.map((obra) => (
+                  <option key={obra.id} value={obra.id}>
+                    {obra.nome}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
 
           <h3 className="campo-subtitulo">Tipo de RDO</h3>
           <div className="campo-acoes" style={{ flexWrap: "wrap" }}>

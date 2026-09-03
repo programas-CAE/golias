@@ -927,6 +927,95 @@ textarea.field-input {
   background: var(--surface-soft-2);
 }
 
+/* Calendário mensal da tela Obras (packages/desktop/src/pages/ObraDetalhe.tsx)
+   — grade de verdade (7 colunas, uma linha por semana), diferente da tira
+   horizontal de dias do Farol, porque aqui é "olhar o mês" e não "comparar
+   equipe x dia" lado a lado. */
+.obra-calendario {
+  padding: 14px 18px 18px;
+}
+
+.obra-calendario-semana {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.obra-calendario-semana + .obra-calendario-semana {
+  margin-top: 6px;
+}
+
+.obra-calendario-cabecalho {
+  margin-bottom: 6px;
+}
+
+.obra-calendario-dia-cabecalho {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-quaternary);
+  padding: 4px 0;
+}
+
+.obra-calendario-dia {
+  min-height: 84px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface);
+}
+
+.obra-calendario-dia--vazio {
+  background: transparent;
+  border-color: transparent;
+}
+
+.obra-calendario-dia-numero {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-tertiary);
+}
+
+.obra-calendario-rdos {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+}
+
+.obra-calendario-rdo-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  border: none;
+  border-radius: 999px;
+  background: var(--surface-soft-2);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: inherit;
+}
+
+.obra-calendario-rdo-item:hover {
+  background: var(--surface-tint-active);
+}
+
+.obra-calendario-rdo-item .farol-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+}
+
 .tabs-row {
   display: flex;
   gap: 8px;
