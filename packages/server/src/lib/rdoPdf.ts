@@ -40,15 +40,16 @@ export interface RdoPdfAtividade {
   comprimento: number | null;
   horarioInicial: string | null;
   horarioFinal: string | null;
-  // Número da OM (SAP) vinculada à atividade — mostrado no lugar da palavra
-  // "concluída"/"em andamento" no PDF, pra identificar de cara qual OM é.
+  // Número da OM (SAP) vinculada à atividade — mostrado na coluna própria
+  // da tabela, colorido conforme o status (verde concluída, âmbar em
+  // andamento), pra identificar de cara qual OM é e como está.
   omNumero: string | null;
   statusOm: "EM_ANDAMENTO" | "CONCLUIDA" | null;
   percentualConcluido: number | null;
   maoDeObra: RdoPdfAtividadeMaoDeObraItem[];
   // Ponto 1 é sempre os campos de dimensão acima (altura/largura/.../
   // quantidade) — pontosExtras só existe quando a mesma atividade/OM foi
-  // medida em mais de um trecho no mesmo dia.
+  // medida em mais de um trecho/ponto no mesmo dia.
   pontosExtras: RdoPdfPontoExtra[];
 }
 
@@ -136,13 +137,16 @@ export interface RdoPdfDados extends RdoConteudo {
   gruposFotos?: RdoPdfGrupoFotos[];
 }
 
+// Paisagem (A4 landscape) — o modelo de referência que o usuário pediu pra
+// seguir (RDO489, de outro sistema) usa uma única tabela larga por
+// horário em vez de duas colunas empilhadas; paisagem dá o espaço
+// horizontal que essa tabela precisa pra caber Início/Fim/Atividade/Qtd/
+// Un/OM/MO/Observações numa linha só, sem espremer.
 const MARGEM = 28;
-const LARGURA_PAGINA = 595.28;
-const ALTURA_PAGINA = 841.89;
+const LARGURA_PAGINA = 841.89;
+const ALTURA_PAGINA = 595.28;
 const LARGURA_UTIL = LARGURA_PAGINA - MARGEM * 2;
-const LARGURA_COLUNA_ESQUERDA = 340;
-const LARGURA_COLUNA_DIREITA = LARGURA_UTIL - LARGURA_COLUNA_ESQUERDA - 12;
-const X_COLUNA_DIREITA = MARGEM + LARGURA_COLUNA_ESQUERDA + 12;
+const LIMITE_CONTEUDO = ALTURA_PAGINA - MARGEM;
 
 function formatarData(data: Date): string {
   return data.toLocaleDateString("pt-BR", { timeZone: "UTC" });
@@ -152,11 +156,13 @@ function formatarNumero(valor: number): string {
   return valor.toLocaleString("pt-BR", { maximumFractionDigits: 3 });
 }
 
-function garantirEspaco(doc: PDFKit.PDFDocument, alturaNecessaria: number): void {
-  const limite = ALTURA_PAGINA - MARGEM - 90;
-  if (doc.y + alturaNecessaria > limite) {
+/** true quando abriu página nova (chamador que controla `y` manualmente precisa se realinhar). */
+function garantirEspaco(doc: PDFKit.PDFDocument, alturaNecessaria: number): boolean {
+  if (doc.y + alturaNecessaria > LIMITE_CONTEUDO) {
     doc.addPage();
+    return true;
   }
+  return false;
 }
 
 function desenharCabecalho(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
@@ -169,18 +175,18 @@ function desenharCabecalho(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
     .fontSize(9)
     .text(`Nº SAP: ${dados.numeroSap ?? "—"}`, MARGEM, MARGEM, { width: LARGURA_UTIL, align: "right", lineBreak: false });
 
-  const y0 = MARGEM + alturaTitulo + 10;
+  const y0 = MARGEM + alturaTitulo + 8;
   doc.moveTo(MARGEM, y0).lineTo(LARGURA_PAGINA - MARGEM, y0).lineWidth(0.75).strokeColor("#000000").stroke();
-  doc.y = y0 + 8;
+  doc.y = y0 + 6;
 }
 
-/** Desenha um campo "RÓTULO" em cima do valor embaixo, dentro de `largura`, e devolve o y logo abaixo do que foi desenhado (para o chamador avançar corretamente, em vez de supor uma altura fixa). */
+/** Desenha um campo "RÓTULO" em cima do valor embaixo, dentro de `largura`, e devolve o y logo abaixo do que foi desenhado. */
 function desenharCampo(doc: PDFKit.PDFDocument, x: number, y: number, largura: number, rotulo: string, valor: string): number {
-  doc.font("Helvetica-Bold").fontSize(8);
+  doc.font("Helvetica-Bold").fontSize(7.5).fillColor("#000000");
   const alturaRotulo = doc.heightOfString(rotulo, { width: largura });
   doc.text(rotulo, x, y, { width: largura, lineBreak: false });
 
-  doc.font("Helvetica").fontSize(9);
+  doc.font("Helvetica").fontSize(8.5);
   const yValor = y + alturaRotulo + 2;
   const alturaValor = doc.heightOfString(valor || "—", { width: largura });
   doc.text(valor || "—", x, yValor, { width: largura });
@@ -188,206 +194,267 @@ function desenharCampo(doc: PDFKit.PDFDocument, x: number, y: number, largura: n
   return yValor + alturaValor;
 }
 
-/** Desenha duas colunas (rótulo/valor) lado a lado e devolve o y abaixo da mais alta das duas. */
-function desenharLinhaDupla(
-  doc: PDFKit.PDFDocument,
-  y: number,
-  colLargura: number,
-  esquerda: [string, string],
-  direita: [string, string],
-): number {
-  const yEsq = desenharCampo(doc, MARGEM, y, colLargura, esquerda[0], esquerda[1]);
-  const yDir = desenharCampo(doc, MARGEM + colLargura + 16, y, colLargura, direita[0], direita[1]);
-  return Math.max(yEsq, yDir) + 6;
+/** N campos lado a lado, largura igual pra cada — devolve o y abaixo do mais alto deles. */
+function desenharLinhaCampos(doc: PDFKit.PDFDocument, y: number, campos: Array<[string, string]>): number {
+  const gap = 10;
+  const larguraCol = (LARGURA_UTIL - gap * (campos.length - 1)) / campos.length;
+  let x = MARGEM;
+  let maxY = y;
+  for (const [rotulo, valor] of campos) {
+    const yFim = desenharCampo(doc, x, y, larguraCol, rotulo, valor);
+    maxY = Math.max(maxY, yFim);
+    x += larguraCol + gap;
+  }
+  return maxY + 5;
 }
 
 function desenharIdentificacao(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
-  const colLargura = LARGURA_UTIL / 2 - 8;
   const diaSemana = DIAS_SEMANA[dados.data.getUTCDay()];
   const tempoLabel = dados.clima === "SOL" ? "SOL" : dados.clima === "CHUVA" ? "CHUVA" : dados.clima === "NUBLADO" ? "NUBLADO" : "—";
   const horaExtra =
     dados.horaExtraInicio && dados.horaExtraFim ? `${dados.horaExtraInicio} às ${dados.horaExtraFim}` : "—";
 
-  let y = doc.y;
-  y = desenharLinhaDupla(doc, y, colLargura, ["ENCARREGADO", dados.encarregadoNome ?? "—"], [
-    "DATA",
-    `${formatarData(dados.data)}  (${diaSemana})`,
+  const y = desenharLinhaCampos(doc, doc.y, [
+    ["DATA", `${formatarData(dados.data)} (${diaSemana})`],
+    ["DISTRITO", dados.frenteNome],
+    ["EQUIPE", dados.equipeNome],
+    ["ENCARREGADO", dados.encarregadoNome ?? "—"],
+    ["TEMPO", tempoLabel],
+    ["HORA EXTRA", horaExtra],
   ]);
-  y = desenharLinhaDupla(doc, y, colLargura, ["EQUIPE", dados.equipeNome], ["TEMPO", tempoLabel]);
-  y = desenharLinhaDupla(doc, y, colLargura, ["DISTRITO", dados.frenteNome], ["HORA EXTRA", horaExtra]);
-
-  const locaisTexto = dados.locais
-    .map((local) => `${local.descricao}${local.lado ? ` ${local.lado}` : ""}`)
-    .join("; ");
-  y = desenharCampo(doc, MARGEM, y, LARGURA_UTIL, "LOCAL DA ATIVIDADE", locaisTexto || "—") + 8;
 
   doc.moveTo(MARGEM, y).lineTo(LARGURA_PAGINA - MARGEM, y).lineWidth(0.75).stroke();
-  doc.y = y + 8;
-}
-
-/** Um trecho da descrição com sua própria formatação — pra destacar "OM" em
- * negrito e o status (concluída/em andamento) na cor certa, sem colorir a
- * linha toda. */
-interface SegmentoTexto {
-  texto: string;
-  negrito?: boolean;
-  cor?: string;
+  doc.y = y + 6;
 }
 
 const COR_STATUS_CONCLUIDA = "#15803d";
 const COR_STATUS_EM_ANDAMENTO = "#b45309";
 
-interface LinhaTabela {
-  inicial: string;
-  final: string;
-  item: string;
-  descricao: SegmentoTexto[];
-  unidade: string;
-  quantidade: string;
+function minutosDoHorario(horario: string): number {
+  const [horaStr, minutoStr] = horario.split(":");
+  return Number(horaStr) * 60 + Number(minutoStr);
 }
 
-function montarLinhasTabela(dados: RdoPdfDados): LinhaTabela[] {
-  const linhas: LinhaTabela[] = dados.blocosHorario
-    .slice()
-    .sort((a, b) => a.ordem - b.ordem)
-    .map((bloco) => ({
+/** Dados de dimensão de um ponto de medição — a própria atividade (Ponto 1) ou um ponto extra. */
+interface DadosMemorial {
+  unidade: string;
+  altura: number | null;
+  largura: number | null;
+  larguraFinal: number | null;
+  comprimento: number | null;
+  quantidade: number;
+}
+
+/** Texto do memorial de cálculo (fórmula = resultado), mesma matemática de `calcularTotalAtividade` (packages/shared) e do croqui exibido no formulário (CroquiAtividade.tsx). */
+function montarMemorialCalculo(dados: DadosMemorial): string | null {
+  const { unidade, altura: a, largura: l, larguraFinal: lFim, comprimento: c, quantidade } = dados;
+  if (unidade === "M3" && a != null && l != null && c != null) {
+    return `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)} = ${formatarNumero(quantidade)} m³`;
+  }
+  if (unidade === "M2" && l != null && c != null) {
+    if (lFim != null && lFim !== l) {
+      return `média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)} = ${formatarNumero(quantidade)} m²`;
+    }
+    return `${formatarNumero(c)} × ${formatarNumero(l)} = ${formatarNumero(quantidade)} m²`;
+  }
+  if (unidade === "M" && c != null) {
+    return `${formatarNumero(c)} m`;
+  }
+  return null;
+}
+
+interface LinhaUnificada {
+  inicial: string;
+  final: string;
+  atividadeTexto: string;
+  qtd: string;
+  unidade: string;
+  omTexto: string | null;
+  omCor: string | null;
+  mo: string;
+  observacoes: string;
+  chaveOrdenacao: number;
+}
+
+/**
+ * Junta a "linha do tempo" (blocosHorario — deslocamento, área de
+ * vivência, almoço...) com as atividades medidas numa lista só, ordenada
+ * por horário — uma linha por horário, no modelo de referência (RDO489),
+ * em vez de duas seções separadas. Isso é só de DESENHO: o formulário de
+ * lançamento continua exatamente igual (blocos e atividades continuam
+ * sendo coisas diferentes lá), essa junção acontece só aqui na hora de
+ * montar o PDF.
+ */
+function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
+  const linhas: LinhaUnificada[] = [];
+
+  for (const bloco of dados.blocosHorario) {
+    linhas.push({
       inicial: bloco.horarioInicial,
       final: bloco.horarioFinal,
-      item: "",
-      descricao: [{ texto: bloco.descricao }],
+      atividadeTexto: bloco.descricao,
+      qtd: "",
       unidade: "",
-      quantidade: "",
-    }));
+      omTexto: null,
+      omCor: null,
+      mo: "",
+      observacoes: "",
+      chaveOrdenacao: bloco.horarioInicial ? minutosDoHorario(bloco.horarioInicial) : Number.POSITIVE_INFINITY,
+    });
+  }
 
   for (const local of dados.locais) {
     for (const atividade of local.atividades) {
+      const localTexto = `${local.descricao}${local.lado ? ` ${local.lado}` : ""}`;
       const km =
-        atividade.kmInicial != null && atividade.kmFinal != null
-          ? ` Km ${atividade.kmInicial} ao ${atividade.kmFinal}${local.lado ? ` ${local.lado}` : ""}`
-          : "";
-      const maoDeObra =
-        atividade.maoDeObra.length > 0
-          ? ` — MO: ${atividade.maoDeObra.map((item) => `${item.quantidade} ${item.funcao}`).join(", ")}`
-          : "";
+        atividade.kmInicial != null && atividade.kmFinal != null ? ` (Km ${atividade.kmInicial} ao ${atividade.kmFinal})` : "";
+      const moTotal = atividade.maoDeObra.reduce((soma, item) => soma + item.quantidade, 0);
+      const omCor =
+        atividade.statusOm === "CONCLUIDA" ? COR_STATUS_CONCLUIDA : atividade.statusOm === "EM_ANDAMENTO" ? COR_STATUS_EM_ANDAMENTO : null;
+      const percentual = atividade.percentualConcluido != null ? ` (${atividade.percentualConcluido}%)` : "";
+      const omTexto = atividade.omNumero ? `${atividade.omNumero}${percentual}` : null;
+      const chaveBase = atividade.horarioInicial ? minutosDoHorario(atividade.horarioInicial) : Number.POSITIVE_INFINITY;
 
-      const descricao: SegmentoTexto[] = [
-        { texto: `${atividade.descricao} — ${local.descricao}${km}${maoDeObra}` },
-      ];
-      if (atividade.statusOm === "CONCLUIDA" || atividade.statusOm === "EM_ANDAMENTO") {
-        const percentual = atividade.percentualConcluido != null ? ` — ${atividade.percentualConcluido}%` : "";
-        const cor = atividade.statusOm === "CONCLUIDA" ? COR_STATUS_CONCLUIDA : COR_STATUS_EM_ANDAMENTO;
-        // Mostra o número da OM (não a palavra "concluída"/"em andamento")
-        // colorido conforme o status, pra identificar a OM de cara.
-        descricao.push(
-          { texto: " [" },
-          { texto: "OM", negrito: true },
-          { texto: " " },
-          { texto: atividade.omNumero ?? "—", cor },
-          { texto: `${percentual}]` },
-        );
-      }
+      // Ponto 1 (a própria atividade) — atividade.quantidade já vem somada
+      // com os pontosExtras (o total que a tabela de indicadores usa), por
+      // isso recalcula só a parte do Ponto 1 aqui, senão a linha dele
+      // mostraria o total combinado, não só o que ele mediu.
+      const quantidadePonto1 = calcularTotalAtividade(atividade.unidade as Parameters<typeof calcularTotalAtividade>[0], atividade);
+      const memorial1 = montarMemorialCalculo({
+        unidade: atividade.unidade,
+        altura: atividade.altura,
+        largura: atividade.largura,
+        larguraFinal: atividade.larguraFinal,
+        comprimento: atividade.comprimento,
+        quantidade: quantidadePonto1,
+      });
 
       linhas.push({
         inicial: atividade.horarioInicial ?? "",
         final: atividade.horarioFinal ?? "",
-        item: atividade.item,
-        descricao,
+        atividadeTexto: `${atividade.item} — ${atividade.descricao} — ${localTexto}${km}`,
+        qtd: formatarNumero(quantidadePonto1),
         unidade: atividade.unidade,
-        quantidade: formatarNumero(atividade.quantidade),
+        omTexto,
+        omCor,
+        mo: moTotal > 0 ? String(moTotal) : "",
+        observacoes: memorial1 ?? "",
+        chaveOrdenacao: chaveBase,
+      });
+
+      atividade.pontosExtras.forEach((ponto, indice) => {
+        const memorial = montarMemorialCalculo({ unidade: atividade.unidade, ...ponto });
+        linhas.push({
+          inicial: "",
+          final: "",
+          atividadeTexto: `${atividade.item} — ${atividade.descricao} — Ponto ${indice + 2}`,
+          qtd: formatarNumero(ponto.quantidade),
+          unidade: atividade.unidade,
+          omTexto: null,
+          omCor: null,
+          mo: "",
+          observacoes: memorial ?? "",
+          // +0.001 por ponto extra pra ficar logo depois do Ponto 1 na
+          // ordenação, sem disputar posição com outra atividade do mesmo horário.
+          chaveOrdenacao: chaveBase + (indice + 1) * 0.001,
+        });
       });
     }
   }
 
-  return linhas;
+  return linhas.sort((a, b) => a.chaveOrdenacao - b.chaveOrdenacao);
 }
 
-const COL_INICIAL = 32;
-const COL_FINAL = 32;
-const COL_ITEM = 34;
-const COL_UNID = 30;
-const COL_QTD = 50;
-const COL_DESCRICAO =
-  LARGURA_COLUNA_ESQUERDA - COL_INICIAL - COL_FINAL - COL_ITEM - COL_UNID - COL_QTD;
+const COL_INICIAL = 36;
+const COL_FINAL = 36;
+const COL_ATIVIDADE = 280;
+const COL_QTD = 55;
+const COL_UNID = 34;
+const COL_OM = 85;
+const COL_MO = 32;
+const COL_OBS = LARGURA_UTIL - COL_INICIAL - COL_FINAL - COL_ATIVIDADE - COL_QTD - COL_UNID - COL_OM - COL_MO;
 
-function desenharCabecalhoTabela(doc: PDFKit.PDFDocument, y: number): number {
-  doc.font("Helvetica-Bold").fontSize(7);
+const COLUNAS_TABELA_UNIFICADA: Array<[string, number, "left" | "right" | "center"]> = [
+  ["INÍCIO", COL_INICIAL, "left"],
+  ["FIM", COL_FINAL, "left"],
+  ["ATIVIDADE", COL_ATIVIDADE, "left"],
+  ["QTD", COL_QTD, "right"],
+  ["UN", COL_UNID, "left"],
+  ["OM", COL_OM, "left"],
+  ["MO", COL_MO, "center"],
+  ["OBSERVAÇÕES", COL_OBS, "left"],
+];
+
+function desenharCabecalhoTabelaUnificada(doc: PDFKit.PDFDocument, y: number): number {
+  doc.font("Helvetica-Bold").fontSize(7).fillColor("#000000");
+  // Altura calculada (não um número fixo) — um rótulo que quebra em 2
+  // linhas numa coluna estreita não pode empurrar a régua de baixo por
+  // cima do próprio texto (bug real visto com "ORDEM DE MANUTENÇÃO").
+  const alturaCabecalho = Math.max(
+    ...COLUNAS_TABELA_UNIFICADA.map(([texto, largura]) => doc.heightOfString(texto, { width: largura - 4 })),
+  );
   let x = MARGEM;
-  const linhas = [
-    ["INÍCIO", COL_INICIAL],
-    ["FIM", COL_FINAL],
-    ["ITEM", COL_ITEM],
-    ["DESCRIÇÃO DAS ATIVIDADES", COL_DESCRICAO],
-    ["UNID", COL_UNID],
-    ["QTD", COL_QTD],
-  ] as const;
-  for (const [texto, largura] of linhas) {
-    doc.text(texto, x + 2, y, { width: largura - 2 });
+  for (const [texto, largura, align] of COLUNAS_TABELA_UNIFICADA) {
+    doc.text(texto, x + 2, y, { width: largura - 4, align });
     x += largura;
   }
-  const yLinha = y + 12;
-  doc.moveTo(MARGEM, yLinha).lineTo(MARGEM + LARGURA_COLUNA_ESQUERDA, yLinha).lineWidth(0.5).stroke();
+  const yLinha = y + alturaCabecalho + 3;
+  doc.moveTo(MARGEM, yLinha).lineTo(MARGEM + LARGURA_UTIL, yLinha).lineWidth(0.5).stroke();
   return yLinha + 3;
 }
 
-/** Desenha uma descrição com trechos em negrito/cor (ex.: "OM" em negrito,
- * "concluída"/"em andamento" na cor do status) sem colorir a linha toda —
- * usa o recurso de texto encadeado do pdfkit (`continued`), que só aceita
- * x/y no primeiro trecho; os seguintes continuam de onde o anterior parou. */
-function desenharDescricaoComEstilo(doc: PDFKit.PDFDocument, segmentos: SegmentoTexto[], x: number, y: number, largura: number): void {
-  segmentos.forEach((segmento, indice) => {
-    doc.font(segmento.negrito ? "Helvetica-Bold" : "Helvetica").fillColor(segmento.cor ?? "black");
-    const ehUltimo = indice === segmentos.length - 1;
-    if (indice === 0) {
-      doc.text(segmento.texto, x, y, { width: largura, continued: !ehUltimo });
-    } else {
-      doc.text(segmento.texto, { continued: !ehUltimo });
-    }
-  });
-  doc.font("Helvetica").fillColor("black");
-}
+function desenharTabelaUnificada(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yInicial: number): void {
+  const linhas = montarLinhasUnificadas(dados);
+  let y = desenharCabecalhoTabelaUnificada(doc, yInicial);
 
-function desenharTabelaAtividades(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yInicial: number): void {
-  const linhas = montarLinhasTabela(dados);
-  let y = desenharCabecalhoTabela(doc, yInicial);
-
-  doc.font("Helvetica").fontSize(7.5);
+  doc.font("Helvetica").fontSize(7.5).fillColor("#000000");
   if (linhas.length === 0) {
-    doc.text("Nenhuma atividade lançada.", MARGEM + 2, y, { width: LARGURA_COLUNA_ESQUERDA - 4 });
+    doc.text("Nenhuma atividade lançada.", MARGEM + 2, y, { width: LARGURA_UTIL - 4 });
+    doc.y = y + 12;
     return;
   }
 
   for (const linha of linhas) {
-    const descricaoPlana = linha.descricao.map((segmento) => segmento.texto).join("");
-    const alturaDescricao = doc.heightOfString(descricaoPlana, { width: COL_DESCRICAO - 4 });
-    const alturaLinha = Math.max(11, alturaDescricao + 2);
+    const alturaAtividade = doc.heightOfString(linha.atividadeTexto, { width: COL_ATIVIDADE - 4 });
+    const alturaObs = doc.heightOfString(linha.observacoes, { width: COL_OBS - 4 });
+    // Coluna estreita — "2026000012345678 (100%)" pode quebrar em 2 linhas
+    // sozinha mesmo com atividade/observações curtas; sem contar essa
+    // altura aqui, o texto da OM vazava pra cima da linha seguinte.
+    const alturaOm = linha.omTexto ? doc.heightOfString(linha.omTexto, { width: COL_OM - 4 }) : 0;
+    const alturaLinha = Math.max(11, alturaAtividade + 2, alturaObs + 2, alturaOm + 2);
 
-    if (y + alturaLinha > ALTURA_PAGINA - MARGEM - 90) {
+    if (y + alturaLinha > LIMITE_CONTEUDO) {
       doc.addPage();
-      y = desenharCabecalhoTabela(doc, MARGEM);
+      y = desenharCabecalhoTabelaUnificada(doc, MARGEM);
     }
 
     let x = MARGEM;
-    doc.text(linha.inicial, x + 2, y, { width: COL_INICIAL - 2 });
+    doc.font("Helvetica").fontSize(7.5).fillColor("#000000");
+    doc.text(linha.inicial, x + 2, y, { width: COL_INICIAL - 4 });
     x += COL_INICIAL;
-    doc.text(linha.final, x + 2, y, { width: COL_FINAL - 2 });
+    doc.text(linha.final, x + 2, y, { width: COL_FINAL - 4 });
     x += COL_FINAL;
-    doc.text(linha.item, x + 2, y, { width: COL_ITEM - 2 });
-    x += COL_ITEM;
-    desenharDescricaoComEstilo(doc, linha.descricao, x + 2, y, COL_DESCRICAO - 4);
-    x += COL_DESCRICAO;
-    doc.text(linha.unidade, x + 2, y, { width: COL_UNID - 2 });
+    doc.text(linha.atividadeTexto, x + 2, y, { width: COL_ATIVIDADE - 4 });
+    x += COL_ATIVIDADE;
+    doc.text(linha.qtd, x + 2, y, { width: COL_QTD - 4, align: "right" });
+    x += COL_QTD;
+    doc.text(linha.unidade, x + 2, y, { width: COL_UNID - 4 });
     x += COL_UNID;
-    doc.text(linha.quantidade, x + 2, y, { width: COL_QTD - 4, align: "right" });
+    if (linha.omTexto) {
+      doc.fillColor(linha.omCor ?? "#000000").text(linha.omTexto, x + 2, y, { width: COL_OM - 4 });
+      doc.fillColor("#000000");
+    }
+    x += COL_OM;
+    doc.text(linha.mo, x + 2, y, { width: COL_MO - 4, align: "center" });
+    x += COL_MO;
+    doc.text(linha.observacoes, x + 2, y, { width: COL_OBS - 4 });
 
-    y += alturaLinha + 2;
+    y += alturaLinha + 3;
+    doc.strokeColor("#dddddd").moveTo(MARGEM, y - 1).lineTo(MARGEM + LARGURA_UTIL, y - 1).lineWidth(0.3).stroke();
+    doc.strokeColor("#000000");
   }
 
   doc.y = y;
-}
-
-function minutosDoHorario(horario: string): number {
-  const [horaStr, minutoStr] = horario.split(":");
-  return Number(horaStr) * 60 + Number(minutoStr);
 }
 
 const JORNADA_REFERENCIA_HORAS = 10;
@@ -422,72 +489,114 @@ function formatarHoras(horas: number): string {
   return `${h}h${String(min).padStart(2, "0")}`;
 }
 
-function desenharResumoHoras(doc: PDFKit.PDFDocument, dados: RdoPdfDados, y: number): number {
+function desenharResumoHoras(doc: PDFKit.PDFDocument, dados: RdoPdfDados, y: number): void {
   const horasTrabalhadas = calcularHorasTrabalhadas(dados);
   const status = horasTrabalhadas >= JORNADA_REFERENCIA_HORAS ? "jornada completa" : "faltam apontar horas";
   doc
     .font("Helvetica-Bold")
     .fontSize(7.5)
+    .fillColor("#000000")
     .text(
       `${formatarHoras(horasTrabalhadas)} apontadas (linha do tempo + atividades) de ${JORNADA_REFERENCIA_HORAS}h de referência (${status}).`,
       MARGEM,
       y + 4,
-      { width: LARGURA_COLUNA_ESQUERDA },
+      { width: LARGURA_UTIL },
     );
-  return doc.y;
 }
 
-function desenharListaChecklist(doc: PDFKit.PDFDocument, titulo: string, x: number, y: number, itens: { nome: string; quantidade: number }[]): number {
-  doc.font("Helvetica-Bold").fontSize(8).text(titulo, x, y, { width: LARGURA_COLUNA_DIREITA });
-  let atual = doc.y + 2;
-  doc.font("Helvetica").fontSize(8);
+interface LinhaRecurso {
+  nome: string;
+  quantidade: string;
+  unidade: string;
+}
+
+/**
+ * Uma tabela com borda (cabeçalho "Recurso / Quant. / Un." + uma linha por
+ * item) — Materiais/Recursos/Mão de obra na página 2, no modelo de
+ * referência (RDO489). Devolve o y logo abaixo da última linha desenhada.
+ */
+function desenharTabelaRecurso(
+  doc: PDFKit.PDFDocument,
+  titulo: string,
+  x: number,
+  y: number,
+  largura: number,
+  itens: LinhaRecurso[],
+): number {
+  doc.font("Helvetica-Bold").fontSize(9).fillColor("#000000").text(titulo, x, y);
+  let linhaY = doc.y + 4;
+
+  const colNome = largura * 0.6;
+  const colQtd = largura * 0.2;
+  const colUn = largura - colNome - colQtd;
+
+  function linha(nome: string, quantidade: string, unidade: string, negrito: boolean): number {
+    doc.font(negrito ? "Helvetica-Bold" : "Helvetica").fontSize(7.5);
+    const altura = Math.max(14, doc.heightOfString(nome || "—", { width: colNome - 6 }) + 4);
+    doc.rect(x, linhaY, largura, altura).lineWidth(0.5).strokeColor("#000000").stroke();
+    doc.moveTo(x + colNome, linhaY).lineTo(x + colNome, linhaY + altura).stroke();
+    doc.moveTo(x + colNome + colQtd, linhaY).lineTo(x + colNome + colQtd, linhaY + altura).stroke();
+    doc.fillColor("#000000").text(nome || "—", x + 3, linhaY + 3, { width: colNome - 6 });
+    doc.text(quantidade, x + colNome + 3, linhaY + 3, { width: colQtd - 6 });
+    doc.text(unidade, x + colNome + colQtd + 3, linhaY + 3, { width: colUn - 6 });
+    return linhaY + altura;
+  }
+
+  linhaY = linha("Recurso", "Quant.", "Un.", true);
   if (itens.length === 0) {
-    doc.text("—", x, atual);
-    return doc.y;
+    linhaY = linha("—", "", "", false);
+  } else {
+    for (const item of itens) linhaY = linha(item.nome, item.quantidade, item.unidade, false);
   }
-  for (const item of itens) {
-    doc.text(`( ${item.quantidade} ) ${item.nome.toUpperCase()}`, x, atual, { width: LARGURA_COLUNA_DIREITA });
-    atual = doc.y;
-  }
-  return atual;
+  return linhaY;
 }
 
-function desenharColunaDireita(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yInicial: number): void {
-  let y = yInicial;
-  y = desenharListaChecklist(
-    doc,
-    "MÃO DE OBRA DIRETA / INDIRETA",
-    X_COLUNA_DIREITA,
-    y,
-    dados.maoDeObra.map((item) => ({ nome: item.funcao, quantidade: item.quantidade })),
-  );
-  y += 8;
-  y = desenharListaChecklist(
-    doc,
-    "OUTROS CUSTOS INDIRETOS",
-    X_COLUNA_DIREITA,
-    y,
-    dados.equipamentos.map((item) => {
-      let nome = item.nome;
-      if (item.producaoValor != null) {
-        nome = `${item.nome}${item.producaoDescricao ? ` — ${item.producaoDescricao}` : ""}: ${formatarNumero(item.producaoValor)}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`;
-      } else if (item.horimetroFinal != null) {
-        nome =
-          item.horimetroInicial != null
-            ? `${item.nome} — horímetro: ${formatarNumero(item.horimetroInicial)} a ${formatarNumero(item.horimetroFinal)} h`
-            : `${item.nome} — horímetro final: ${formatarNumero(item.horimetroFinal)} h`;
-      }
-      return { nome, quantidade: item.quantidade };
-    }),
-  );
-  y += 8;
-  desenharListaChecklist(
-    doc,
-    "MATERIAIS UTILIZADOS",
-    X_COLUNA_DIREITA,
-    y,
-    dados.materiais.map((item) => ({ nome: `${item.nome} (${item.unidade})`, quantidade: item.quantidade })),
-  );
+/** Materiais / Recursos (equipamentos) / Mão de obra, em três tabelas lado a lado — página 2. */
+function desenharRecursos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
+  garantirEspaco(doc, 40);
+  doc.font("Helvetica-Bold").fontSize(11).fillColor("#000000").text("RECURSOS DO DIA", MARGEM, doc.y);
+  doc.moveTo(MARGEM, doc.y + 4).lineTo(LARGURA_PAGINA - MARGEM, doc.y + 4).lineWidth(0.75).stroke();
+  const y0 = doc.y + 14;
+
+  const gap = 16;
+  const colLargura = (LARGURA_UTIL - gap * 2) / 3;
+  const xMateriais = MARGEM;
+  const xRecursos = MARGEM + colLargura + gap;
+  const xMaoDeObra = MARGEM + (colLargura + gap) * 2;
+
+  const materiais: LinhaRecurso[] = dados.materiais.map((item) => ({
+    nome: item.nome,
+    quantidade: formatarNumero(item.quantidade),
+    unidade: item.unidade,
+  }));
+
+  // Equipamento/catálogo não tem unidade própria (é sempre "1 item"), por
+  // isso "UN" fixo — a produção/horímetro, quando existe, entra junto no
+  // nome (não cabe uma coluna própria numa tabela de 3 colunas simples).
+  const recursos: LinhaRecurso[] = dados.equipamentos.map((item) => {
+    let producao = "";
+    if (item.producaoValor != null) {
+      producao = ` — ${item.producaoDescricao ? `${item.producaoDescricao}: ` : ""}${formatarNumero(item.producaoValor)}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`;
+    } else if (item.horimetroFinal != null) {
+      producao =
+        item.horimetroInicial != null
+          ? ` — horímetro: ${formatarNumero(item.horimetroInicial)} a ${formatarNumero(item.horimetroFinal)} h`
+          : ` — horímetro final: ${formatarNumero(item.horimetroFinal)} h`;
+    }
+    return { nome: `${item.nome}${producao}`, quantidade: String(item.quantidade), unidade: "UN" };
+  });
+
+  const maoDeObra: LinhaRecurso[] = dados.maoDeObra.map((item) => ({
+    nome: item.funcao,
+    quantidade: String(item.quantidade),
+    unidade: "Un",
+  }));
+
+  const yMateriais = desenharTabelaRecurso(doc, "MATERIAIS", xMateriais, y0, colLargura, materiais);
+  const yRecursos = desenharTabelaRecurso(doc, "RECURSOS", xRecursos, y0, colLargura, recursos);
+  const yMaoDeObra = desenharTabelaRecurso(doc, "MÃO DE OBRA", xMaoDeObra, y0, colLargura, maoDeObra);
+
+  doc.y = Math.max(yMateriais, yRecursos, yMaoDeObra) + 12;
 }
 
 function desenharObservacoes(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
@@ -527,35 +636,7 @@ function desenharBlocoAssinatura(
   }
 }
 
-/** Texto do memorial de cálculo (fórmula = resultado), mesma matemática de `calcularTotalAtividade` (packages/shared) e do croqui exibido no formulário (CroquiAtividade.tsx). */
-/** Dados de dimensão de um cartão de croqui — o Ponto 1 (a própria atividade) ou um ponto extra. */
-interface CroquiDados {
-  unidade: string;
-  altura: number | null;
-  largura: number | null;
-  larguraFinal: number | null;
-  comprimento: number | null;
-  quantidade: number;
-}
-
-function montarMemorialCalculo(dados: CroquiDados): string | null {
-  const { unidade, altura: a, largura: l, larguraFinal: lFim, comprimento: c, quantidade } = dados;
-  if (unidade === "M3" && a != null && l != null && c != null) {
-    return `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)} = ${formatarNumero(quantidade)} m³`;
-  }
-  if (unidade === "M2" && l != null && c != null) {
-    if (lFim != null && lFim !== l) {
-      return `média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)} = ${formatarNumero(quantidade)} m²`;
-    }
-    return `${formatarNumero(c)} × ${formatarNumero(l)} = ${formatarNumero(quantidade)} m²`;
-  }
-  if (unidade === "M" && c != null) {
-    return `${formatarNumero(c)} m`;
-  }
-  return null;
-}
-
-const CROQUI_LARGURA = 250;
+const CROQUI_LARGURA = 235;
 const CROQUI_ALTURA_DESENHO = 90;
 
 /** Rótulo "X m" (ou "?" quando a dimensão não foi informada), igual ao croqui exibido no formulário. */
@@ -668,8 +749,8 @@ function desenharCroquiCaixa(
   doc.text(rotuloDimensao(comprimento), (fbr.x + bbr.x) / 2 + 4, (fbr.y + bbr.y) / 2 - 4, { width: 70 });
 }
 
-/** Uma "carta" de croqui + memorial de cálculo para um ponto de medição, dentro de `largura`. Devolve a altura ocupada. */
-function desenharCartaoCroqui(doc: PDFKit.PDFDocument, x: number, y: number, titulo: string, dados: CroquiDados): number {
+/** Uma "carta" de croqui + memorial de cálculo para um ponto de medição, dentro de `largura`. */
+function desenharCartaoCroqui(doc: PDFKit.PDFDocument, x: number, y: number, titulo: string, dados: DadosMemorial): void {
   doc.font("Helvetica-Bold").fontSize(8).fillColor("#000000").text(titulo, x, y, { width: CROQUI_LARGURA });
   const yDesenho = doc.y + 4;
 
@@ -688,13 +769,11 @@ function desenharCartaoCroqui(doc: PDFKit.PDFDocument, x: number, y: number, tit
     .fontSize(7.5)
     .fillColor("#2c3d33")
     .text(memorial ?? "Dimensões não informadas.", x, yFormula, { width: CROQUI_LARGURA });
-
-  return doc.y - y;
 }
 
 interface CartaoCroqui {
   titulo: string;
-  dados: CroquiDados;
+  dados: DadosMemorial;
 }
 
 /**
@@ -710,7 +789,7 @@ function montarCartoesCroqui(atividade: RdoPdfAtividade): CartaoCroqui[] {
   // tabela principal mostra) — o memorial do Ponto 1 precisa do total só
   // dele, recalculado das próprias dimensões, senão a fórmula do Ponto 1
   // aparece batendo com um resultado que não é dela.
-  const ponto1: CroquiDados = {
+  const ponto1: DadosMemorial = {
     unidade: atividade.unidade,
     altura: atividade.altura,
     largura: atividade.largura,
@@ -732,7 +811,7 @@ function montarCartoesCroqui(atividade: RdoPdfAtividade): CartaoCroqui[] {
   ];
 }
 
-/** Croquis e memorial de cálculo de cada atividade/ponto que usa dimensões (M/M2/M3) — página própria, 2 por linha. */
+/** Croquis e memorial de cálculo de cada atividade/ponto que usa dimensões (M/M2/M3) — continua na página 2, depois dos recursos. */
 function desenharCroquis(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   const cartoes = dados.locais
     .flatMap((local) => local.atividades)
@@ -740,36 +819,38 @@ function desenharCroquis(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
     .flatMap((atividade) => montarCartoesCroqui(atividade));
   if (cartoes.length === 0) return;
 
-  doc.addPage();
-  doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000").text("CROQUIS E MEMORIAL DE CÁLCULO", MARGEM, MARGEM);
+  garantirEspaco(doc, 60);
+  doc.font("Helvetica-Bold").fontSize(11).fillColor("#000000").text("CROQUIS E MEMORIAL DE CÁLCULO", MARGEM, doc.y);
   doc.moveTo(MARGEM, doc.y + 4).lineTo(LARGURA_PAGINA - MARGEM, doc.y + 4).lineWidth(0.75).stroke();
 
   const gap = 20;
-  const colX = [MARGEM, MARGEM + CROQUI_LARGURA + gap];
+  // 3 croquis por linha (paisagem dá mais largura que as 2 de antes).
+  const colX = [MARGEM, MARGEM + CROQUI_LARGURA + gap, MARGEM + (CROQUI_LARGURA + gap) * 2];
   let coluna = 0;
   let y = doc.y + 16;
   const alturaCartao = CROQUI_ALTURA_DESENHO + 44;
 
   for (const cartao of cartoes) {
-    if (y + alturaCartao > ALTURA_PAGINA - MARGEM) {
+    if (y + alturaCartao > LIMITE_CONTEUDO) {
       doc.addPage();
       y = MARGEM;
       coluna = 0;
     }
     desenharCartaoCroqui(doc, colX[coluna]!, y, cartao.titulo, cartao.dados);
-    if (coluna === 0) {
-      coluna = 1;
-    } else {
+    coluna += 1;
+    if (coluna === 3) {
       coluna = 0;
       y += alturaCartao;
     }
   }
+  if (coluna !== 0) y += alturaCartao;
+  doc.y = y + 10;
 }
 
-const FOTO_LARGURA = 250;
-const FOTO_ALTURA = 180;
+const FOTO_LARGURA = 235;
+const FOTO_ALTURA = 170;
 
-/** Registro fotográfico do dia, agrupado por OM (uma seção por OM, 2 fotos por linha) — página(s) própria(s), depois dos croquis. */
+/** Registro fotográfico do dia, agrupado por OM (uma seção por OM, 3 fotos por linha) — página própria, depois dos recursos/croquis/assinaturas. */
 function desenharFotos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   const grupos = (dados.gruposFotos ?? []).filter((grupo) => grupo.fotos.length > 0);
   if (grupos.length === 0) return;
@@ -780,11 +861,11 @@ function desenharFotos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   let y = doc.y + 16;
 
   const gap = 20;
-  const colX = [MARGEM, MARGEM + FOTO_LARGURA + gap];
+  const colX = [MARGEM, MARGEM + FOTO_LARGURA + gap, MARGEM + (FOTO_LARGURA + gap) * 2];
   const alturaCartao = FOTO_ALTURA + 28;
 
   for (const grupo of grupos) {
-    if (y + 18 > ALTURA_PAGINA - MARGEM) {
+    if (y + 18 > LIMITE_CONTEUDO) {
       doc.addPage();
       y = MARGEM;
     }
@@ -797,7 +878,7 @@ function desenharFotos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
 
     let coluna = 0;
     for (const foto of grupo.fotos) {
-      if (y + alturaCartao > ALTURA_PAGINA - MARGEM) {
+      if (y + alturaCartao > LIMITE_CONTEUDO) {
         doc.addPage();
         y = MARGEM;
         coluna = 0;
@@ -815,9 +896,8 @@ function desenharFotos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
           .fillColor("#000000")
           .text(foto.legenda, x, y + FOTO_ALTURA + 2, { width: FOTO_LARGURA });
       }
-      if (coluna === 0) {
-        coluna = 1;
-      } else {
+      coluna += 1;
+      if (coluna === 3) {
         coluna = 0;
         y += alturaCartao;
       }
@@ -833,6 +913,7 @@ async function desenharRodape(doc: PDFKit.PDFDocument, dados: RdoPdfDados): Prom
   doc
     .font("Helvetica-Bold")
     .fontSize(8)
+    .fillColor("#000000")
     .text("SE NÃO FOR SEGURO, NÃO FAÇA", MARGEM, y0, { width: LARGURA_UTIL, align: "center" });
 
   const yAssinaturas = y0 + 40;
@@ -849,13 +930,21 @@ async function desenharRodape(doc: PDFKit.PDFDocument, dados: RdoPdfDados): Prom
   doc
     .font("Helvetica")
     .fontSize(6)
+    .fillColor("#000000")
     .text("Escaneie para validar a autenticidade deste documento", MARGEM + 64, qrY + 4, { width: LARGURA_UTIL - 64 })
     .text(dados.urlVerificacao, MARGEM + 64, doc.y + 2, { width: LARGURA_UTIL - 64 });
 }
 
-/** Gera o PDF do RDO no layout do relatório em papel da ENGECOM, com QR de verificação de autenticidade. */
+/**
+ * Gera o PDF do RDO em paisagem, no modelo do RDO489 (referência de outro
+ * sistema, adaptada — ver comentários de cada seção): página 1 é o
+ * cabeçalho + a tabela única de horário/atividades; página 2 são os
+ * recursos do dia (materiais/equipamentos/mão de obra em tabelas simples
+ * lado a lado), croquis, observações e assinaturas; página 3 (só quando
+ * há foto) é o registro fotográfico, agrupado por OM.
+ */
 export async function gerarPdfRdo(dados: RdoPdfDados): Promise<Buffer> {
-  const doc = new PDFDocument({ size: "A4", margin: MARGEM, bufferPages: true });
+  const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: MARGEM, bufferPages: true });
   const chunks: Buffer[] = [];
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
   const fim = new Promise<Buffer>((resolve, reject) => {
@@ -865,23 +954,15 @@ export async function gerarPdfRdo(dados: RdoPdfDados): Promise<Buffer> {
 
   desenharCabecalho(doc, dados);
   desenharIdentificacao(doc, dados);
-
-  const yTabelas = doc.y;
-  desenharTabelaAtividades(doc, dados, yTabelas);
+  desenharTabelaUnificada(doc, dados, doc.y);
   desenharResumoHoras(doc, dados, doc.y);
-  // `desenharColunaDireita` também escreve texto com y explícito, o que
-  // faz o pdfkit sobrescrever `doc.y` com a altura DELA — precisa capturar
-  // a altura real da tabela de atividades (que pode ser bem maior, com
-  // descrições longas — MO/status da OM/km) antes que isso aconteça, senão
-  // a seção de observações logo abaixo é desenhada por cima do fim da
-  // tabela em vez de depois dela.
-  const yFimTabelaAtividades = doc.y;
-  desenharColunaDireita(doc, dados, yTabelas);
-  doc.y = Math.max(doc.y, yFimTabelaAtividades, yTabelas + 40);
 
+  doc.addPage();
+  desenharRecursos(doc, dados);
+  desenharCroquis(doc, dados);
   desenharObservacoes(doc, dados);
   await desenharRodape(doc, dados);
-  desenharCroquis(doc, dados);
+
   desenharFotos(doc, dados);
 
   doc.end();
