@@ -873,7 +873,39 @@ export function registerRdosRoutes(app: FastifyInstance): void {
       montarUltimosHorimetros(rdo.equipeId, rdo.data, rdo.id),
     ]);
 
-    return { rdo, ordensManutencao, atividadesCatalogo, ultimaReprovacao, ultimosHorimetros };
+    // Uma OM pode ser trabalhada ao longo de vários RDOs até ser dada como
+    // concluída — pra sinalizar "faltam fotos" o front precisa do total já
+    // lançado em OUTROS RDOs, não só nas fotos deste (que ele já tem em
+    // `rdo.anexos`, atualizado ao vivo conforme o encarregado sobe fotos
+    // nesta mesma sessão). rdoId != rdo.id evita contar 2x quando somado
+    // com as fotos ao vivo deste RDO no front.
+    const fotosPorOm =
+      ordensManutencao.length > 0
+        ? await prisma.rdoAnexo.groupBy({
+            by: ["ordemManutencaoId", "descricao"],
+            where: {
+              ordemManutencaoId: { in: ordensManutencao.map((om) => om.id) },
+              tipo: "FOTO",
+              rdoId: { not: rdo.id },
+            },
+            _count: { _all: true },
+          })
+        : [];
+    const contagemPorOm = new Map<string, { antes: number; depois: number }>();
+    for (const linha of fotosPorOm) {
+      if (!linha.ordemManutencaoId) continue;
+      const atual = contagemPorOm.get(linha.ordemManutencaoId) ?? { antes: 0, depois: 0 };
+      if (linha.descricao === "Antes") atual.antes += linha._count._all;
+      if (linha.descricao === "Depois") atual.depois += linha._count._all;
+      contagemPorOm.set(linha.ordemManutencaoId, atual);
+    }
+    const ordensManutencaoComFotos = ordensManutencao.map((om) => ({
+      ...om,
+      fotosAntesOutrosRdos: contagemPorOm.get(om.id)?.antes ?? 0,
+      fotosDepoisOutrosRdos: contagemPorOm.get(om.id)?.depois ?? 0,
+    }));
+
+    return { rdo, ordensManutencao: ordensManutencaoComFotos, atividadesCatalogo, ultimaReprovacao, ultimosHorimetros };
   });
 
   app.patch<{ Params: { token: string } }>(

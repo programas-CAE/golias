@@ -35,6 +35,11 @@ interface OrdemManutencaoRef {
   detalhes?: string | null;
   kmInicial?: string | null;
   kmFinal?: string | null;
+  // Fotos "Antes"/"Depois" já lançadas em OUTROS RDOs pra essa OM (uma OM
+  // pode ser trabalhada em vários dias até fechar) — somado com as fotos
+  // ao vivo deste RDO (estado `anexos`) dá o total real, pro mínimo de 2+2.
+  fotosAntesOutrosRdos?: number;
+  fotosDepoisOutrosRdos?: number;
 }
 
 interface RdoAnexo {
@@ -505,6 +510,44 @@ export default function Campo(): ReactElement {
     );
     return (dados?.ordensManutencao ?? []).filter((om) => idsUsados.has(om.id));
   }, [locais, dados?.ordensManutencao]);
+
+  // Sinaliza, antes de finalizar, toda OM lançada neste RDO que ainda não
+  // "fechou": ou o status não foi marcado como Concluída, ou foi marcado
+  // mas ainda não tem o mínimo de 2 fotos "Antes" + 2 "Depois" (contagem ao
+  // vivo: fotos de outros RDOs + as já anexadas nesta sessão). Não bloqueia
+  // o envio — só avisa, pra não esquecer nada na hora de enviar.
+  const pendenciasOm = useMemo(() => {
+    if (!dados) return [];
+    const mapaOm = new Map(dados.ordensManutencao.map((om) => [om.id, om]));
+    const statusPorOm = new Map<string, string[]>();
+    for (const local of locais) {
+      for (const atividade of local.atividades) {
+        if (!atividade.ordemManutencaoId) continue;
+        const atual = statusPorOm.get(atividade.ordemManutencaoId) ?? [];
+        atual.push(atividade.statusOm);
+        statusPorOm.set(atividade.ordemManutencaoId, atual);
+      }
+    }
+
+    const pendencias: { omId: string; omNumero: string; motivos: string[] }[] = [];
+    for (const [omId, statuses] of statusPorOm) {
+      const om = mapaOm.get(omId);
+      if (!om) continue;
+      const motivos: string[] = [];
+      if (!statuses.includes("CONCLUIDA")) {
+        motivos.push("Status ainda não marcado como Concluída");
+      } else {
+        const antes = (om.fotosAntesOutrosRdos ?? 0) + anexos.filter((a) => a.ordemManutencaoId === omId && a.descricao === "Antes").length;
+        const depois = (om.fotosDepoisOutrosRdos ?? 0) + anexos.filter((a) => a.ordemManutencaoId === omId && a.descricao === "Depois").length;
+        if (antes < 2) motivos.push(`Faltam fotos "Antes" (${antes} de 2)`);
+        if (depois < 2) motivos.push(`Faltam fotos "Depois" (${depois} de 2)`);
+      }
+      if (motivos.length > 0) {
+        pendencias.push({ omId, omNumero: om.numero, motivos });
+      }
+    }
+    return pendencias;
+  }, [locais, dados, anexos]);
 
   const anexosPorOm = useMemo(() => {
     const grupos = new Map<string, { omNumero: string | null; fotos: RdoAnexo[] }>();
@@ -1695,6 +1738,20 @@ export default function Campo(): ReactElement {
           referência ({horasApontadasDia >= JORNADA_REFERENCIA_HORAS ? "jornada completa" : "faltam apontar horas"}).
         </p>
       </section>
+
+      {pendenciasOm.length > 0 && (
+        <section className="campo-secao">
+          <h2>OMs que ainda não fecharam</h2>
+          <p className="campo-subtitulo">Confira antes de enviar — não impede o envio, é só um lembrete.</p>
+          <ul className="campo-anexos-lista">
+            {pendenciasOm.map((pendencia) => (
+              <li key={pendencia.omId}>
+                <strong>OM {pendencia.omNumero}:</strong> {pendencia.motivos.join("; ")}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {erroSalvar && <p className="feedback feedback--erro">{erroSalvar}</p>}
       {salvarStatus === "salvo" && <p className="feedback feedback--ok">RDO salvo com sucesso.</p>}
