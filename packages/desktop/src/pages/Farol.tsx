@@ -369,11 +369,11 @@ export default function Farol(): ReactElement {
                     ) : (
                       dadosRdo.linhas.map((linha) => (
                         <tr key={linha.equipeId}>
-                          <td>
+                          <td title={linha.equipe}>
                             <strong>{linha.equipe}</strong>
                           </td>
-                          <td>{linha.distrito}</td>
-                          <td>{linha.encarregado ?? "—"}</td>
+                          <td title={linha.distrito}>{linha.distrito}</td>
+                          <td title={linha.encarregado ?? ""}>{linha.encarregado ?? "—"}</td>
                           {dadosRdo.dias.map((dia) => {
                             const status = linha.porDia[dia];
                             return (
@@ -480,11 +480,11 @@ export default function Farol(): ReactElement {
                     ) : (
                       dados.linhas.map((linha) => (
                         <tr key={linha.equipeId}>
-                          <td>
+                          <td title={linha.equipe}>
                             <strong>{linha.equipe}</strong>
                           </td>
-                          <td>{linha.distrito}</td>
-                          <td>{linha.encarregado ?? "—"}</td>
+                          <td title={linha.distrito}>{linha.distrito}</td>
+                          <td title={linha.encarregado ?? ""}>{linha.encarregado ?? "—"}</td>
                           {dados.dias.map((dia) => {
                             const celula = linha.porDia[dia];
                             return (

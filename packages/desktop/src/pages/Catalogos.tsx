@@ -19,8 +19,24 @@ interface Equipamento {
   ativo: boolean;
 }
 
+interface Contrato {
+  id: string;
+  numero: string;
+  nome: string | null;
+}
+
+interface Material {
+  id: string;
+  contratoId: string;
+  codigo: string;
+  descricao: string;
+  unidade: string;
+  precoUnitario: string | null;
+  ativo: boolean;
+}
+
 export default function Catalogos(): ReactElement {
-  const [aba, setAba] = useState<"atividades" | "equipamentos">("atividades");
+  const [aba, setAba] = useState<"atividades" | "equipamentos" | "materiais">("atividades");
 
   return (
     <div className="app-shell">
@@ -29,7 +45,7 @@ export default function Catalogos(): ReactElement {
         <div className="list-header">
           <div>
             <h1 className="list-title">Catálogos</h1>
-            <p className="list-subtitle">Atividades e equipamentos usados no lançamento do RDO</p>
+            <p className="list-subtitle">Atividades, equipamentos e materiais usados no lançamento do RDO</p>
           </div>
         </div>
 
@@ -48,9 +64,16 @@ export default function Catalogos(): ReactElement {
           >
             Equipamentos
           </button>
+          <button
+            type="button"
+            className={`tab-button${aba === "materiais" ? " tab-button--ativa" : ""}`}
+            onClick={() => setAba("materiais")}
+          >
+            Materiais
+          </button>
         </div>
 
-        {aba === "atividades" ? <PainelAtividades /> : <PainelEquipamentos />}
+        {aba === "atividades" ? <PainelAtividades /> : aba === "equipamentos" ? <PainelEquipamentos /> : <PainelMateriais />}
       </div>
     </div>
   );
@@ -544,6 +567,334 @@ function EditarEquipamentoModal({
 
           <div className="form-actions">
             <button type="submit" className="button" disabled={salvando || nome.trim() === ""}>
+              {salvando ? "Salvando…" : "Salvar"}
+            </button>
+            <button type="button" className="button button--secondary" onClick={onClose}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function PainelMateriais(): ReactElement {
+  const [materiais, setMateriais] = useState<Material[] | null>(null);
+  const [contratos, setContratos] = useState<Contrato[]>([]);
+  const [erro, setErro] = useState<string | null>(null);
+  const [editando, setEditando] = useState<Material | null>(null);
+  const [criando, setCriando] = useState(false);
+
+  async function carregar(): Promise<void> {
+    setErro(null);
+    try {
+      const [listaMateriais, listaContratos] = await Promise.all([
+        api.get<Material[]>("/materiais?todos=1"),
+        api.get<Contrato[]>("/contratos"),
+      ]);
+      setMateriais(listaMateriais);
+      setContratos(listaContratos);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível carregar o catálogo de materiais.");
+    }
+  }
+
+  useEffect(() => {
+    void carregar();
+  }, []);
+
+  function nomeContrato(contratoId: string): string {
+    const contrato = contratos.find((c) => c.id === contratoId);
+    if (!contrato) return "—";
+    return contrato.nome ? `${contrato.numero} — ${contrato.nome}` : contrato.numero;
+  }
+
+  return (
+    <>
+      <div className="list-header" style={{ marginTop: 4 }}>
+        <p className="list-subtitle">
+          Materiais usados no lançamento do RDO — essa lista muda com frequência, edite à vontade.
+        </p>
+        <button type="button" className="button" onClick={() => setCriando(true)} disabled={contratos.length === 0}>
+          + Adicionar material
+        </button>
+      </div>
+
+      {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+      <div className="panel">
+        {materiais === null ? (
+          <p className="table-empty">Carregando…</p>
+        ) : materiais.length === 0 ? (
+          <p className="table-empty">Nenhum material cadastrado.</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Descrição</th>
+                <th>Unidade</th>
+                <th>Contrato</th>
+                <th>Status</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {materiais.map((material) => (
+                <tr key={material.id}>
+                  <td>{material.codigo}</td>
+                  <td>{material.descricao}</td>
+                  <td>{material.unidade}</td>
+                  <td>{nomeContrato(material.contratoId)}</td>
+                  <td>
+                    <span className={`badge badge--${material.ativo ? "ativo" : "inativo"}`}>
+                      {material.ativo ? "Ativo" : "Inativo"}
+                    </span>
+                  </td>
+                  <td>
+                    <button type="button" className="button button--ghost button--small" onClick={() => setEditando(material)}>
+                      Editar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {criando && (
+        <NovoMaterialModal
+          contratos={contratos}
+          onClose={() => setCriando(false)}
+          onCriado={(novo) => {
+            setMateriais((atual) => [...(atual ?? []), novo]);
+            setCriando(false);
+          }}
+        />
+      )}
+
+      {editando && (
+        <EditarMaterialModal
+          material={editando}
+          onClose={() => setEditando(null)}
+          onSalvo={(atualizado) => {
+            setMateriais((atual) => atual?.map((m) => (m.id === atualizado.id ? atualizado : m)) ?? atual);
+            setEditando(null);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function NovoMaterialModal({
+  contratos,
+  onClose,
+  onCriado,
+}: {
+  contratos: Contrato[];
+  onClose: () => void;
+  onCriado: (material: Material) => void;
+}): ReactElement {
+  const [contratoId, setContratoId] = useState(contratos[0]?.id ?? "");
+  const [codigo, setCodigo] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [unidade, setUnidade] = useState("");
+  const [precoUnitario, setPrecoUnitario] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const criado = await api.post<Material>("/materiais", {
+        contratoId,
+        codigo,
+        descricao,
+        unidade,
+        precoUnitario: precoUnitario === "" ? null : Number(precoUnitario),
+      });
+      onCriado(criado);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível criar o material.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">Adicionar material</h2>
+        <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="field-label" htmlFor="contratoId">
+            Contrato
+          </label>
+          <select id="contratoId" className="field-input" value={contratoId} onChange={(event) => setContratoId(event.target.value)}>
+            {contratos.map((contrato) => (
+              <option key={contrato.id} value={contrato.id}>
+                {contrato.nome ? `${contrato.numero} — ${contrato.nome}` : contrato.numero}
+              </option>
+            ))}
+          </select>
+
+          <label className="field-label" htmlFor="codigo">
+            Código
+          </label>
+          <input
+            id="codigo"
+            className="field-input"
+            value={codigo}
+            onChange={(event) => setCodigo(event.target.value)}
+            autoComplete="off"
+            autoFocus
+          />
+
+          <label className="field-label" htmlFor="descricao">
+            Descrição
+          </label>
+          <input
+            id="descricao"
+            className="field-input"
+            value={descricao}
+            onChange={(event) => setDescricao(event.target.value)}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="unidade">
+            Unidade
+          </label>
+          <input
+            id="unidade"
+            className="field-input"
+            value={unidade}
+            onChange={(event) => setUnidade(event.target.value)}
+            placeholder="Ex.: UND, KG, M, L"
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="precoUnitario">
+            Preço unitário — opcional
+          </label>
+          <input
+            id="precoUnitario"
+            type="number"
+            step="0.01"
+            min={0}
+            className="field-input"
+            value={precoUnitario}
+            onChange={(event) => setPrecoUnitario(event.target.value)}
+          />
+
+          {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+          <div className="form-actions">
+            <button
+              type="submit"
+              className="button"
+              disabled={salvando || contratoId === "" || codigo.trim() === "" || descricao.trim() === "" || unidade.trim() === ""}
+            >
+              {salvando ? "Salvando…" : "Adicionar"}
+            </button>
+            <button type="button" className="button button--secondary" onClick={onClose}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function EditarMaterialModal({
+  material,
+  onClose,
+  onSalvo,
+}: {
+  material: Material;
+  onClose: () => void;
+  onSalvo: (material: Material) => void;
+}): ReactElement {
+  const [descricao, setDescricao] = useState(material.descricao);
+  const [unidade, setUnidade] = useState(material.unidade);
+  const [precoUnitario, setPrecoUnitario] = useState(material.precoUnitario ?? "");
+  const [ativo, setAtivo] = useState(material.ativo);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const atualizado = await api.patch<Material>(`/materiais/${material.id}`, {
+        descricao,
+        unidade,
+        precoUnitario: precoUnitario === "" ? null : Number(precoUnitario),
+        ativo,
+      });
+      onSalvo(atualizado);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">Editar material</h2>
+        <p className="modal-subtitle">{material.codigo}</p>
+        <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="field-label" htmlFor="descricao-editar">
+            Descrição
+          </label>
+          <input
+            id="descricao-editar"
+            className="field-input"
+            value={descricao}
+            onChange={(event) => setDescricao(event.target.value)}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="unidade-editar">
+            Unidade
+          </label>
+          <input
+            id="unidade-editar"
+            className="field-input"
+            value={unidade}
+            onChange={(event) => setUnidade(event.target.value)}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="precoUnitario-editar">
+            Preço unitário
+          </label>
+          <input
+            id="precoUnitario-editar"
+            type="number"
+            step="0.01"
+            min={0}
+            className="field-input"
+            value={precoUnitario}
+            onChange={(event) => setPrecoUnitario(event.target.value)}
+          />
+
+          <label className="checkbox-row">
+            <input type="checkbox" checked={ativo} onChange={(event) => setAtivo(event.target.checked)} />
+            Material ativo (some da lista do RDO quando desmarcado)
+          </label>
+
+          {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+          <div className="form-actions">
+            <button type="submit" className="button" disabled={salvando || descricao.trim() === "" || unidade.trim() === ""}>
               {salvando ? "Salvando…" : "Salvar"}
             </button>
             <button type="button" className="button button--secondary" onClick={onClose}>

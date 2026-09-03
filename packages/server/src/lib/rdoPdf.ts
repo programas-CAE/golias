@@ -385,22 +385,35 @@ const COLUNAS_TABELA_UNIFICADA: Array<[string, number, "left" | "right" | "cente
   ["OBSERVAÇÕES", COL_OBS, "left"],
 ];
 
+/** Traça as linhas verticais entre colunas de uma linha da tabela unificada (dentro do retângulo já desenhado). */
+function desenharDivisoriasColunas(doc: PDFKit.PDFDocument, y: number, altura: number): void {
+  let x = MARGEM;
+  for (const [, largura] of COLUNAS_TABELA_UNIFICADA.slice(0, -1)) {
+    x += largura;
+    doc.moveTo(x, y).lineTo(x, y + altura).stroke();
+  }
+}
+
+/** Cabeçalho com borda — mesmo estilo "caixa" das tabelas de recursos da página 2. */
 function desenharCabecalhoTabelaUnificada(doc: PDFKit.PDFDocument, y: number): number {
   doc.font("Helvetica-Bold").fontSize(7).fillColor("#000000");
   // Altura calculada (não um número fixo) — um rótulo que quebra em 2
   // linhas numa coluna estreita não pode empurrar a régua de baixo por
   // cima do próprio texto (bug real visto com "ORDEM DE MANUTENÇÃO").
-  const alturaCabecalho = Math.max(
+  const alturaTexto = Math.max(
     ...COLUNAS_TABELA_UNIFICADA.map(([texto, largura]) => doc.heightOfString(texto, { width: largura - 4 })),
   );
+  const altura = alturaTexto + 4;
+
+  doc.lineWidth(0.5).strokeColor("#000000").rect(MARGEM, y, LARGURA_UTIL, altura).stroke();
+  desenharDivisoriasColunas(doc, y, altura);
+
   let x = MARGEM;
   for (const [texto, largura, align] of COLUNAS_TABELA_UNIFICADA) {
-    doc.text(texto, x + 2, y, { width: largura - 4, align });
+    doc.fillColor("#000000").text(texto, x + 2, y + 3, { width: largura - 4, align });
     x += largura;
   }
-  const yLinha = y + alturaCabecalho + 3;
-  doc.moveTo(MARGEM, yLinha).lineTo(MARGEM + LARGURA_UTIL, yLinha).lineWidth(0.5).stroke();
-  return yLinha + 3;
+  return y + altura;
 }
 
 function desenharTabelaUnificada(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yInicial: number): void {
@@ -409,8 +422,10 @@ function desenharTabelaUnificada(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yI
 
   doc.font("Helvetica").fontSize(7.5).fillColor("#000000");
   if (linhas.length === 0) {
-    doc.text("Nenhuma atividade lançada.", MARGEM + 2, y, { width: LARGURA_UTIL - 4 });
-    doc.y = y + 12;
+    const altura = 14;
+    doc.lineWidth(0.5).strokeColor("#000000").rect(MARGEM, y, LARGURA_UTIL, altura).stroke();
+    doc.fillColor("#000000").text("Nenhuma atividade lançada.", MARGEM + 2, y + 3, { width: LARGURA_UTIL - 4 });
+    doc.y = y + altura;
     return;
   }
 
@@ -421,37 +436,38 @@ function desenharTabelaUnificada(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yI
     // sozinha mesmo com atividade/observações curtas; sem contar essa
     // altura aqui, o texto da OM vazava pra cima da linha seguinte.
     const alturaOm = linha.omTexto ? doc.heightOfString(linha.omTexto, { width: COL_OM - 4 }) : 0;
-    const alturaLinha = Math.max(11, alturaAtividade + 2, alturaObs + 2, alturaOm + 2);
+    const alturaLinha = Math.max(14, alturaAtividade + 4, alturaObs + 4, alturaOm + 4);
 
     if (y + alturaLinha > LIMITE_CONTEUDO) {
       doc.addPage();
       y = desenharCabecalhoTabelaUnificada(doc, MARGEM);
     }
 
+    doc.lineWidth(0.5).strokeColor("#000000").rect(MARGEM, y, LARGURA_UTIL, alturaLinha).stroke();
+    desenharDivisoriasColunas(doc, y, alturaLinha);
+
     let x = MARGEM;
     doc.font("Helvetica").fontSize(7.5).fillColor("#000000");
-    doc.text(linha.inicial, x + 2, y, { width: COL_INICIAL - 4 });
+    doc.text(linha.inicial, x + 2, y + 3, { width: COL_INICIAL - 4 });
     x += COL_INICIAL;
-    doc.text(linha.final, x + 2, y, { width: COL_FINAL - 4 });
+    doc.text(linha.final, x + 2, y + 3, { width: COL_FINAL - 4 });
     x += COL_FINAL;
-    doc.text(linha.atividadeTexto, x + 2, y, { width: COL_ATIVIDADE - 4 });
+    doc.text(linha.atividadeTexto, x + 2, y + 3, { width: COL_ATIVIDADE - 4 });
     x += COL_ATIVIDADE;
-    doc.text(linha.qtd, x + 2, y, { width: COL_QTD - 4, align: "right" });
+    doc.text(linha.qtd, x + 2, y + 3, { width: COL_QTD - 4, align: "right" });
     x += COL_QTD;
-    doc.text(linha.unidade, x + 2, y, { width: COL_UNID - 4 });
+    doc.text(linha.unidade, x + 2, y + 3, { width: COL_UNID - 4 });
     x += COL_UNID;
     if (linha.omTexto) {
-      doc.fillColor(linha.omCor ?? "#000000").text(linha.omTexto, x + 2, y, { width: COL_OM - 4 });
+      doc.fillColor(linha.omCor ?? "#000000").text(linha.omTexto, x + 2, y + 3, { width: COL_OM - 4 });
       doc.fillColor("#000000");
     }
     x += COL_OM;
-    doc.text(linha.mo, x + 2, y, { width: COL_MO - 4, align: "center" });
+    doc.text(linha.mo, x + 2, y + 3, { width: COL_MO - 4, align: "center" });
     x += COL_MO;
-    doc.text(linha.observacoes, x + 2, y, { width: COL_OBS - 4 });
+    doc.text(linha.observacoes, x + 2, y + 3, { width: COL_OBS - 4 });
 
-    y += alturaLinha + 3;
-    doc.strokeColor("#dddddd").moveTo(MARGEM, y - 1).lineTo(MARGEM + LARGURA_UTIL, y - 1).lineWidth(0.3).stroke();
-    doc.strokeColor("#000000");
+    y += alturaLinha;
   }
 
   doc.y = y;

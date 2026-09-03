@@ -882,9 +882,15 @@ textarea.field-input {
 .farol-tabela-rdo th,
 .farol-tabela-rdo td {
   text-align: center;
-  padding: 8px 10px;
+  padding: 6px 4px;
 }
 
+/* As 3 colunas fixas (equipe/distrito/encarregado) usam boa parte da
+   largura da tela, sobrando pouco pras colunas de dia — resultado: só uns
+   20 dias cabiam antes de precisar rolar. Nome do encarregado pode ser
+   longo (2-3 palavras); em vez de deixar quebrar em várias linhas e ficar
+   ainda mais largo, trava a largura e corta com reticências (title já
+   mostra o nome completo no hover, igual outras tabelas do sistema). */
 .farol-tabela-rdo th:nth-child(1),
 .farol-tabela-rdo th:nth-child(2),
 .farol-tabela-rdo th:nth-child(3),
@@ -892,6 +898,15 @@ textarea.field-input {
 .farol-tabela-rdo td:nth-child(2),
 .farol-tabela-rdo td:nth-child(3) {
   text-align: left;
+  padding: 6px 10px;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farol-tabela-rdo th {
+  min-width: 30px;
 }
 
 .farol-cabecalho-dia {
