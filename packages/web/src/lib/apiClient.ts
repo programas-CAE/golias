@@ -12,9 +12,31 @@ export class ApiError extends Error {
   }
 }
 
+/** Um item de `ZodError.issues` — path é o caminho até o campo (ex.: ["locais", 0, "atividades", 0, "largura"]). */
+interface ErroDeCampo {
+  path?: Array<string | number>;
+  message?: string;
+}
+
+/**
+ * "Dados inválidos" sozinho não dizia QUAL campo faltou — o servidor já
+ * manda os `issues` do Zod (parseBody em lib/validate.ts), só não estavam
+ * sendo lidos aqui. Junta o caminho de cada campo com a mensagem, pra dar
+ * pra identificar de cara o que precisa ser corrigido.
+ */
 function extractErrorMessage(body: unknown, status: number): string {
   if (body && typeof body === "object" && "error" in body && typeof body.error === "string") {
-    return body.error;
+    const base = body.error;
+    if ("issues" in body && Array.isArray(body.issues) && body.issues.length > 0) {
+      const detalhes = (body.issues as ErroDeCampo[])
+        .map((issue) => {
+          const caminho = Array.isArray(issue.path) && issue.path.length > 0 ? issue.path.join(".") : null;
+          return caminho ? `${caminho}: ${issue.message ?? "inválido"}` : (issue.message ?? "inválido");
+        })
+        .join("; ");
+      return `${base} — ${detalhes}`;
+    }
+    return base;
   }
   return `Erro ${status} ao comunicar com o servidor`;
 }
