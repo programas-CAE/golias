@@ -1084,6 +1084,16 @@ textarea.field-input {
   border-bottom: none;
 }
 
+/* Linha da checklist de equipamentos tem um 3º item (botão de produção/
+   horímetro) além de nome+quantidade — sem isso, justify-content:
+   space-between espalhava os 3 uniformemente pela largura toda, deixando a
+   quantidade "flutuando" numa posição diferente a cada linha (dependendo
+   do tamanho do nome). O nome cresce pra ocupar o espaço sobrando, empurra
+   quantidade+botão pra ficarem sempre colados na mesma posição à direita. */
+.checklist-row--equipamento > span {
+  flex: 1;
+}
+
 .qty-input {
   width: 90px;
   text-align: right;

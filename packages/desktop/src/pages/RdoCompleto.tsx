@@ -1633,7 +1633,7 @@ export default function RdoCompleto(): ReactElement {
               const aberto = equipamentosDetalheAberto[item.id] ?? false;
               return (
                 <div key={item.id} style={{ marginBottom: 4 }}>
-                  <div className="checklist-row">
+                  <div className="checklist-row checklist-row--equipamento">
                     <span>{item.nome}</span>
                     <input
                       type="number"
