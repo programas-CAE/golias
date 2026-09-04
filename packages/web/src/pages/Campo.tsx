@@ -818,6 +818,13 @@ export default function Campo(): ReactElement {
     setMateriais((atual) => [...atual, { materialCatalogoId: "", quantidade: "" }]);
   }
 
+  /** Motorista/Operador só dirige um equipamento por dia — substitui a seleção em vez de acumular. */
+  function selecionarEquipamentoUnico(equipamentoCatalogoId: string): void {
+    if (!equipamentoCatalogoId) return;
+    setEquipamentosAtivos([equipamentoCatalogoId]);
+    setEquipamentosQtd({ [equipamentoCatalogoId]: "1" });
+  }
+
   function adicionarEquipamentoAtivo(equipamentoCatalogoId: string): void {
     if (!equipamentoCatalogoId || equipamentosAtivos.includes(equipamentoCatalogoId)) return;
     setEquipamentosAtivos((atual) => {
@@ -1204,42 +1211,40 @@ export default function Campo(): ReactElement {
                   </select>
 
                   {rdo.tipo !== "MOTORISTA_OPERADOR" && (
-                    <>
-                      <Autocomplete
-                        value={atividade.ordemManutencaoId}
-                        items={ordensManutencao}
-                        getLabel={(om) => om.numero}
-                        getSublabel={(om) => om.detalhes}
-                        onChange={(ordemManutencaoId) => selecionarOrdemManutencao(localIndice, atividadeIndice, ordemManutencaoId)}
-                        placeholder="Ordem de manutenção (opcional)"
-                      />
-
-                      <div className="campo-grid-2">
-                        <div>
-                          <label className="field-label">Km inicial</label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            className="field-input"
-                            placeholder="Da OM, se houver"
-                            value={atividade.kmInicial}
-                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
-                          />
-                        </div>
-                        <div>
-                          <label className="field-label">Km final</label>
-                          <input
-                            type="number"
-                            step="0.001"
-                            className="field-input"
-                            placeholder="Da OM, se houver"
-                            value={atividade.kmFinal}
-                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
-                          />
-                        </div>
-                      </div>
-                    </>
+                    <Autocomplete
+                      value={atividade.ordemManutencaoId}
+                      items={ordensManutencao}
+                      getLabel={(om) => om.numero}
+                      getSublabel={(om) => om.detalhes}
+                      onChange={(ordemManutencaoId) => selecionarOrdemManutencao(localIndice, atividadeIndice, ordemManutencaoId)}
+                      placeholder="Ordem de manutenção (opcional)"
+                    />
                   )}
+
+                  <div className="campo-grid-2">
+                    <div>
+                      <label className="field-label">Km inicial</label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="field-input"
+                        placeholder={rdo.tipo === "MOTORISTA_OPERADOR" ? "Km inicial da rota" : "Da OM, se houver"}
+                        value={atividade.kmInicial}
+                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="field-label">Km final</label>
+                      <input
+                        type="number"
+                        step="0.001"
+                        className="field-input"
+                        placeholder={rdo.tipo === "MOTORISTA_OPERADOR" ? "Km final da rota" : "Da OM, se houver"}
+                        value={atividade.kmFinal}
+                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
+                      />
+                    </div>
+                  </div>
 
                   {atividade.unidade === "M3" && (
                     <div className="campo-grid-3">
@@ -1515,6 +1520,7 @@ export default function Campo(): ReactElement {
                     </div>
                   )}
 
+                  {rdo.tipo !== "MOTORISTA_OPERADOR" && (
                   <div>
                     <label className="field-label">Mão de obra nesta atividade</label>
                     {atividade.maoDeObra.map((item, itemIndice) => (
@@ -1558,6 +1564,7 @@ export default function Campo(): ReactElement {
                       + Adicionar função
                     </button>
                   </div>
+                  )}
                   <button
                     type="button"
                     className="button button--ghost button--small"
@@ -1607,6 +1614,7 @@ export default function Campo(): ReactElement {
         </button>
       </section>
 
+      {rdo.tipo !== "MOTORISTA_OPERADOR" && (
       <section className="campo-secao">
         <h2>Mão de obra</h2>
         {rdo.equipe.membros.length === 0 ? (
@@ -1629,21 +1637,26 @@ export default function Campo(): ReactElement {
           ))
         )}
       </section>
+      )}
 
       <section className="campo-secao">
-        <h2>Equipamentos / outros custos indiretos</h2>
+        <h2>{rdo.tipo === "MOTORISTA_OPERADOR" ? "Equipamento" : "Equipamentos / outros custos indiretos"}</h2>
         <p className="list-subtitle">
-          Lista da sua equipe — adicione os equipamentos que usam no dia a dia (fica lembrado pra próxima vez) e
-          marque a quantidade de cada um hoje. Produção/horímetro é opcional — só abra pra equipamento que aponta por
-          produção (ex.: terraplenagem).
+          {rdo.tipo === "MOTORISTA_OPERADOR"
+            ? "Qual equipamento você dirige ou opera hoje."
+            : "Lista da sua equipe — adicione os equipamentos que usam no dia a dia (fica lembrado pra próxima vez) e marque a quantidade de cada um hoje. Produção/horímetro é opcional — só abra pra equipamento que aponta por produção (ex.: terraplenagem)."}
         </p>
 
         <div className="campo-item" style={{ marginBottom: 12 }}>
           <Autocomplete
             value={novoEquipamentoId}
-            items={equipamentosCatalogo.filter((item) => !equipamentosAtivos.includes(item.id))}
+            items={
+              rdo.tipo === "MOTORISTA_OPERADOR"
+                ? equipamentosCatalogo
+                : equipamentosCatalogo.filter((item) => !equipamentosAtivos.includes(item.id))
+            }
             getLabel={(item) => item.nome}
-            placeholder="Buscar equipamento pra adicionar à lista…"
+            placeholder={rdo.tipo === "MOTORISTA_OPERADOR" ? "Buscar o equipamento…" : "Buscar equipamento pra adicionar à lista…"}
             onChange={setNovoEquipamentoId}
           />
           <button
@@ -1651,45 +1664,55 @@ export default function Campo(): ReactElement {
             className="button button--secondary button--small"
             disabled={!novoEquipamentoId}
             onClick={() => {
-              adicionarEquipamentoAtivo(novoEquipamentoId);
+              if (rdo.tipo === "MOTORISTA_OPERADOR") {
+                selecionarEquipamentoUnico(novoEquipamentoId);
+              } else {
+                adicionarEquipamentoAtivo(novoEquipamentoId);
+              }
               setNovoEquipamentoId("");
             }}
           >
-            + Adicionar
+            {rdo.tipo === "MOTORISTA_OPERADOR" ? "Selecionar" : "+ Adicionar"}
           </button>
         </div>
 
         {equipamentosAtivos.length === 0 ? (
-          <p className="loading-text">Nenhum equipamento na lista ainda — adicione acima.</p>
+          <p className="loading-text">
+            {rdo.tipo === "MOTORISTA_OPERADOR" ? "Nenhum equipamento selecionado ainda." : "Nenhum equipamento na lista ainda — adicione acima."}
+          </p>
         ) : (
           equipamentosCatalogo
             .filter((item) => equipamentosAtivos.includes(item.id))
             .map((item) => {
             const detalhe = equipamentosDetalhe[item.id] ?? detalheVazio();
-            const aberto = equipamentosDetalheAberto[item.id] ?? false;
+            const aberto = rdo.tipo === "MOTORISTA_OPERADOR" ? true : (equipamentosDetalheAberto[item.id] ?? false);
             return (
               <div className="campo-item-checklist" key={item.id}>
                 <div className="campo-checklist-row">
                   <span>{item.nome}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    className="field-input campo-qtd"
-                    value={equipamentosQtd[item.id] ?? ""}
-                    onChange={(event) => setEquipamentosQtd((atual) => ({ ...atual, [item.id]: event.target.value }))}
-                  />
-                  <button
-                    type="button"
-                    className="button button--ghost button--small"
-                    onClick={() => alternarDetalheEquipamento(item.id)}
-                  >
-                    {aberto ? "Ocultar produção/horímetro" : "+ Produção/horímetro"}
-                  </button>
+                  {rdo.tipo !== "MOTORISTA_OPERADOR" && (
+                    <input
+                      type="number"
+                      min={0}
+                      className="field-input campo-qtd"
+                      value={equipamentosQtd[item.id] ?? ""}
+                      onChange={(event) => setEquipamentosQtd((atual) => ({ ...atual, [item.id]: event.target.value }))}
+                    />
+                  )}
+                  {rdo.tipo !== "MOTORISTA_OPERADOR" && (
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      onClick={() => alternarDetalheEquipamento(item.id)}
+                    >
+                      {aberto ? "Ocultar produção/horímetro" : "+ Produção/horímetro"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="button button--ghost button--small"
                     onClick={() => removerEquipamentoAtivo(item.id)}
-                    title="Remover da lista"
+                    title="Remover"
                   >
                     Remover
                   </button>
