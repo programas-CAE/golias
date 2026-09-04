@@ -104,6 +104,71 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
     return linhas;
   });
 
+  /**
+   * Uma linha por equipamento de RDO aprovado — cobre o que Fato_RDO_Detalhe
+   * não pega: produção/horímetro por máquina (Terraplenagem) e km/rota/
+   * combustível (Motorista/Operador), que vivem em RdoEquipamento, não em
+   * RdoAtividade. Cada lançamento vira uma linha nova (nunca sobrescreve um
+   * dia anterior), então o histórico completo já fica registrado no banco
+   * desde a criação do RDO — esta rota só espelha ele pro Power BI.
+   */
+  app.get("/powerbi/fato-rdo-equipamento", async (request, reply) => {
+    if (!autenticarPowerBi(request, reply)) return;
+
+    const equipamentos = await prisma.rdoEquipamento.findMany({
+      where: { rdo: { status: "APROVADO" } },
+      select: {
+        id: true,
+        equipamentoCatalogo: { select: { nome: true } },
+        quantidade: true,
+        producaoDescricao: true,
+        producaoValor: true,
+        producaoUnidade: true,
+        horimetroInicial: true,
+        horimetroFinal: true,
+        kmInicial: true,
+        kmFinal: true,
+        rota: true,
+        combustivelLitros: true,
+        combustivelPosto: true,
+        rdo: {
+          select: {
+            id: true,
+            data: true,
+            tipo: true,
+            frente: { select: { nome: true, contrato: { select: { numero: true } } } },
+            equipe: { select: { nome: true } },
+            obra: { select: { nome: true } },
+          },
+        },
+      },
+      orderBy: { id: "asc" },
+    });
+
+    return equipamentos.map((item) => ({
+      Data: item.rdo.data.toISOString().slice(0, 10),
+      RDO: item.rdo.id,
+      Tipo_RDO: item.rdo.tipo,
+      Contrato: item.rdo.frente.contrato.numero,
+      Distrito: item.rdo.frente.nome,
+      Equipe: item.rdo.equipe.nome,
+      Obra: item.rdo.obra?.nome ?? null,
+      Equipamento: item.equipamentoCatalogo.nome,
+      Quantidade: item.quantidade,
+      Producao_Descricao: item.producaoDescricao,
+      Producao_Valor: item.producaoValor != null ? Number(item.producaoValor) : null,
+      Producao_Unidade: item.producaoUnidade,
+      Horimetro_Inicial: item.horimetroInicial != null ? Number(item.horimetroInicial) : null,
+      Horimetro_Final: item.horimetroFinal != null ? Number(item.horimetroFinal) : null,
+      Km_Inicial: item.kmInicial != null ? Number(item.kmInicial) : null,
+      Km_Final: item.kmFinal != null ? Number(item.kmFinal) : null,
+      Km_Percorrido: item.kmInicial != null && item.kmFinal != null ? Number(item.kmFinal) - Number(item.kmInicial) : null,
+      Rota: item.rota,
+      Combustivel_Litros: item.combustivelLitros != null ? Number(item.combustivelLitros) : null,
+      Combustivel_Posto: item.combustivelPosto,
+    }));
+  });
+
   /** Réplica de Dim_Atividade — catálogo oficial, ativo ou não (o Power BI decide se filtra). */
   app.get("/powerbi/dim-atividade", async (request, reply) => {
     if (!autenticarPowerBi(request, reply)) return;

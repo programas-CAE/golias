@@ -996,6 +996,12 @@ export default function Campo(): ReactElement {
   }
 
   const { rdo, atividadesCatalogo, ordensManutencao } = dados;
+  // Motorista/operador não usa atividade dimensional (M/M2/M3, que puxa o
+  // croqui) — só as de unidade direta (ex.: "Transporte de material"),
+  // então nem oferece a opção pra não confundir nem abrir a porta pro
+  // croqui aparecer nesse tipo (ver memória rdo-motorista-operador-enxuto).
+  const atividadesCatalogoDoTipo =
+    rdo.tipo === "MOTORISTA_OPERADOR" ? atividadesCatalogo.filter((item) => !item.usaDimensoes) : atividadesCatalogo;
 
   return (
     <div className="campo-page">
@@ -1129,46 +1135,50 @@ export default function Campo(): ReactElement {
                     value={atividade.atividadeCatalogoId}
                     onChange={(event) => selecionarAtividadeCatalogo(localIndice, atividadeIndice, event.target.value)}
                   >
-                    {atividadesCatalogo.map((item) => (
+                    {atividadesCatalogoDoTipo.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.codigo} — {item.descricao}
                       </option>
                     ))}
                   </select>
 
-                  <Autocomplete
-                    value={atividade.ordemManutencaoId}
-                    items={ordensManutencao}
-                    getLabel={(om) => om.numero}
-                    getSublabel={(om) => om.detalhes}
-                    onChange={(ordemManutencaoId) => selecionarOrdemManutencao(localIndice, atividadeIndice, ordemManutencaoId)}
-                    placeholder="Ordem de manutenção (opcional)"
-                  />
+                  {rdo.tipo !== "MOTORISTA_OPERADOR" && (
+                    <>
+                      <Autocomplete
+                        value={atividade.ordemManutencaoId}
+                        items={ordensManutencao}
+                        getLabel={(om) => om.numero}
+                        getSublabel={(om) => om.detalhes}
+                        onChange={(ordemManutencaoId) => selecionarOrdemManutencao(localIndice, atividadeIndice, ordemManutencaoId)}
+                        placeholder="Ordem de manutenção (opcional)"
+                      />
 
-                  <div className="campo-grid-2">
-                    <div>
-                      <label className="field-label">Km inicial</label>
-                      <input
-                        type="number"
-                        step="0.001"
-                        className="field-input"
-                        placeholder="Da OM, se houver"
-                        value={atividade.kmInicial}
-                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="field-label">Km final</label>
-                      <input
-                        type="number"
-                        step="0.001"
-                        className="field-input"
-                        placeholder="Da OM, se houver"
-                        value={atividade.kmFinal}
-                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
-                      />
-                    </div>
-                  </div>
+                      <div className="campo-grid-2">
+                        <div>
+                          <label className="field-label">Km inicial</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="Da OM, se houver"
+                            value={atividade.kmInicial}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Km final</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="Da OM, se houver"
+                            value={atividade.kmFinal}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   {atividade.unidade === "M3" && (
                     <div className="campo-grid-3">
@@ -1511,7 +1521,7 @@ export default function Campo(): ReactElement {
               onClick={() =>
                 setLocais((atual) =>
                   atual.map((l, i) =>
-                    i === localIndice ? { ...l, atividades: [...l.atividades, novaAtividade(atividadesCatalogo)] } : l,
+                    i === localIndice ? { ...l, atividades: [...l.atividades, novaAtividade(atividadesCatalogoDoTipo)] } : l,
                   ),
                 )
               }
@@ -1530,7 +1540,7 @@ export default function Campo(): ReactElement {
         <button
           type="button"
           className="button button--secondary button--small"
-          onClick={() => setLocais((atual) => [...atual, novoLocal(atividadesCatalogo)])}
+          onClick={() => setLocais((atual) => [...atual, novoLocal(atividadesCatalogoDoTipo)])}
         >
           + Adicionar local
         </button>
@@ -1740,6 +1750,7 @@ export default function Campo(): ReactElement {
         </button>
       </section>
 
+      {rdo.tipo !== "MOTORISTA_OPERADOR" && (
       <section className="campo-secao">
         <h2>Fotos</h2>
         <div className="campo-foto-upload">
@@ -1806,6 +1817,7 @@ export default function Campo(): ReactElement {
           </ul>
         )}
       </section>
+      )}
 
       <section className="campo-secao">
         <h2>Observações</h2>
