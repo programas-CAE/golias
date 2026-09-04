@@ -96,7 +96,11 @@ export default function RelatorioFotografico(): ReactElement {
         `/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}`,
       );
       setRelatorio(resposta);
-      setDataConclusao(resposta.dataConclusao?.slice(0, 10) ?? "");
+      // Vem preenchida por padrão com a data do próprio dia trabalhado —
+      // deixa de significar "OM totalmente fechada" (isso agora é
+      // statusOm/percentualConcluido) e passa a ser só a data deste
+      // relatório, editável se o escritório quiser ajustar.
+      setDataConclusao((resposta.dataConclusao ?? resposta.rdo.data).slice(0, 10));
       setAtividadesExecutadas(resposta.atividadesExecutadas);
       setComentarios(resposta.comentarios ?? "");
     } catch (error) {
@@ -325,7 +329,7 @@ export default function RelatorioFotografico(): ReactElement {
           <>
             <section className="form-section">
               <h2 className="form-section-title">Dados de planejamento</h2>
-              {!relatorio.dataConclusao && (relatorio.statusOm || relatorio.percentualConcluido != null) && (
+              {relatorio.statusOm !== "CONCLUIDA" && (relatorio.statusOm || relatorio.percentualConcluido != null) && (
                 <p className="form-section-subtitle">
                   OM ainda em andamento — status neste dia:{" "}
                   {relatorio.statusOm ? (STATUS_OM_LABEL[relatorio.statusOm] ?? relatorio.statusOm) : "—"}

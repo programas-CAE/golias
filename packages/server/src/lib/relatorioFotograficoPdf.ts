@@ -21,10 +21,19 @@ export interface RelatorioFotograficoFotoDados {
 
 export interface RelatorioFotograficoDados {
   omNumero: string;
+  // Data deste relatório (dia trabalhado) — o escritório pode editar, mas
+  // vem preenchida por padrão com a data do RDO daquele dia (ver
+  // routes/relatoriosFotograficos.ts). Não indica mais, sozinha, se a OM
+  // fechou ou não (ver omConcluidaNesteDia).
   dataConclusao: Date | null;
   atividadesExecutadas: boolean;
   comentarios: string | null;
   fotos: RelatorioFotograficoFotoDados[];
+  // true quando o status declarado da OM NESSE dia (RdoAtividade.statusOm)
+  // é CONCLUIDA — é esse campo, não a presença de dataConclusao, que decide
+  // se mostra "% concluído neste dia" (só faz sentido enquanto ainda não
+  // fechou).
+  omConcluidaNesteDia: boolean;
   // % concluído da OM registrado NESTE dia (RdoAtividade.percentualConcluido)
   // — um relatório por dia trabalhado, então quando a OM ainda está em
   // andamento (não fechou), mostra até onde chegou naquele dia específico.
@@ -134,10 +143,12 @@ function desenharDadosPlanejamento(doc: PDFKit.PDFDocument, dados: RelatorioFoto
   doc.font("Helvetica-Bold").fontSize(8).text("DATA DE CONCLUSÃO", xData, y0);
   doc.font("Helvetica").fontSize(11).text(dados.dataConclusao ? formatarData(dados.dataConclusao) : "—", xData, y0 + 12);
 
-  // OM ainda em andamento (sem data de conclusão) — mostra até onde chegou
-  // neste dia específico, já que agora existe um relatório por dia
-  // trabalhado, não só um no fechamento da OM.
-  if (!dados.dataConclusao && dados.percentualConcluido != null) {
+  // OM ainda em andamento neste dia (statusOm != CONCLUIDA) — mostra até
+  // onde chegou naquele dia específico, já que agora existe um relatório
+  // por dia trabalhado, não só um no fechamento da OM. Não depende mais de
+  // dataConclusao estar vazia: esse campo agora vem preenchido por padrão
+  // com a data do próprio dia, em todo relatório.
+  if (!dados.omConcluidaNesteDia && dados.percentualConcluido != null) {
     const xPercentual = MARGEM + (colLargura + 20) * 2;
     doc.font("Helvetica-Bold").fontSize(8).text("% CONCLUÍDO NESTE DIA", xPercentual, y0);
     doc.font("Helvetica").fontSize(11).text(`${dados.percentualConcluido}%`, xPercentual, y0 + 12);

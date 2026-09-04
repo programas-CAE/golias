@@ -1,14 +1,21 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import Nav from "../components/Nav";
 import { ApiError, api } from "../lib/apiClient";
+
+interface Frente {
+  id: string;
+  nome: string;
+}
 
 interface OrdemManutencao {
   id: string;
   numero: string;
   frenteId: string;
-  frente: { id: string; nome: string };
+  frente: Frente;
   dataEmissao: string;
+  kmInicial: string | null;
+  kmFinal: string | null;
   lado: string | null;
   detalhes: string | null;
   precisaRelatorioFotografico: boolean;
@@ -28,16 +35,25 @@ function normalizarBusca(texto: string): string {
 export default function RelatoriosFotograficos(): ReactElement {
   const navigate = useNavigate();
   const [ordens, setOrdens] = useState<OrdemManutencao[] | null>(null);
+  const [frentes, setFrentes] = useState<Frente[]>([]);
   const [erro, setErro] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [somentePendentes, setSomentePendentes] = useState(false);
+  const [editando, setEditando] = useState<OrdemManutencao | null>(null);
 
   useEffect(() => {
-    api
-      .get<OrdemManutencao[]>("/ordens-manutencao")
-      .then(setOrdens)
+    Promise.all([api.get<OrdemManutencao[]>("/ordens-manutencao"), api.get<Frente[]>("/frentes")])
+      .then(([listaOrdens, listaFrentes]) => {
+        setOrdens(listaOrdens);
+        setFrentes(listaFrentes);
+      })
       .catch((error) => setErro(error instanceof ApiError ? error.message : "Não foi possível carregar as ordens de manutenção."));
   }, []);
+
+  function handleSalvo(ordem: OrdemManutencao): void {
+    setOrdens((atual) => atual?.map((o) => (o.id === ordem.id ? { ...o, ...ordem } : o)) ?? atual);
+    setEditando(null);
+  }
 
   const ordensFiltradas = useMemo(() => {
     const termo = normalizarBusca(busca);
@@ -128,13 +144,16 @@ export default function RelatoriosFotograficos(): ReactElement {
                         <span className="badge badge--ativo">OK</span>
                       )}
                     </td>
-                    <td>
+                    <td style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                       <button
                         type="button"
                         className="button button--ghost button--small"
                         onClick={() => navigate(`/ordens-manutencao/${ordem.id}/relatorios-fotograficos`)}
                       >
                         Abrir
+                      </button>
+                      <button type="button" className="button button--ghost button--small" onClick={() => setEditando(ordem)}>
+                        Editar
                       </button>
                     </td>
                   </tr>
@@ -143,6 +162,161 @@ export default function RelatoriosFotograficos(): ReactElement {
             </table>
           )}
         </div>
+      </div>
+
+      {editando && (
+        <EditarOrdemModal ordem={editando} frentes={frentes} onClose={() => setEditando(null)} onSalvo={handleSalvo} />
+      )}
+    </div>
+  );
+}
+
+function EditarOrdemModal({
+  ordem,
+  frentes,
+  onClose,
+  onSalvo,
+}: {
+  ordem: OrdemManutencao;
+  frentes: Frente[];
+  onClose: () => void;
+  onSalvo: (ordem: OrdemManutencao) => void;
+}): ReactElement {
+  const [form, setForm] = useState({
+    numero: ordem.numero,
+    frenteId: ordem.frenteId,
+    dataEmissao: ordem.dataEmissao.slice(0, 10),
+    kmInicial: ordem.kmInicial ?? "",
+    kmFinal: ordem.kmFinal ?? "",
+    lado: ordem.lado ?? "",
+    detalhes: ordem.detalhes ?? "",
+  });
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const payload = {
+        numero: form.numero,
+        frenteId: form.frenteId,
+        dataEmissao: form.dataEmissao,
+        kmInicial: form.kmInicial === "" ? null : Number(form.kmInicial),
+        kmFinal: form.kmFinal === "" ? null : Number(form.kmFinal),
+        lado: form.lado === "" ? null : form.lado,
+        detalhes: form.detalhes === "" ? null : form.detalhes,
+      };
+      const salvo = await api.patch<OrdemManutencao>(`/ordens-manutencao/${ordem.id}`, payload);
+      onSalvo(salvo);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">Editar ordem de manutenção</h2>
+        <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="field-label" htmlFor="numero">
+            Número
+          </label>
+          <input
+            id="numero"
+            className="field-input"
+            value={form.numero}
+            onChange={(event) => setForm((f) => ({ ...f, numero: event.target.value }))}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="frenteId">
+            Frente
+          </label>
+          <select
+            id="frenteId"
+            className="field-input"
+            value={form.frenteId}
+            onChange={(event) => setForm((f) => ({ ...f, frenteId: event.target.value }))}
+          >
+            {frentes.map((frente) => (
+              <option key={frente.id} value={frente.id}>
+                {frente.nome}
+              </option>
+            ))}
+          </select>
+
+          <label className="field-label" htmlFor="dataEmissao">
+            Data de emissão
+          </label>
+          <input
+            id="dataEmissao"
+            type="date"
+            className="field-input"
+            value={form.dataEmissao}
+            onChange={(event) => setForm((f) => ({ ...f, dataEmissao: event.target.value }))}
+          />
+
+          <label className="field-label" htmlFor="kmInicial">
+            Km inicial
+          </label>
+          <input
+            id="kmInicial"
+            type="number"
+            step="0.001"
+            className="field-input"
+            value={form.kmInicial}
+            onChange={(event) => setForm((f) => ({ ...f, kmInicial: event.target.value }))}
+          />
+
+          <label className="field-label" htmlFor="kmFinal">
+            Km final
+          </label>
+          <input
+            id="kmFinal"
+            type="number"
+            step="0.001"
+            className="field-input"
+            value={form.kmFinal}
+            onChange={(event) => setForm((f) => ({ ...f, kmFinal: event.target.value }))}
+          />
+
+          <label className="field-label" htmlFor="lado">
+            Lado
+          </label>
+          <input
+            id="lado"
+            className="field-input"
+            value={form.lado}
+            onChange={(event) => setForm((f) => ({ ...f, lado: event.target.value }))}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="detalhes">
+            Detalhes
+          </label>
+          <input
+            id="detalhes"
+            className="field-input"
+            value={form.detalhes}
+            onChange={(event) => setForm((f) => ({ ...f, detalhes: event.target.value }))}
+            autoComplete="off"
+          />
+
+          {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+          <div className="form-actions">
+            <button type="submit" className="button" disabled={salvando}>
+              {salvando ? "Salvando…" : "Salvar"}
+            </button>
+            <button type="button" className="button button--secondary" onClick={onClose}>
+              Cancelar
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

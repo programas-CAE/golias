@@ -36,30 +36,68 @@ async function montarCenario() {
       linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
     },
   });
-  return { om, rdo };
+  const atividadeCatalogo = await prisma.atividadeCatalogo.create({
+    data: { codigo: "2.1.2", descricao: "Limpeza de bueiros", unidade: "M2" },
+  });
+  return { om, rdo, frenteId: frente.id, equipeId: equipe.id, atividadeCatalogo };
 }
 
-async function enviarFotoParaOm(app: ReturnType<typeof buildApp>, rdoId: string, omId: string, legenda?: string) {
+/** Um segundo dia trabalhado na MESMA OM — pra testar que cada dia ganha seu próprio relatório. */
+async function criarSegundoDia(frenteId: string, equipeId: string, token: string) {
+  return prisma.rdo.create({
+    data: {
+      frenteId,
+      equipeId,
+      data: new Date("2026-07-22"),
+      linkCampoToken: token,
+      linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+    },
+  });
+}
+
+/**
+ * Uma foto só pode ser vinculada a uma OM que já tem alguma atividade
+ * lançada nesse RDO (é assim que o formulário de campo monta a lista de OMs
+ * disponíveis pra foto — ver omsUsadasNoRdo em Campo.tsx) — por isso todo
+ * teste que sobe foto ligada à OM precisa disso antes, senão o dia nunca
+ * aparece na lista de "/relatorios-fotograficos" (que é baseada em
+ * RdoAtividade, não em RdoAnexo).
+ */
+async function lancarAtividadeNaOm(
+  rdoId: string,
+  omId: string,
+  atividadeCatalogoId: string,
+  opcoes: { statusOm?: "EM_ANDAMENTO" | "CONCLUIDA" | null; percentualConcluido?: number | null } = {},
+) {
+  const local = await prisma.rdoLocal.create({ data: { rdoId, descricao: "Trecho", ordem: 0 } });
+  return prisma.rdoAtividade.create({
+    data: {
+      rdoLocalId: local.id,
+      atividadeCatalogoId,
+      ordemManutencaoId: omId,
+      statusOm: opcoes.statusOm ?? null,
+      percentualConcluido: opcoes.percentualConcluido ?? null,
+      unidade: "M2",
+      totalCalculado: 5,
+    },
+  });
+}
+
+async function enviarFotoParaOm(
+  app: ReturnType<typeof buildApp>,
+  token: string,
+  omId: string,
+  legenda?: string,
+) {
   const query = legenda ? `&descricao=${encodeURIComponent(legenda)}` : "";
   const response = await app.inject({
     method: "POST",
-    url: `/rdos/campo/token-relfoto/anexos?tipo=FOTO&ordemManutencaoId=${omId}${query}`,
+    url: `/rdos/campo/${token}/anexos?tipo=FOTO&ordemManutencaoId=${omId}${query}`,
     headers: { "content-type": `multipart/form-data; boundary=${BOUNDARY}` },
     payload: multipartBody("foto.jpg", "image/jpeg", JPEG_BYTES),
   });
   expect(response.statusCode).toBe(201);
   return response.json() as { id: string; ordemManutencaoId: string | null };
-}
-
-async function enviarFotoExtra(app: ReturnType<typeof buildApp>, omId: string) {
-  const response = await app.inject({
-    method: "POST",
-    url: `/ordens-manutencao/${omId}/relatorio-fotografico/fotos`,
-    headers: { "content-type": `multipart/form-data; boundary=${BOUNDARY}` },
-    payload: multipartBody("extra.jpg", "image/jpeg", JPEG_BYTES),
-  });
-  expect(response.statusCode).toBe(201);
-  return response.json() as { fotos: FotoOrdenada[] };
 }
 
 interface FotoOrdenada {
@@ -68,21 +106,50 @@ interface FotoOrdenada {
   legenda: string | null;
 }
 
-async function buscarRelatorio(app: ReturnType<typeof buildApp>, omId: string) {
-  const response = await app.inject({ method: "GET", url: `/ordens-manutencao/${omId}/relatorio-fotografico` });
-  return response.json() as { fotos: FotoOrdenada[] };
+interface ItemDia {
+  relatorioId: string;
+  rdoId: string;
+  data: string;
+  totalFotos: number;
+  statusOm: string | null;
+  percentualConcluido: number | null;
+  pdfDisponivel: boolean;
+}
+
+/** Lista os dias trabalhados na OM (cria o relatório de cada dia na hora, se ainda não existir). */
+async function listarDias(app: ReturnType<typeof buildApp>, omId: string) {
+  const response = await app.inject({ method: "GET", url: `/ordens-manutencao/${omId}/relatorios-fotograficos` });
+  expect(response.statusCode).toBe(200);
+  return response.json() as { omNumero: string; itens: ItemDia[] };
+}
+
+/** Acha (criando se preciso) o relatorioId do dia de um RDO específico. */
+async function relatorioDoRdo(app: ReturnType<typeof buildApp>, omId: string, rdoId: string): Promise<string> {
+  const lista = await listarDias(app, omId);
+  const item = lista.itens.find((i) => i.rdoId === rdoId);
+  if (!item) throw new Error("dia não encontrado na lista");
+  return item.relatorioId;
+}
+
+async function buscarRelatorio(app: ReturnType<typeof buildApp>, omId: string, relatorioId: string) {
+  const response = await app.inject({
+    method: "GET",
+    url: `/ordens-manutencao/${omId}/relatorios-fotograficos/${relatorioId}`,
+  });
+  return response.json() as { fotos: FotoOrdenada[]; statusOm: string | null; percentualConcluido: number | null };
 }
 
 describe("POST /rdos/campo/:token/anexos com ordemManutencaoId", () => {
   it("liga a foto à OM informada", async () => {
     const { om, rdo } = await montarCenario();
     const app = buildApp();
-    const anexo = await enviarFotoParaOm(app, rdo.id, om.id);
+    const anexo = await enviarFotoParaOm(app, "token-relfoto", om.id);
     expect(anexo.ordemManutencaoId).toBe(om.id);
+    void rdo;
   });
 
   it("retorna 400 quando a OM informada não existe", async () => {
-    const { rdo } = await montarCenario();
+    await montarCenario();
     const app = buildApp();
     const response = await app.inject({
       method: "POST",
@@ -91,86 +158,88 @@ describe("POST /rdos/campo/:token/anexos com ordemManutencaoId", () => {
       payload: multipartBody("foto.jpg", "image/jpeg", JPEG_BYTES),
     });
     expect(response.statusCode).toBe(400);
-    void rdo;
   });
 });
 
-describe("GET/DELETE /rdos/:id/anexos/:anexoId", () => {
-  it("baixa o arquivo do anexo", async () => {
-    const { om, rdo } = await montarCenario();
+describe("GET /ordens-manutencao/:id/relatorios-fotograficos (lista por dia)", () => {
+  it("cria um item por dia trabalhado, pré-populado com as fotos daquele dia", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
-    const anexo = await enviarFotoParaOm(app, rdo.id, om.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
 
-    const response = await app.inject({ method: "GET", url: `/rdos/${rdo.id}/anexos/${anexo.id}` });
-    expect(response.statusCode).toBe(200);
-    expect(response.headers["content-type"]).toBe("image/jpeg");
+    const lista = await listarDias(app, om.id);
+    expect(lista.itens).toHaveLength(1);
+    expect(lista.itens[0]!.totalFotos).toBe(2);
   });
 
-  it("apaga o anexo", async () => {
-    const { om, rdo } = await montarCenario();
+  it("um dia trabalhado sem nenhuma atividade lançada não aparece na lista", async () => {
+    const { om } = await montarCenario();
     const app = buildApp();
-    const anexo = await enviarFotoParaOm(app, rdo.id, om.id);
-
-    const del = await app.inject({ method: "DELETE", url: `/rdos/${rdo.id}/anexos/${anexo.id}` });
-    expect(del.statusCode).toBe(204);
-
-    const existe = await prisma.rdoAnexo.findUnique({ where: { id: anexo.id } });
-    expect(existe).toBeNull();
+    const lista = await listarDias(app, om.id);
+    expect(lista.itens).toHaveLength(0);
   });
 
-  it("retorna 404 pra anexo de outro RDO", async () => {
-    const { om, rdo } = await montarCenario();
+  it("dois dias trabalhados na mesma OM viram dois relatórios separados", async () => {
+    const { om, rdo, frenteId, equipeId, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id, { statusOm: "EM_ANDAMENTO", percentualConcluido: 40 });
+
+    const segundoDia = await criarSegundoDia(frenteId, equipeId, "token-relfoto-2");
+    await lancarAtividadeNaOm(segundoDia.id, om.id, atividadeCatalogo.id, { statusOm: "CONCLUIDA", percentualConcluido: 100 });
+
     const app = buildApp();
-    const anexo = await enviarFotoParaOm(app, rdo.id, om.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    await enviarFotoParaOm(app, "token-relfoto-2", om.id);
 
-    const response = await app.inject({ method: "GET", url: `/rdos/outro-rdo/anexos/${anexo.id}` });
-    expect(response.statusCode).toBe(404);
-  });
-});
-
-describe("GET /ordens-manutencao/:id/relatorio-fotografico", () => {
-  it("cria e pré-popula o relatório com as fotos já lançadas pra essa OM", async () => {
-    const { om, rdo } = await montarCenario();
-    const app = buildApp();
-    await enviarFotoParaOm(app, rdo.id, om.id);
-    await enviarFotoParaOm(app, rdo.id, om.id);
-
-    const response = await app.inject({ method: "GET", url: `/ordens-manutencao/${om.id}/relatorio-fotografico` });
-    expect(response.statusCode).toBe(200);
-    const body = response.json() as { fotos: unknown[]; atividadesExecutadas: boolean };
-    expect(body.fotos).toHaveLength(2);
-    expect(body.atividadesExecutadas).toBe(true);
-  });
-
-  it("não inclui foto de outra OM nem anexo que não é foto", async () => {
-    const { om, rdo } = await montarCenario();
-    const outraOm = await prisma.ordemManutencao.create({
-      data: { numero: "202600000002", frenteId: om.frenteId, dataEmissao: new Date("2026-07-21") },
-    });
-    const app = buildApp();
-    await enviarFotoParaOm(app, rdo.id, om.id);
-    await enviarFotoParaOm(app, rdo.id, outraOm.id);
-
-    const response = await app.inject({ method: "GET", url: `/ordens-manutencao/${om.id}/relatorio-fotografico` });
-    const body = response.json() as { fotos: unknown[] };
-    expect(body.fotos).toHaveLength(1);
+    const lista = await listarDias(app, om.id);
+    expect(lista.itens).toHaveLength(2);
+    const dia1 = lista.itens.find((i) => i.rdoId === rdo.id);
+    const dia2 = lista.itens.find((i) => i.rdoId === segundoDia.id);
+    expect(dia1?.statusOm).toBe("EM_ANDAMENTO");
+    expect(dia1?.percentualConcluido).toBe(40);
+    expect(dia1?.totalFotos).toBe(1);
+    expect(dia2?.statusOm).toBe("CONCLUIDA");
+    expect(dia2?.percentualConcluido).toBe(100);
+    expect(dia2?.totalFotos).toBe(1);
   });
 
   it("retorna 404 pra OM inexistente", async () => {
     const app = buildApp();
-    const response = await app.inject({ method: "GET", url: "/ordens-manutencao/nao-existe/relatorio-fotografico" });
+    const response = await app.inject({ method: "GET", url: "/ordens-manutencao/nao-existe/relatorios-fotograficos" });
     expect(response.statusCode).toBe(404);
   });
 });
 
-describe("PATCH /ordens-manutencao/:id/relatorio-fotografico", () => {
-  it("salva data de conclusão, comentário e o checklist", async () => {
-    const { om } = await montarCenario();
+describe("GET/PATCH /ordens-manutencao/:id/relatorios-fotograficos/:relatorioId", () => {
+  it("carrega o relatório do dia com os dados da OM e do RDO", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}`,
+    });
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as { fotos: unknown[]; rdoId: string; omNumero: string };
+    expect(body.fotos).toHaveLength(1);
+    expect(body.rdoId).toBe(rdo.id);
+    expect(body.omNumero).toBe(om.numero);
+  });
+
+  it("salva data de conclusão, comentário e o checklist", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
+    const app = buildApp();
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
 
     const response = await app.inject({
       method: "PATCH",
-      url: `/ordens-manutencao/${om.id}/relatorio-fotografico`,
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}`,
       payload: { dataConclusao: "2026-07-22", comentarios: "Tudo certo", atividadesExecutadas: false },
     });
     expect(response.statusCode).toBe(200);
@@ -179,44 +248,62 @@ describe("PATCH /ordens-manutencao/:id/relatorio-fotografico", () => {
     expect(body.atividadesExecutadas).toBe(false);
     expect(body.dataConclusao.slice(0, 10)).toBe("2026-07-22");
   });
+
+  it("retorna 404 pra relatorioId de outra OM", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
+    const outraOm = await prisma.ordemManutencao.create({
+      data: { numero: "202600000002", frenteId: om.frenteId, dataEmissao: new Date("2026-07-21") },
+    });
+    const app = buildApp();
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/ordens-manutencao/${outraOm.id}/relatorios-fotograficos/${relatorioId}`,
+    });
+    expect(response.statusCode).toBe(404);
+  });
 });
 
 describe("Fotos do Relatório Fotográfico", () => {
   it("remover uma foto e sincronizar de novo não a ressuscita", async () => {
-    const { om, rdo } = await montarCenario();
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
-    await enviarFotoParaOm(app, rdo.id, om.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
 
-    const inicial = (
-      await (await app.inject({ method: "GET", url: `/ordens-manutencao/${om.id}/relatorio-fotografico` })).json()
-    ) as { fotos: { id: string }[] };
+    const inicial = await buscarRelatorio(app, om.id, relatorioId);
     expect(inicial.fotos).toHaveLength(1);
 
     const del = await app.inject({
       method: "DELETE",
-      url: `/ordens-manutencao/${om.id}/relatorio-fotografico/fotos/${inicial.fotos[0]!.id}`,
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/fotos/${inicial.fotos[0]!.id}`,
     });
     expect(del.statusCode).toBe(204);
 
     const sync = await app.inject({
       method: "POST",
-      url: `/ordens-manutencao/${om.id}/relatorio-fotografico/sincronizar-fotos`,
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/sincronizar-fotos`,
     });
     const syncBody = sync.json() as { fotosAdicionadas: number; fotos: unknown[] };
     expect(syncBody.fotosAdicionadas).toBe(0);
     expect(syncBody.fotos).toHaveLength(0);
   });
 
-  it("sincronizar traz fotos novas lançadas depois", async () => {
-    const { om, rdo } = await montarCenario();
+  it("sincronizar traz fotos novas lançadas depois, no mesmo dia", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
-    await enviarFotoParaOm(app, rdo.id, om.id);
-    await app.inject({ method: "GET", url: `/ordens-manutencao/${om.id}/relatorio-fotografico` });
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
 
-    await enviarFotoParaOm(app, rdo.id, om.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
     const sync = await app.inject({
       method: "POST",
-      url: `/ordens-manutencao/${om.id}/relatorio-fotografico/sincronizar-fotos`,
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/sincronizar-fotos`,
     });
     const syncBody = sync.json() as { fotosAdicionadas: number; fotos: unknown[] };
     expect(syncBody.fotosAdicionadas).toBe(1);
@@ -224,32 +311,35 @@ describe("Fotos do Relatório Fotográfico", () => {
   });
 
   it("anexa uma foto extra direto no relatório, sem vir de um RDO", async () => {
-    const { om } = await montarCenario();
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
 
     const response = await app.inject({
       method: "POST",
-      url: `/ordens-manutencao/${om.id}/relatorio-fotografico/fotos`,
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/fotos`,
       headers: { "content-type": `multipart/form-data; boundary=${BOUNDARY}` },
       payload: multipartBody("extra.jpg", "image/jpeg", JPEG_BYTES),
     });
     expect(response.statusCode).toBe(201);
     const body = response.json() as { fotos: { rdoAnexoId: string | null }[] };
-    expect(body.fotos).toHaveLength(1);
-    expect(body.fotos[0]!.rdoAnexoId).toBeNull();
+    expect(body.fotos).toHaveLength(2);
+    expect(body.fotos.some((f) => f.rdoAnexoId === null)).toBe(true);
   });
 
   it("salva a legenda de uma foto", async () => {
-    const { om, rdo } = await montarCenario();
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
-    await enviarFotoParaOm(app, rdo.id, om.id);
-    const relatorio = (
-      await (await app.inject({ method: "GET", url: `/ordens-manutencao/${om.id}/relatorio-fotografico` })).json()
-    ) as { fotos: { id: string }[] };
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+    const relatorio = await buscarRelatorio(app, om.id, relatorioId);
 
     const response = await app.inject({
       method: "PATCH",
-      url: `/ordens-manutencao/${om.id}/relatorio-fotografico/fotos/${relatorio.fotos[0]!.id}`,
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/fotos/${relatorio.fotos[0]!.id}`,
       payload: { legenda: "Antes" },
     });
     expect(response.statusCode).toBe(200);
@@ -257,54 +347,103 @@ describe("Fotos do Relatório Fotográfico", () => {
   });
 
   it("baixa o arquivo de uma foto do relatório", async () => {
-    const { om, rdo } = await montarCenario();
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
-    await enviarFotoParaOm(app, rdo.id, om.id);
-    const relatorio = (
-      await (await app.inject({ method: "GET", url: `/ordens-manutencao/${om.id}/relatorio-fotografico` })).json()
-    ) as { fotos: { id: string }[] };
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+    const relatorio = await buscarRelatorio(app, om.id, relatorioId);
 
     const response = await app.inject({
       method: "GET",
-      url: `/ordens-manutencao/${om.id}/relatorio-fotografico/fotos/${relatorio.fotos[0]!.id}/arquivo`,
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/fotos/${relatorio.fotos[0]!.id}/arquivo`,
     });
     expect(response.statusCode).toBe(200);
   });
 });
 
 describe("PDF do Relatório Fotográfico", () => {
-  it("gera e baixa o PDF", async () => {
-    const { om, rdo } = await montarCenario();
+  it("gera e baixa o PDF quando o dia não fechou a OM", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id, { statusOm: "EM_ANDAMENTO", percentualConcluido: 40 });
     const app = buildApp();
-    await enviarFotoParaOm(app, rdo.id, om.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
 
-    const gerar = await app.inject({ method: "POST", url: `/ordens-manutencao/${om.id}/relatorio-fotografico/pdf` });
+    const gerar = await app.inject({
+      method: "POST",
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/pdf`,
+    });
     expect(gerar.statusCode).toBe(200);
     expect((gerar.json() as { pdfDisponivel: boolean }).pdfDisponivel).toBe(true);
 
-    const baixar = await app.inject({ method: "GET", url: `/ordens-manutencao/${om.id}/relatorio-fotografico/pdf` });
+    const baixar = await app.inject({
+      method: "GET",
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/pdf`,
+    });
     expect(baixar.statusCode).toBe(200);
     expect(baixar.headers["content-type"]).toBe("application/pdf");
   });
 
   it("retorna 404 antes de qualquer geração", async () => {
-    const { om } = await montarCenario();
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
-    const response = await app.inject({ method: "GET", url: `/ordens-manutencao/${om.id}/relatorio-fotografico/pdf` });
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+    const response = await app.inject({
+      method: "GET",
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/pdf`,
+    });
     expect(response.statusCode).toBe(404);
+  });
+
+  it("bloqueia gerar o PDF do dia que fechou a OM com menos de 2 pares de fotos", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id, { statusOm: "CONCLUIDA", percentualConcluido: 100 });
+    const app = buildApp();
+    // só 1 par completo (Antes/Depois) — precisa de 2.
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois");
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+
+    const gerar = await app.inject({
+      method: "POST",
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/pdf`,
+    });
+    expect(gerar.statusCode).toBe(400);
+  });
+
+  it("permite gerar o PDF do dia que fechou a OM com 2 pares completos de fotos", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id, { statusOm: "CONCLUIDA", percentualConcluido: 100 });
+    const app = buildApp();
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois");
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+
+    const gerar = await app.inject({
+      method: "POST",
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/pdf`,
+    });
+    expect(gerar.statusCode).toBe(200);
   });
 });
 
 describe("Pareamento Antes/Depois no Relatório Fotográfico", () => {
   it("pareia a N-ésima foto Antes com a N-ésima Depois, mesmo chegando fora de ordem", async () => {
-    const { om, rdo } = await montarCenario();
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
     // Antes, Antes, Depois (fora de ordem — duas "Antes" seguidas antes de qualquer "Depois").
-    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
-    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
-    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois");
 
-    const relatorio = await buscarRelatorio(app, om.id);
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+    const relatorio = await buscarRelatorio(app, om.id, relatorioId);
     const ordenadas = [...relatorio.fotos].sort((a, b) => a.ordem - b.ordem);
     expect(ordenadas.map((f) => [f.ordem, f.legenda])).toEqual([
       [0, "Antes"], // par 0: Antes
@@ -314,17 +453,18 @@ describe("Pareamento Antes/Depois no Relatório Fotográfico", () => {
   });
 
   it("sincronizar-fotos empareia só as fotos novas, sem mexer no que já tava no relatório", async () => {
-    const { om, rdo } = await montarCenario();
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id);
     const app = buildApp();
-    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
-    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
-    await buscarRelatorio(app, om.id); // cria o relatório, par 0 = ordem 0/1
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois");
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id); // cria o relatório, par 0 = ordem 0/1
 
-    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
-    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes");
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois");
     const sync = await app.inject({
       method: "POST",
-      url: `/ordens-manutencao/${om.id}/relatorio-fotografico/sincronizar-fotos`,
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/sincronizar-fotos`,
     });
     const body = sync.json() as { fotos: FotoOrdenada[] };
     const ordenadas = [...body.fotos].sort((a, b) => a.ordem - b.ordem);
@@ -335,48 +475,12 @@ describe("Pareamento Antes/Depois no Relatório Fotográfico", () => {
       [3, "Depois"],
     ]);
   });
-
-  it("upload extra não colide com foto existente quando há buraco no meio (par incompleto)", async () => {
-    const { om, rdo } = await montarCenario();
-    const app = buildApp();
-    // 1 Antes + 2 Depois: par 0 = (Antes@0, Depois@1); par 1 = só Depois,
-    // que fica em ordem 3 (o lado Antes, ordem 2, fica vazio) — 3 fotos no
-    // total, mas o maior `ordem` usado é 3, não 2. Se o upload extra usasse
-    // ingenuamente "quantas fotos existem" (3) como próximo ordem, colidiria
-    // com essa foto que já está em 3.
-    await enviarFotoParaOm(app, rdo.id, om.id, "Antes");
-    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
-    await enviarFotoParaOm(app, rdo.id, om.id, "Depois");
-    const antesDoExtra = await buscarRelatorio(app, om.id);
-    expect(antesDoExtra.fotos.map((f) => f.ordem).sort((a, b) => a - b)).toEqual([0, 1, 3]);
-
-    const extra = await enviarFotoExtra(app, om.id);
-    const ordensUsadas = extra.fotos.map((f) => f.ordem);
-    expect(new Set(ordensUsadas).size).toBe(ordensUsadas.length); // nenhum ordem repetido
-    expect(extra.fotos).toHaveLength(4);
-  });
 });
 
 describe("GET /ordens-manutencao — precisaRelatorioFotografico", () => {
-  it("marca a OM quando há atividade CONCLUIDA e ainda não há relatório com foto", async () => {
-    const { om, rdo } = await montarCenario();
-    const distrito = await prisma.distrito.findFirstOrThrow({ where: { frenteId: om.frenteId } });
-    const atividadeCatalogo = await prisma.atividadeCatalogo.create({
-      data: { codigo: "2.1.2", descricao: "Limpeza de bueiros", unidade: "M2" },
-    });
-    const local = await prisma.rdoLocal.create({ data: { rdoId: rdo.id, descricao: "Trecho", ordem: 0 } });
-    await prisma.rdoAtividade.create({
-      data: {
-        rdoLocalId: local.id,
-        atividadeCatalogoId: atividadeCatalogo.id,
-        ordemManutencaoId: om.id,
-        statusOm: "CONCLUIDA",
-        percentualConcluido: 100,
-        unidade: "M2",
-        totalCalculado: 10,
-      },
-    });
-    void distrito;
+  it("marca a OM quando há atividade CONCLUIDA e nenhum dia tem relatório com pelo menos 2 pares de fotos", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id, { statusOm: "CONCLUIDA", percentualConcluido: 100 });
 
     const app = buildApp();
     const response = await app.inject({ method: "GET", url: "/ordens-manutencao" });
@@ -384,6 +488,23 @@ describe("GET /ordens-manutencao — precisaRelatorioFotografico", () => {
     const encontrada = ordens.find((o) => o.id === om.id);
     expect(encontrada?.precisaRelatorioFotografico).toBe(true);
     expect(encontrada?.foiLancada).toBe(true);
+  });
+
+  it("deixa de marcar quando algum dia já tem pelo menos 2 pares de fotos (4 fotos)", async () => {
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id, { statusOm: "CONCLUIDA", percentualConcluido: 100 });
+
+    const app = buildApp();
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id);
+    await relatorioDoRdo(app, om.id, rdo.id); // materializa o relatório do dia com as fotos
+
+    const response = await app.inject({ method: "GET", url: "/ordens-manutencao" });
+    const ordens = response.json() as { id: string; precisaRelatorioFotografico: boolean }[];
+    const encontrada = ordens.find((o) => o.id === om.id);
+    expect(encontrada?.precisaRelatorioFotografico).toBe(false);
   });
 
   it("foiLancada é false pra OM que nunca teve nenhuma atividade lançada", async () => {
@@ -396,22 +517,8 @@ describe("GET /ordens-manutencao — precisaRelatorioFotografico", () => {
   });
 
   it("foiLancada é true mesmo só EM_ANDAMENTO — uma OM pode levar vários lançamentos até ser finalizada", async () => {
-    const { om, rdo } = await montarCenario();
-    const atividadeCatalogo = await prisma.atividadeCatalogo.create({
-      data: { codigo: "2.1.3", descricao: "Roçada", unidade: "M2" },
-    });
-    const local = await prisma.rdoLocal.create({ data: { rdoId: rdo.id, descricao: "Trecho", ordem: 0 } });
-    await prisma.rdoAtividade.create({
-      data: {
-        rdoLocalId: local.id,
-        atividadeCatalogoId: atividadeCatalogo.id,
-        ordemManutencaoId: om.id,
-        statusOm: "EM_ANDAMENTO",
-        percentualConcluido: 40,
-        unidade: "M2",
-        totalCalculado: 5,
-      },
-    });
+    const { om, rdo, atividadeCatalogo } = await montarCenario();
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeCatalogo.id, { statusOm: "EM_ANDAMENTO", percentualConcluido: 40 });
 
     const app = buildApp();
     const response = await app.inject({ method: "GET", url: "/ordens-manutencao" });

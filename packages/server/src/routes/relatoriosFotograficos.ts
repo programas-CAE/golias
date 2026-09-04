@@ -144,6 +144,24 @@ async function buscarProgressoDoDia(ordemManutencaoId: string, rdoId: string): P
   return { statusOm: concluida ? "CONCLUIDA" : (atividades[0]?.statusOm ?? null), percentualConcluido: maiorPercentual };
 }
 
+/**
+ * Quantos pares Antes+Depois completos existem (ver montarOrdemPareada —
+ * par N ocupa ordem 2N e 2N+1). Usado pra exigir no mínimo 2 pares
+ * completos no dia em que a OM foi declarada concluída, antes de deixar
+ * gerar o PDF que fecha ela — só ter fotos soltas (só "Antes", sem
+ * "Depois") não conta como documentação de conclusão.
+ */
+function contarParesCompletos(fotos: { ordem: number }[]): number {
+  const indices = new Set(fotos.map((foto) => Math.floor(foto.ordem / 2)));
+  let completos = 0;
+  for (const indice of indices) {
+    const temAntes = fotos.some((foto) => foto.ordem === indice * 2);
+    const temDepois = fotos.some((foto) => foto.ordem === indice * 2 + 1);
+    if (temAntes && temDepois) completos++;
+  }
+  return completos;
+}
+
 async function lerBytesDaFoto(foto: {
   caminhoArquivo: string | null;
   rdoAnexo: { caminhoArquivo: string | null } | null;
@@ -414,6 +432,13 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
         prisma.ordemManutencao.findUniqueOrThrow({ where: { id: request.params.id }, select: { numero: true } }),
       ]);
       const progresso = await buscarProgressoDoDia(request.params.id, completo.rdoId);
+      const omConcluidaNesteDia = progresso.statusOm === "CONCLUIDA";
+
+      if (omConcluidaNesteDia && contarParesCompletos(completo.fotos) < 2) {
+        return reply.status(400).send({
+          error: "Para fechar a OM, o relatório desse dia precisa de no mínimo 2 pares de fotos (Antes/Depois)",
+        });
+      }
 
       const fotos: { imagem: Buffer; legenda: string | null; ordem: number }[] = [];
       for (const foto of completo.fotos) {
@@ -427,6 +452,7 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
         atividadesExecutadas: completo.atividadesExecutadas,
         comentarios: completo.comentarios,
         fotos,
+        omConcluidaNesteDia,
         percentualConcluido: progresso.percentualConcluido,
       });
 
