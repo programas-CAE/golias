@@ -459,6 +459,8 @@ export const rdoCampoSelect = {
       descricao: true,
       ordemManutencaoId: true,
       ordemManutencao: { select: { id: true, numero: true } },
+      atividadeCatalogoId: true,
+      atividadeCatalogo: { select: { id: true, codigo: true, descricao: true } },
       criadoEm: true,
     },
   },
@@ -1013,7 +1015,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
 
   app.post<{
     Params: { token: string };
-    Querystring: { tipo?: string; descricao?: string; ordemManutencaoId?: string };
+    Querystring: { tipo?: string; descricao?: string; ordemManutencaoId?: string; atividadeCatalogoId?: string };
   }>(
     "/rdos/campo/:token/anexos",
     { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
@@ -1061,6 +1063,20 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         }
       }
 
+      // Qual atividade (dentro da OM acima) essa foto documenta — uma OM
+      // pode cobrir mais de uma atividade no mesmo dia, e o Relatório
+      // Fotográfico cobra 2 pares de foto por atividade, não só por OM.
+      const atividadeCatalogoId = request.query.atividadeCatalogoId || null;
+      if (atividadeCatalogoId) {
+        const atividadeCatalogo = await prisma.atividadeCatalogo.findUnique({
+          where: { id: atividadeCatalogoId },
+          select: { id: true },
+        });
+        if (!atividadeCatalogo) {
+          return reply.status(400).send({ error: "Atividade inválida" });
+        }
+      }
+
       const { caminhoArquivo } = await salvarArquivoAnexo(buffer, file.mimetype, rdo.id);
 
       const anexo = await prisma.rdoAnexo.create({
@@ -1073,6 +1089,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
           tamanhoBytes: buffer.length,
           descricao: request.query.descricao ?? null,
           ordemManutencaoId,
+          atividadeCatalogoId,
         },
         select: {
           id: true,
@@ -1083,6 +1100,8 @@ export function registerRdosRoutes(app: FastifyInstance): void {
           descricao: true,
           ordemManutencaoId: true,
           ordemManutencao: { select: { id: true, numero: true } },
+          atividadeCatalogoId: true,
+          atividadeCatalogo: { select: { id: true, codigo: true, descricao: true } },
           criadoEm: true,
         },
       });

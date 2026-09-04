@@ -11,6 +11,7 @@ export type RelatorioFotograficoUpdateInput = z.infer<typeof relatorioFotografic
 export const relatorioFotograficoFotoUpdateInputSchema = z.object({
   legenda: z.string().max(300).nullable().optional(),
   ordem: z.number().int().nonnegative().optional(),
+  atividadeCatalogoId: z.string().nullable().optional(),
 });
 
 export type RelatorioFotograficoFotoUpdateInput = z.infer<typeof relatorioFotograficoFotoUpdateInputSchema>;

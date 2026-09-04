@@ -344,6 +344,13 @@ body {
   margin: 0 0 8px;
 }
 
+.campo-foto-subgrupo-titulo {
+  font-weight: 500;
+  font-size: 0.78rem;
+  color: #5b7268;
+  margin: 10px 0 6px;
+}
+
 .campo-foto-grade {
   list-style: none;
   margin: 0;

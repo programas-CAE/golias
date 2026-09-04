@@ -32,6 +32,8 @@ const fotoSelect = {
   caminhoArquivo: true,
   mimeType: true,
   nomeOriginal: true,
+  atividadeCatalogoId: true,
+  atividadeCatalogo: { select: { id: true, codigo: true, descricao: true } },
   rdoAnexo: { select: { caminhoArquivo: true, mimeType: true, nomeOriginal: true } },
 } as const;
 
@@ -96,6 +98,38 @@ function montarOrdemPareada<T extends { legenda: string | null }>(itens: T[], or
   return resultado;
 }
 
+/**
+ * Mesma lógica de `montarOrdemPareada`, mas primeiro separa os itens por
+ * `atividadeCatalogoId` — uma OM pode cobrir mais de uma atividade no mesmo
+ * dia (ex.: "Roçagem" e "Limpeza de bueiros" na mesma OM), e o Antes/Depois
+ * de cada atividade precisa ficar pareado dentro do próprio grupo dela, não
+ * misturado com o de outra atividade. Fotos sem atividade (`null`, ex.:
+ * anexo antigo lançado antes desse campo existir) formam seu próprio grupo.
+ * Cada grupo consome seu próprio bloco de `ordem` (sem sobrepor o do grupo
+ * seguinte), na ordem em que a atividade apareceu pela primeira vez.
+ */
+function montarOrdemPareadaPorAtividade<T extends { legenda: string | null; atividadeCatalogoId: string | null }>(
+  itens: T[],
+  ordemBase = 0,
+): Array<T & { ordem: number }> {
+  const grupos = new Map<string | null, T[]>();
+  for (const item of itens) {
+    const grupo = grupos.get(item.atividadeCatalogoId);
+    if (grupo) grupo.push(item);
+    else grupos.set(item.atividadeCatalogoId, [item]);
+  }
+
+  const resultado: Array<T & { ordem: number }> = [];
+  let base = ordemBase;
+  for (const itensDoGrupo of grupos.values()) {
+    const pareadas = montarOrdemPareada(itensDoGrupo, base);
+    resultado.push(...pareadas);
+    const maiorOrdem = pareadas.reduce((maior, item) => Math.max(maior, item.ordem), base - 1);
+    base = maiorOrdem % 2 === 0 ? maiorOrdem + 2 : maiorOrdem + 1;
+  }
+  return resultado;
+}
+
 async function buscarOuCriarRelatorio(ordemManutencaoId: string, rdoId: string) {
   const existente = await prisma.relatorioFotografico.findUnique({
     where: { ordemManutencaoId_rdoId: { ordemManutencaoId, rdoId } },
@@ -106,17 +140,22 @@ async function buscarOuCriarRelatorio(ordemManutencaoId: string, rdoId: string) 
   const fotosDoDia = await prisma.rdoAnexo.findMany({
     where: { ordemManutencaoId, rdoId, tipo: "FOTO" },
     orderBy: { criadoEm: "asc" },
-    select: { id: true, descricao: true },
+    select: { id: true, descricao: true, atividadeCatalogoId: true },
   });
 
-  const pareadas = montarOrdemPareada(fotosDoDia.map((anexo) => ({ ...anexo, legenda: anexo.descricao })));
+  const pareadas = montarOrdemPareadaPorAtividade(fotosDoDia.map((anexo) => ({ ...anexo, legenda: anexo.descricao })));
 
   return prisma.relatorioFotografico.create({
     data: {
       ordemManutencaoId,
       rdoId,
       fotos: {
-        create: pareadas.map((anexo) => ({ ordem: anexo.ordem, rdoAnexoId: anexo.id, legenda: anexo.legenda })),
+        create: pareadas.map((anexo) => ({
+          ordem: anexo.ordem,
+          rdoAnexoId: anexo.id,
+          legenda: anexo.legenda,
+          atividadeCatalogoId: anexo.atividadeCatalogoId,
+        })),
       },
     },
     select: relatorioSelect,
@@ -142,6 +181,27 @@ async function buscarProgressoDoDia(ordemManutencaoId: string, rdoId: string): P
     return maior == null || a.percentualConcluido > maior ? a.percentualConcluido : maior;
   }, null);
   return { statusOm: concluida ? "CONCLUIDA" : (atividades[0]?.statusOm ?? null), percentualConcluido: maiorPercentual };
+}
+
+/**
+ * Atividades do catálogo lançadas nessa OM, nesse dia (RdoAtividade) — usado
+ * pra dar nome a cada grupo de fotos (uma OM pode cobrir mais de uma
+ * atividade no mesmo dia) e pra cobrar o mínimo de 2 pares por atividade,
+ * não só por OM, na hora de fechar (ver checagem em POST .../pdf).
+ */
+async function buscarAtividadesDoDia(
+  ordemManutencaoId: string,
+  rdoId: string,
+): Promise<{ id: string; codigo: string; descricao: string }[]> {
+  const atividades = await prisma.rdoAtividade.findMany({
+    where: { ordemManutencaoId, rdoLocal: { rdoId } },
+    select: { atividadeCatalogo: { select: { id: true, codigo: true, descricao: true } } },
+  });
+  const unicas = new Map<string, { id: string; codigo: string; descricao: string }>();
+  for (const item of atividades) {
+    unicas.set(item.atividadeCatalogo.id, item.atividadeCatalogo);
+  }
+  return [...unicas.values()];
 }
 
 /**
@@ -234,8 +294,11 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
         prisma.relatorioFotografico.findUniqueOrThrow({ where: { id: relatorio.id }, select: relatorioSelect }),
         prisma.ordemManutencao.findUniqueOrThrow({ where: { id: request.params.id }, select: { numero: true } }),
       ]);
-      const progresso = await buscarProgressoDoDia(request.params.id, completo.rdoId);
-      return { ...semCaminhosInternos(completo), omNumero: om.numero, ...progresso };
+      const [progresso, atividadesDoDia] = await Promise.all([
+        buscarProgressoDoDia(request.params.id, completo.rdoId),
+        buscarAtividadesDoDia(request.params.id, completo.rdoId),
+      ]);
+      return { ...semCaminhosInternos(completo), omNumero: om.numero, ...progresso, atividadesDoDia };
     },
   );
 
@@ -274,13 +337,13 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
       const todasFotosDoDia = await prisma.rdoAnexo.findMany({
         where: { ordemManutencaoId: request.params.id, rdoId: completo.rdoId, tipo: "FOTO" },
         orderBy: { criadoEm: "asc" },
-        select: { id: true, descricao: true },
+        select: { id: true, descricao: true, atividadeCatalogoId: true },
       });
       const novas = todasFotosDoDia.filter((f) => !jaReferenciadas.has(f.id));
       if (novas.length > 0) {
         const maiorOrdemAtual = completo.fotos.reduce((maior, foto) => Math.max(maior, foto.ordem), -1);
         const ordemInicial = maiorOrdemAtual % 2 === 0 ? maiorOrdemAtual + 2 : maiorOrdemAtual + 1;
-        const pareadas = montarOrdemPareada(
+        const pareadas = montarOrdemPareadaPorAtividade(
           novas.map((anexo) => ({ ...anexo, legenda: anexo.descricao })),
           ordemInicial,
         );
@@ -290,6 +353,7 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
             rdoAnexoId: anexo.id,
             legenda: anexo.legenda,
             ordem: anexo.ordem,
+            atividadeCatalogoId: anexo.atividadeCatalogoId,
           })),
         });
       }
@@ -302,11 +366,17 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
   );
 
   /** Anexa uma foto extra direto no relatório daquele dia — não veio de nenhum RDO. */
-  app.post<{ Params: { id: string; relatorioId: string } }>(
+  app.post<{ Params: { id: string; relatorioId: string }; Querystring: { atividadeCatalogoId?: string } }>(
     "/ordens-manutencao/:id/relatorios-fotograficos/:relatorioId/fotos",
     async (request, reply) => {
       const relatorio = await relatorioDaOm(request.params.relatorioId, request.params.id);
       if (!relatorio) return reply.status(404).send({ error: "Relatório não encontrado" });
+
+      const { atividadeCatalogoId } = request.query;
+      if (atividadeCatalogoId) {
+        const atividade = await prisma.atividadeCatalogo.findUnique({ where: { id: atividadeCatalogoId }, select: { id: true } });
+        if (!atividade) return reply.status(400).send({ error: "Atividade inválida" });
+      }
 
       const file = await request.file();
       if (!file) return reply.status(400).send({ error: "Nenhum arquivo enviado" });
@@ -332,6 +402,7 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
           nomeOriginal: file.filename,
           mimeType: file.mimetype,
           tamanhoBytes: buffer.length,
+          atividadeCatalogoId: atividadeCatalogoId ?? null,
         },
       });
       const atualizado = await prisma.relatorioFotografico.findUniqueOrThrow({
@@ -431,19 +502,43 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
         prisma.relatorioFotografico.findUniqueOrThrow({ where: { id: relatorio.id }, select: relatorioSelect }),
         prisma.ordemManutencao.findUniqueOrThrow({ where: { id: request.params.id }, select: { numero: true } }),
       ]);
-      const progresso = await buscarProgressoDoDia(request.params.id, completo.rdoId);
+      const [progresso, atividadesDoDia] = await Promise.all([
+        buscarProgressoDoDia(request.params.id, completo.rdoId),
+        buscarAtividadesDoDia(request.params.id, completo.rdoId),
+      ]);
       const omConcluidaNesteDia = progresso.statusOm === "CONCLUIDA";
 
-      if (omConcluidaNesteDia && contarParesCompletos(completo.fotos) < 2) {
-        return reply.status(400).send({
-          error: "Para fechar a OM, o relatório desse dia precisa de no mínimo 2 pares de fotos (Antes/Depois)",
-        });
+      if (omConcluidaNesteDia) {
+        // Se essa OM cobre mais de uma atividade nesse dia E já existe foto
+        // marcada com atividade, cobra 2 pares por atividade (o que o
+        // usuário pediu). Senão (OM de atividade única, ou relatório antigo
+        // ainda sem nenhuma foto marcada por atividade) cai no comportamento
+        // anterior — 2 pares no total — pra não travar OMs já em andamento
+        // antes desse campo existir.
+        const algumaFotoTagueada = completo.fotos.some((foto) => foto.atividadeCatalogoId != null);
+        if (atividadesDoDia.length > 1 && algumaFotoTagueada) {
+          const semParesSuficientes = atividadesDoDia.filter((atividade) => {
+            const fotosDaAtividade = completo.fotos.filter((foto) => foto.atividadeCatalogoId === atividade.id);
+            return contarParesCompletos(fotosDaAtividade) < 2;
+          });
+          if (semParesSuficientes.length > 0) {
+            return reply.status(400).send({
+              error: `Para fechar a OM, cada atividade precisa de no mínimo 2 pares de fotos (Antes/Depois). Faltam pares em: ${semParesSuficientes
+                .map((atividade) => `${atividade.codigo} — ${atividade.descricao}`)
+                .join(", ")}`,
+            });
+          }
+        } else if (contarParesCompletos(completo.fotos) < 2) {
+          return reply.status(400).send({
+            error: "Para fechar a OM, o relatório desse dia precisa de no mínimo 2 pares de fotos (Antes/Depois)",
+          });
+        }
       }
 
-      const fotos: { imagem: Buffer; legenda: string | null; ordem: number }[] = [];
+      const fotos: { imagem: Buffer; legenda: string | null; ordem: number; atividadeCatalogoId: string | null }[] = [];
       for (const foto of completo.fotos) {
         const imagem = await lerBytesDaFoto(foto);
-        if (imagem) fotos.push({ imagem, legenda: foto.legenda, ordem: foto.ordem });
+        if (imagem) fotos.push({ imagem, legenda: foto.legenda, ordem: foto.ordem, atividadeCatalogoId: foto.atividadeCatalogoId });
       }
 
       const buffer = await gerarRelatorioFotograficoPdf({
@@ -452,6 +547,7 @@ export function registerRelatoriosFotograficosRoutes(app: FastifyInstance): void
         atividadesExecutadas: completo.atividadesExecutadas,
         comentarios: completo.comentarios,
         fotos,
+        atividades: atividadesDoDia,
         omConcluidaNesteDia,
         percentualConcluido: progresso.percentualConcluido,
       });

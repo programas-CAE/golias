@@ -88,8 +88,11 @@ async function enviarFotoParaOm(
   token: string,
   omId: string,
   legenda?: string,
+  atividadeCatalogoId?: string,
 ) {
-  const query = legenda ? `&descricao=${encodeURIComponent(legenda)}` : "";
+  const query =
+    (legenda ? `&descricao=${encodeURIComponent(legenda)}` : "") +
+    (atividadeCatalogoId ? `&atividadeCatalogoId=${atividadeCatalogoId}` : "");
   const response = await app.inject({
     method: "POST",
     url: `/rdos/campo/${token}/anexos?tipo=FOTO&ordemManutencaoId=${omId}${query}`,
@@ -97,13 +100,14 @@ async function enviarFotoParaOm(
     payload: multipartBody("foto.jpg", "image/jpeg", JPEG_BYTES),
   });
   expect(response.statusCode).toBe(201);
-  return response.json() as { id: string; ordemManutencaoId: string | null };
+  return response.json() as { id: string; ordemManutencaoId: string | null; atividadeCatalogoId: string | null };
 }
 
 interface FotoOrdenada {
   id: string;
   ordem: number;
   legenda: string | null;
+  atividadeCatalogoId: string | null;
 }
 
 interface ItemDia {
@@ -136,7 +140,12 @@ async function buscarRelatorio(app: ReturnType<typeof buildApp>, omId: string, r
     method: "GET",
     url: `/ordens-manutencao/${omId}/relatorios-fotograficos/${relatorioId}`,
   });
-  return response.json() as { fotos: FotoOrdenada[]; statusOm: string | null; percentualConcluido: number | null };
+  return response.json() as {
+    fotos: FotoOrdenada[];
+    statusOm: string | null;
+    percentualConcluido: number | null;
+    atividadesDoDia: { id: string; codigo: string; descricao: string }[];
+  };
 }
 
 describe("POST /rdos/campo/:token/anexos com ordemManutencaoId", () => {
@@ -474,6 +483,89 @@ describe("Pareamento Antes/Depois no Relatório Fotográfico", () => {
       [2, "Antes"], // novo par começa em 2, não colide com o par 0 existente
       [3, "Depois"],
     ]);
+  });
+});
+
+describe("Fotos agrupadas por atividade dentro da OM", () => {
+  it("pareia Antes/Depois dentro do grupo de cada atividade, sem misturar com o de outra", async () => {
+    const { om, rdo, atividadeCatalogo: atividadeA } = await montarCenario();
+    const atividadeB = await prisma.atividadeCatalogo.create({
+      data: { codigo: "3.4.1", descricao: "Roçagem", unidade: "M2" },
+    });
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeA.id);
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeB.id);
+    const app = buildApp();
+
+    // Fora de ordem de propósito: A-Antes, B-Antes, A-Depois, B-Depois.
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes", atividadeA.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes", atividadeB.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois", atividadeA.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois", atividadeB.id);
+
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+    const relatorio = await buscarRelatorio(app, om.id, relatorioId);
+    expect(relatorio.fotos).toHaveLength(4);
+
+    const codigosDoDia = relatorio.atividadesDoDia.map((a) => a.codigo).sort();
+    expect(codigosDoDia).toEqual(["2.1.2", "3.4.1"]);
+
+    for (const atividadeId of [atividadeA.id, atividadeB.id]) {
+      const doGrupo = relatorio.fotos.filter((f) => f.atividadeCatalogoId === atividadeId).sort((a, b) => a.ordem - b.ordem);
+      expect(doGrupo).toHaveLength(2);
+      expect(doGrupo[0]!.legenda).toBe("Antes");
+      expect(doGrupo[1]!.legenda).toBe("Depois");
+      expect(doGrupo[1]!.ordem).toBe(doGrupo[0]!.ordem + 1); // par completo, ordens adjacentes dentro do grupo
+    }
+  });
+
+  it("bloqueia fechar a OM se alguma atividade (das várias lançadas nesse dia) não tem 2 pares completos", async () => {
+    const { om, rdo, atividadeCatalogo: atividadeA } = await montarCenario();
+    const atividadeB = await prisma.atividadeCatalogo.create({
+      data: { codigo: "3.4.1", descricao: "Roçagem", unidade: "M2" },
+    });
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeA.id, { statusOm: "CONCLUIDA", percentualConcluido: 100 });
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeB.id, { statusOm: "CONCLUIDA", percentualConcluido: 100 });
+    const app = buildApp();
+
+    // Atividade A com 2 pares completos.
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes", atividadeA.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois", atividadeA.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes", atividadeA.id);
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois", atividadeA.id);
+    // Atividade B com só 1 foto "Antes" — nenhum par completo.
+    await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes", atividadeB.id);
+
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+    const gerar = await app.inject({
+      method: "POST",
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/pdf`,
+    });
+    expect(gerar.statusCode).toBe(400);
+    expect((gerar.json() as { error: string }).error).toContain("3.4.1");
+  });
+
+  it("permite fechar a OM quando cada atividade lançada nesse dia tem seus 2 pares completos", async () => {
+    const { om, rdo, atividadeCatalogo: atividadeA } = await montarCenario();
+    const atividadeB = await prisma.atividadeCatalogo.create({
+      data: { codigo: "3.4.1", descricao: "Roçagem", unidade: "M2" },
+    });
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeA.id, { statusOm: "CONCLUIDA", percentualConcluido: 100 });
+    await lancarAtividadeNaOm(rdo.id, om.id, atividadeB.id, { statusOm: "CONCLUIDA", percentualConcluido: 100 });
+    const app = buildApp();
+
+    for (const atividadeId of [atividadeA.id, atividadeB.id]) {
+      await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes", atividadeId);
+      await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois", atividadeId);
+      await enviarFotoParaOm(app, "token-relfoto", om.id, "Antes", atividadeId);
+      await enviarFotoParaOm(app, "token-relfoto", om.id, "Depois", atividadeId);
+    }
+
+    const relatorioId = await relatorioDoRdo(app, om.id, rdo.id);
+    const gerar = await app.inject({
+      method: "POST",
+      url: `/ordens-manutencao/${om.id}/relatorios-fotograficos/${relatorioId}/pdf`,
+    });
+    expect(gerar.statusCode).toBe(200);
   });
 });
 

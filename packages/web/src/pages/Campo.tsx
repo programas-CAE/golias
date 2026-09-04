@@ -55,6 +55,11 @@ interface RdoAnexo {
   // "Antes"/"Depois", igual ao Relatório Fotográfico da OM (que reaproveita
   // esse texto como legenda quando puxa essa foto automaticamente).
   descricao: string | null;
+  // Qual atividade (dentro da OM acima) essa foto documenta — uma OM pode
+  // cobrir mais de uma atividade no mesmo dia, e o Relatório Fotográfico
+  // cobra 2 pares de foto por atividade, não só por OM.
+  atividadeCatalogoId: string | null;
+  atividadeCatalogo: { id: string; codigo: string; descricao: string } | null;
 }
 
 const LEGENDA_FOTO_OPCOES = ["", "Antes", "Depois"] as const;
@@ -385,6 +390,7 @@ export default function Campo(): ReactElement {
   const [funcoes, setFuncoes] = useState<FuncaoRef[]>([]);
   const [anexos, setAnexos] = useState<RdoAnexo[]>([]);
   const [omFotoSelecionada, setOmFotoSelecionada] = useState("");
+  const [atividadeFotoSelecionada, setAtividadeFotoSelecionada] = useState("");
   const [legendaFotoSelecionada, setLegendaFotoSelecionada] = useState("");
   const [enviandoFoto, setEnviandoFoto] = useState(false);
 
@@ -598,6 +604,21 @@ export default function Campo(): ReactElement {
     return (dados?.ordensManutencao ?? []).filter((om) => idsUsados.has(om.id));
   }, [locais, dados?.ordensManutencao]);
 
+  // Atividades lançadas neste RDO dentro da OM escolhida pra foto — uma OM
+  // comum cobre mais de uma atividade no mesmo dia (ex.: "Roçagem" e
+  // "Limpeza de bueiros" na mesma OM), e o Relatório Fotográfico cobra 2
+  // pares de foto por atividade, não só por OM.
+  const atividadesDaOmFotoSelecionada = useMemo(() => {
+    if (!omFotoSelecionada || !dados) return [];
+    const idsUsados = new Set(
+      locais
+        .flatMap((local) => local.atividades)
+        .filter((atividade) => atividade.ordemManutencaoId === omFotoSelecionada)
+        .map((atividade) => atividade.atividadeCatalogoId),
+    );
+    return dados.atividadesCatalogo.filter((item) => idsUsados.has(item.id));
+  }, [locais, omFotoSelecionada, dados]);
+
   // Sinaliza, antes de finalizar, toda OM lançada neste RDO que ainda não
   // "fechou": ou o status não foi marcado como Concluída, ou foi marcado
   // mas ainda não tem o mínimo de 2 fotos "Antes" + 2 "Depois" (contagem ao
@@ -635,6 +656,22 @@ export default function Campo(): ReactElement {
     }
     return pendencias;
   }, [locais, dados, anexos]);
+
+  /** Fotos de uma OM, sub-agrupadas por atividade — uma OM comum cobre mais de uma atividade no mesmo dia. */
+  function agruparFotosPorAtividade(fotos: RdoAnexo[]): { chave: string; titulo: string; fotos: RdoAnexo[] }[] {
+    const porAtividade = new Map<string, { titulo: string; fotos: RdoAnexo[] }>();
+    for (const foto of fotos) {
+      const chave = foto.atividadeCatalogoId ?? "__sem_atividade__";
+      if (!porAtividade.has(chave)) {
+        porAtividade.set(chave, {
+          titulo: foto.atividadeCatalogo ? `${foto.atividadeCatalogo.codigo} ${foto.atividadeCatalogo.descricao}` : "Fotos gerais",
+          fotos: [],
+        });
+      }
+      porAtividade.get(chave)!.fotos.push(foto);
+    }
+    return [...porAtividade.entries()].map(([chave, grupo]) => ({ chave, ...grupo }));
+  }
 
   const anexosPorOm = useMemo(() => {
     const grupos = new Map<string, { omNumero: string | null; fotos: RdoAnexo[] }>();
@@ -913,6 +950,7 @@ export default function Campo(): ReactElement {
     form.append("arquivo", arquivo);
     const qs = new URLSearchParams({ tipo: "FOTO" });
     if (omFotoSelecionada) qs.set("ordemManutencaoId", omFotoSelecionada);
+    if (atividadeFotoSelecionada) qs.set("atividadeCatalogoId", atividadeFotoSelecionada);
     if (legendaFotoSelecionada) qs.set("descricao", legendaFotoSelecionada);
 
     setEnviandoFoto(true);
@@ -1926,12 +1964,29 @@ export default function Campo(): ReactElement {
             <select
               className="field-input"
               value={omFotoSelecionada}
-              onChange={(event) => setOmFotoSelecionada(event.target.value)}
+              onChange={(event) => {
+                setOmFotoSelecionada(event.target.value);
+                setAtividadeFotoSelecionada("");
+              }}
             >
               <option value="">Foto geral (sem OM específica)</option>
               {omsUsadasNoRdo.map((om) => (
                 <option key={om.id} value={om.id}>
                   OM {om.numero}
+                </option>
+              ))}
+            </select>
+          )}
+          {rdo.tipo !== "MOTORISTA_OPERADOR" && omFotoSelecionada && atividadesDaOmFotoSelecionada.length > 0 && (
+            <select
+              className="field-input"
+              value={atividadeFotoSelecionada}
+              onChange={(event) => setAtividadeFotoSelecionada(event.target.value)}
+            >
+              <option value="">Qual atividade desta OM?</option>
+              {atividadesDaOmFotoSelecionada.map((atividade) => (
+                <option key={atividade.id} value={atividade.id}>
+                  {atividade.codigo} {atividade.descricao}
                 </option>
               ))}
             </select>
@@ -1965,17 +2020,22 @@ export default function Campo(): ReactElement {
         {anexosPorOm.map((grupo) => (
           <div key={grupo.omNumero ?? "geral"} className="campo-foto-grupo">
             <p className="campo-foto-grupo-titulo">{grupo.omNumero ? `OM ${grupo.omNumero}` : "Fotos gerais"}</p>
-            <ul className="campo-foto-grade">
-              {grupo.fotos.map((anexo) => (
-                <li key={anexo.id} className="campo-foto-item">
-                  <img src={`${API_URL}/rdos/${dados?.rdo.id}/anexos/${anexo.id}`} alt={anexo.nomeOriginal} />
-                  {anexo.descricao && <span className="campo-foto-legenda">{anexo.descricao}</span>}
-                  <button type="button" className="campo-foto-remover" onClick={() => void removerFoto(anexo.id)}>
-                    Remover
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {agruparFotosPorAtividade(grupo.fotos).map((subgrupo) => (
+              <div key={subgrupo.chave}>
+                {grupo.omNumero && <p className="campo-foto-subgrupo-titulo">{subgrupo.titulo}</p>}
+                <ul className="campo-foto-grade">
+                  {subgrupo.fotos.map((anexo) => (
+                    <li key={anexo.id} className="campo-foto-item">
+                      <img src={`${API_URL}/rdos/${dados?.rdo.id}/anexos/${anexo.id}`} alt={anexo.nomeOriginal} />
+                      {anexo.descricao && <span className="campo-foto-legenda">{anexo.descricao}</span>}
+                      <button type="button" className="campo-foto-remover" onClick={() => void removerFoto(anexo.id)}>
+                        Remover
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         ))}
 

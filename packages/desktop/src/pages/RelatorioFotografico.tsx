@@ -9,6 +9,13 @@ interface FotoRelatorio {
   ordem: number;
   legenda: string | null;
   rdoAnexoId: string | null;
+  atividadeCatalogoId: string | null;
+}
+
+interface AtividadeDoDia {
+  id: string;
+  codigo: string;
+  descricao: string;
 }
 
 interface RelatorioFotograficoResponse {
@@ -23,8 +30,12 @@ interface RelatorioFotograficoResponse {
   fotos: FotoRelatorio[];
   statusOm: string | null;
   percentualConcluido: number | null;
+  atividadesDoDia: AtividadeDoDia[];
   rdo: { data: string; equipe: { nome: string } };
 }
+
+/** Chave usada pra agrupar fotos sem atividade específica (geral/legado). */
+const CHAVE_GERAL = "__geral__";
 
 const STATUS_OM_LABEL: Record<string, string> = {
   EM_ANDAMENTO: "Em andamento",
@@ -84,10 +95,16 @@ export default function RelatorioFotografico(): ReactElement {
   const [enviandoSlot, setEnviandoSlot] = useState<string | null>(null);
   const [gerandoPdf, setGerandoPdf] = useState(false);
 
-  // Pares que o usuário clicou "adicionar" mas ainda não têm nenhuma foto —
-  // só existem no navegador até a primeira foto ser enviada nele (a partir
-  // daí passam a vir naturalmente do servidor, via montarPares).
-  const [paresVaziosLocais, setParesVaziosLocais] = useState<number[]>([]);
+  // Pares que o usuário clicou "adicionar" mas ainda não têm nenhuma foto — só
+  // existem no navegador até a primeira foto ser enviada nele (a partir daí
+  // passam a vir naturalmente do servidor, via montarPares). `indice` é
+  // escolhido a partir do maior `ordem` de TODAS as fotos do relatório
+  // (não só do grupo), pra nunca colidir com o ordem de outro grupo — o
+  // servidor reserva uma faixa de `ordem` por atividade (ver
+  // montarOrdemPareadaPorAtividade no servidor), então "próximo par livre"
+  // só é seguro calculado globalmente. `atividadeChave` é só pra saber em
+  // qual seção da tela desenhar o par vazio.
+  const [paresVaziosLocais, setParesVaziosLocais] = useState<{ atividadeChave: string; indice: number }[]>([]);
 
   async function carregar(): Promise<void> {
     if (!id || !relatorioId) return;
@@ -150,22 +167,31 @@ export default function RelatorioFotografico(): ReactElement {
     }
   }
 
-  /** Manda a foto e já move ela pro slot certo do par (Antes/Depois de um par específico). */
-  async function enviarFotoNoSlot(parIndice: number, lado: "antes" | "depois", arquivo: File): Promise<void> {
+  /** Manda a foto (já marcada com a atividade do grupo) e move ela pro slot certo do par (Antes/Depois). */
+  async function enviarFotoNoSlot(
+    atividadeChave: string,
+    parIndice: number,
+    lado: "antes" | "depois",
+    arquivo: File,
+  ): Promise<void> {
     if (!id || !relatorioId) return;
-    const chaveSlot = `${parIndice}-${lado}`;
+    const chaveSlot = `${atividadeChave}-${parIndice}-${lado}`;
     setEnviandoSlot(chaveSlot);
     setErro(null);
     try {
+      const atividadeCatalogoId = atividadeChave === CHAVE_GERAL ? null : atividadeChave;
+      const query = atividadeCatalogoId ? `?atividadeCatalogoId=${atividadeCatalogoId}` : "";
       const form = new FormData();
       form.append("arquivo", arquivo);
       const resposta = await api.postForm<RelatorioFotograficoResponse>(
-        `/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/fotos`,
+        `/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/fotos${query}`,
         form,
       );
-      // A foto acabou de ser criada com o maior `ordem` da lista (ver
-      // rota) — move ela pro slot certo do par que o usuário clicou.
-      const novaFoto = [...resposta.fotos].sort((a, b) => b.ordem - a.ordem)[0];
+      // A foto acabou de ser criada com o maior `ordem` da lista inteira (ver
+      // rota) e já marcada com a atividade certa — move ela pro slot do par
+      // que o usuário clicou, dentro do grupo dela.
+      const candidatas = resposta.fotos.filter((foto) => foto.atividadeCatalogoId === atividadeCatalogoId);
+      const novaFoto = [...candidatas].sort((a, b) => b.ordem - a.ordem)[0];
       if (novaFoto) {
         const ordemAlvo = parIndice * 2 + (lado === "antes" ? 0 : 1);
         await api.patch(`/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/fotos/${novaFoto.id}`, {
@@ -173,7 +199,7 @@ export default function RelatorioFotografico(): ReactElement {
           legenda: lado === "antes" ? "Antes" : "Depois",
         });
       }
-      setParesVaziosLocais((atual) => atual.filter((indice) => indice !== parIndice));
+      setParesVaziosLocais((atual) => atual.filter((par) => !(par.atividadeChave === atividadeChave && par.indice === parIndice)));
       await carregar();
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível enviar a foto.");
@@ -192,19 +218,28 @@ export default function RelatorioFotografico(): ReactElement {
     }
   }
 
-  async function removerPar(par: ParDeFotos): Promise<void> {
+  async function removerPar(atividadeChave: string, par: ParDeFotos): Promise<void> {
     const idsParaRemover = [par.antes?.id, par.depois?.id].filter((valor): valor is string => valor != null);
     if (idsParaRemover.length === 0) {
       // Par ainda vazio (só existe no navegador) — não tem nada pra apagar no servidor.
-      setParesVaziosLocais((atual) => atual.filter((indice) => indice !== par.indice));
+      setParesVaziosLocais((atual) => atual.filter((p) => !(p.atividadeChave === atividadeChave && p.indice === par.indice)));
       return;
     }
     await Promise.all(idsParaRemover.map((fotoId) => removerFoto(fotoId)));
   }
 
-  function adicionarParVazio(): void {
-    const maiorIndice = pares.length > 0 ? Math.max(...pares.map((par) => par.indice)) : -1;
-    setParesVaziosLocais((atual) => [...atual, maiorIndice + 1]);
+  /**
+   * Próximo índice de par livre, calculado a partir do maior `ordem` de
+   * TODAS as fotos do relatório (não só do grupo que recebeu o clique) —
+   * nunca pode colidir com a faixa de `ordem` reservada por outro grupo no
+   * servidor (ver montarOrdemPareadaPorAtividade). Onde o par aparece na
+   * tela (qual grupo) é decidido só por `atividadeChave`, à parte do índice.
+   */
+  function adicionarParVazio(atividadeChave: string): void {
+    const indicesReais = (relatorio?.fotos ?? []).map((foto) => Math.floor(foto.ordem / 2));
+    const indicesLocais = paresVaziosLocais.map((par) => par.indice);
+    const maiorIndice = Math.max(-1, ...indicesReais, ...indicesLocais);
+    setParesVaziosLocais((atual) => [...atual, { atividadeChave, indice: maiorIndice + 1 }]);
   }
 
   async function gerarPdf(): Promise<void> {
@@ -229,18 +264,47 @@ export default function RelatorioFotografico(): ReactElement {
     );
   }
 
-  const pares = useMemo(
-    () => montarPares(relatorio?.fotos ?? [], paresVaziosLocais),
-    [relatorio, paresVaziosLocais],
-  );
+  /**
+   * Uma OM pode cobrir mais de uma atividade no mesmo dia — agrupa as fotos
+   * por atividade (uma seção por atividade lançada nesse dia, mais uma
+   * seção "Fotos gerais" pra foto sem atividade marcada, ex.: anexo antigo
+   * lançado antes desse campo existir) em vez de uma grade única.
+   */
+  const grupos = useMemo(() => {
+    const fotos = relatorio?.fotos ?? [];
+    const atividadesDoDia = relatorio?.atividadesDoDia ?? [];
+    const idsConhecidos = new Set(atividadesDoDia.map((atividade) => atividade.id));
+
+    const resultado: { chave: string; titulo: string; pares: ParDeFotos[] }[] = [];
+    for (const atividade of atividadesDoDia) {
+      const fotosDoGrupo = fotos.filter((foto) => foto.atividadeCatalogoId === atividade.id);
+      const vaziosDoGrupo = paresVaziosLocais.filter((par) => par.atividadeChave === atividade.id).map((par) => par.indice);
+      resultado.push({
+        chave: atividade.id,
+        titulo: `OM ${relatorio?.omNumero ?? ""} — ${atividade.codigo} ${atividade.descricao}`,
+        pares: montarPares(fotosDoGrupo, vaziosDoGrupo),
+      });
+    }
+
+    const fotosGerais = fotos.filter((foto) => !foto.atividadeCatalogoId || !idsConhecidos.has(foto.atividadeCatalogoId));
+    const vaziosGerais = paresVaziosLocais.filter((par) => par.atividadeChave === CHAVE_GERAL).map((par) => par.indice);
+    if (fotosGerais.length > 0 || vaziosGerais.length > 0 || atividadesDoDia.length === 0) {
+      resultado.push({
+        chave: CHAVE_GERAL,
+        titulo: atividadesDoDia.length > 0 ? `OM ${relatorio?.omNumero ?? ""} — Fotos gerais` : `OM ${relatorio?.omNumero ?? ""}`,
+        pares: montarPares(fotosGerais, vaziosGerais),
+      });
+    }
+    return resultado;
+  }, [relatorio, paresVaziosLocais]);
 
   function urlDaFoto(fotoId: string): string {
     return `${apiUrl.replace(/\/$/, "")}/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/fotos/${fotoId}/arquivo`;
   }
 
-  function Slot({ par, lado }: { par: ParDeFotos; lado: "antes" | "depois" }): ReactElement {
+  function Slot({ atividadeChave, par, lado }: { atividadeChave: string; par: ParDeFotos; lado: "antes" | "depois" }): ReactElement {
     const foto = lado === "antes" ? par.antes : par.depois;
-    const chaveSlot = `${par.indice}-${lado}`;
+    const chaveSlot = `${atividadeChave}-${par.indice}-${lado}`;
     const enviando = enviandoSlot === chaveSlot;
 
     if (foto) {
@@ -274,7 +338,7 @@ export default function RelatorioFotografico(): ReactElement {
           onChange={(event) => {
             const arquivo = event.target.files?.[0];
             event.target.value = "";
-            if (arquivo) void enviarFotoNoSlot(par.indice, lado, arquivo);
+            if (arquivo) void enviarFotoNoSlot(atividadeChave, par.indice, lado, arquivo);
           }}
         />
       </label>
@@ -402,49 +466,61 @@ export default function RelatorioFotografico(): ReactElement {
                 </button>
               </div>
 
-              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-                {pares.length === 0 ? (
+              <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 24 }}>
+                {grupos.length === 0 ? (
                   <p className="table-empty">
                     Nenhuma foto ainda — o encarregado ainda não marcou fotos pra essa OM, ou clique em "Adicionar par de
                     fotos".
                   </p>
                 ) : (
-                  pares.map((par) => (
-                    <div key={par.indice} className="repeatable-item">
-                      <div className="repeatable-item-header">
-                        <span className="repeatable-item-titulo">Par {par.indice + 1}</span>
-                        <button
-                          type="button"
-                          className="button button--ghost button--small"
-                          onClick={() => void removerPar(par)}
-                          title="Remover este par"
-                        >
-                          🗑
-                        </button>
+                  grupos.map((grupo) => (
+                    <div key={grupo.chave}>
+                      <h3 style={{ fontSize: "0.95rem", marginBottom: 8 }}>{grupo.titulo}</h3>
+                      {grupo.pares.length === 0 && (
+                        <p className="table-empty" style={{ marginBottom: 8 }}>
+                          Nenhuma foto ainda pra essa atividade — o encarregado ainda não marcou, ou clique em "Adicionar
+                          par de fotos".
+                        </p>
+                      )}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                        {grupo.pares.map((par) => (
+                          <div key={par.indice} className="repeatable-item">
+                            <div className="repeatable-item-header">
+                              <span className="repeatable-item-titulo">Par {par.indice + 1}</span>
+                              <button
+                                type="button"
+                                className="button button--ghost button--small"
+                                onClick={() => void removerPar(grupo.chave, par)}
+                                title="Remover este par"
+                              >
+                                🗑
+                              </button>
+                            </div>
+                            <div className="grid-2">
+                              <div>
+                                <label className="field-label">Antes</label>
+                                <Slot atividadeChave={grupo.chave} par={par} lado="antes" />
+                              </div>
+                              <div>
+                                <label className="field-label">Depois</label>
+                                <Slot atividadeChave={grupo.chave} par={par} lado="depois" />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="grid-2">
-                        <div>
-                          <label className="field-label">Antes</label>
-                          <Slot par={par} lado="antes" />
-                        </div>
-                        <div>
-                          <label className="field-label">Depois</label>
-                          <Slot par={par} lado="depois" />
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        className="button button--secondary button--small"
+                        style={{ marginTop: 12 }}
+                        onClick={() => adicionarParVazio(grupo.chave)}
+                      >
+                        + Adicionar par de fotos
+                      </button>
                     </div>
                   ))
                 )}
               </div>
-
-              <button
-                type="button"
-                className="button button--secondary button--small"
-                style={{ marginTop: 12 }}
-                onClick={adicionarParVazio}
-              >
-                + Adicionar par de fotos
-              </button>
             </section>
           </>
         )}

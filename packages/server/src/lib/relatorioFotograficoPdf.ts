@@ -17,6 +17,17 @@ export interface RelatorioFotograficoFotoDados {
   // uma linha da grade (Antes à esquerda, Depois à direita), não só
   // empilhar por ordem de chegada.
   ordem: number;
+  // Qual atividade da OM essa foto documenta — null pra foto geral, sem
+  // atividade específica (ex.: anexo antigo, lançado antes desse campo
+  // existir). Usado pra agrupar o registro fotográfico por atividade (ver
+  // desenharFotos abaixo).
+  atividadeCatalogoId: string | null;
+}
+
+export interface RelatorioFotograficoAtividadeDados {
+  id: string;
+  codigo: string;
+  descricao: string;
 }
 
 export interface RelatorioFotograficoDados {
@@ -29,6 +40,10 @@ export interface RelatorioFotograficoDados {
   atividadesExecutadas: boolean;
   comentarios: string | null;
   fotos: RelatorioFotograficoFotoDados[];
+  // Atividades do catálogo lançadas nessa OM, nesse dia (RdoAtividade) — só
+  // pra dar nome ao cabeçalho de cada grupo de fotos em desenharFotos (uma
+  // OM pode cobrir mais de uma atividade no mesmo dia).
+  atividades: RelatorioFotograficoAtividadeDados[];
   // true quando o status declarado da OM NESSE dia (RdoAtividade.statusOm)
   // é CONCLUIDA — é esse campo, não a presença de dataConclusao, que decide
   // se mostra "% concluído neste dia" (só faz sentido enquanto ainda não
@@ -217,24 +232,14 @@ function desenharComentarios(doc: PDFKit.PDFDocument, dados: RelatorioFotografic
 const FOTO_LARGURA = (LARGURA_UTIL - 20) / 2;
 const FOTO_ALTURA = 150;
 
-function desenharFotos(doc: PDFKit.PDFDocument, dados: RelatorioFotograficoDados): void {
-  doc.font("Helvetica-Bold").fontSize(10).text("Registro fotográfico:", MARGEM, doc.y);
-  doc.y += 12;
-
-  if (dados.fotos.length === 0) {
-    doc.font("Helvetica-Oblique").fontSize(8).fillColor("#666666").text("Nenhuma foto anexada.", MARGEM, doc.y);
-    doc.fillColor("#000000");
-    doc.y += 14;
-    return;
-  }
-
-  // Agrupa por par (ver RelatorioFotograficoFotoDados.ordem) — cada par
-  // vira uma linha da grade, Antes sempre à esquerda e Depois à direita,
-  // com uma caixa vazia do lado que ainda não tem foto (em vez de deixar o
-  // Antes e o Depois do mesmo item longe um do outro quando um dos dois
-  // falta ou chega fora de ordem — bug real visto em produção).
+// Agrupa por par (ver RelatorioFotograficoFotoDados.ordem) — cada par vira
+// uma linha da grade, Antes sempre à esquerda e Depois à direita, com uma
+// caixa vazia do lado que ainda não tem foto (em vez de deixar o Antes e o
+// Depois do mesmo item longe um do outro quando um dos dois falta ou chega
+// fora de ordem — bug real visto em produção).
+function desenharParesDeUmaAtividade(doc: PDFKit.PDFDocument, fotos: RelatorioFotograficoFotoDados[]): void {
   const porPar = new Map<number, { antes?: RelatorioFotograficoFotoDados; depois?: RelatorioFotograficoFotoDados }>();
-  for (const foto of dados.fotos) {
+  for (const foto of fotos) {
     const parIndice = Math.floor(foto.ordem / 2);
     const atual = porPar.get(parIndice) ?? {};
     if (foto.ordem % 2 === 0) atual.antes = foto;
@@ -262,6 +267,57 @@ function desenharFotos(doc: PDFKit.PDFDocument, dados: RelatorioFotograficoDados
       doc.font("Helvetica").fontSize(7).fillColor("#000000").text(rotulo, x, y + FOTO_ALTURA + 2, { width: FOTO_LARGURA });
     }
     doc.y = y + alturaCartao;
+  }
+}
+
+function desenharFotos(doc: PDFKit.PDFDocument, dados: RelatorioFotograficoDados): void {
+  doc.font("Helvetica-Bold").fontSize(10).text("Registro fotográfico:", MARGEM, doc.y);
+  doc.y += 12;
+
+  if (dados.fotos.length === 0) {
+    doc.font("Helvetica-Oblique").fontSize(8).fillColor("#666666").text("Nenhuma foto anexada.", MARGEM, doc.y);
+    doc.fillColor("#000000");
+    doc.y += 14;
+    return;
+  }
+
+  // Uma OM pode cobrir mais de uma atividade no mesmo dia (ex.: "Roçagem" e
+  // "Limpeza de bueiros" na mesma OM) — agrupa as fotos por atividade e
+  // desenha cada grupo com seu próprio cabeçalho (nome da atividade + Nº da
+  // OM), em vez de misturar tudo numa grade só.
+  const porAtividade = new Map<string | null, RelatorioFotograficoFotoDados[]>();
+  for (const foto of dados.fotos) {
+    const grupo = porAtividade.get(foto.atividadeCatalogoId);
+    if (grupo) grupo.push(foto);
+    else porAtividade.set(foto.atividadeCatalogoId, [foto]);
+  }
+
+  const gruposComAtividade = dados.atividades.filter((atividade) => porAtividade.has(atividade.id));
+  const temFotosSemAtividade = porAtividade.has(null);
+
+  for (const atividade of gruposComAtividade) {
+    garantirEspaco(doc, 40);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .fillColor("#000000")
+      .text(`OM ${dados.omNumero} — ${atividade.codigo} ${atividade.descricao}`, MARGEM, doc.y, { width: LARGURA_UTIL });
+    doc.y += 12;
+    desenharParesDeUmaAtividade(doc, porAtividade.get(atividade.id)!);
+    doc.y += 4;
+  }
+
+  if (temFotosSemAtividade) {
+    garantirEspaco(doc, 40);
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .fillColor("#000000")
+      .text(gruposComAtividade.length > 0 ? `OM ${dados.omNumero} — Fotos gerais` : `OM ${dados.omNumero}`, MARGEM, doc.y, {
+        width: LARGURA_UTIL,
+      });
+    doc.y += 12;
+    desenharParesDeUmaAtividade(doc, porAtividade.get(null)!);
   }
 }
 

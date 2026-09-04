@@ -85,6 +85,8 @@ model AtividadeCatalogo {
   ativo         Boolean        @default(true)
   ordem         Int            @default(0)
   rdoAtividades RdoAtividade[]
+  anexos        RdoAnexo[]
+  fotosRelatorio RelatorioFotograficoFoto[]
 }
 
 model FuncaoCatalogo {
@@ -249,6 +251,13 @@ model RelatorioFotograficoFoto {
   id                     String               @id @default(cuid())
   relatorioFotograficoId String
   relatorioFotografico   RelatorioFotografico @relation(fields: [relatorioFotograficoId], references: [id])
+  // Mesma atividade de RdoAnexo.atividadeCatalogoId — copiada pra cá quando
+  // a foto vem do campo (ver buscarOuCriarRelatorio), ou escolhida direto
+  // quando a foto é anexada pelo escritório. Usada pra agrupar os pares
+  // (Antes/Depois) por atividade na tela e no PDF, e pra cobrar o mínimo
+  // de 2 pares por atividade (não só por OM) antes de fechar.
+  atividadeCatalogoId    String?
+  atividadeCatalogo      AtividadeCatalogo?   @relation(fields: [atividadeCatalogoId], references: [id])
   ordem                  Int
   legenda                String?
   // "Remover" é exclusão lógica, não apaga a linha — se apagasse, sincronizar
@@ -683,6 +692,14 @@ model RdoAnexo {
   // e como fonte pro Relatório Fotográfico da OM (RelatorioFotografico).
   ordemManutencaoId String?
   ordemManutencao   OrdemManutencao?           @relation(fields: [ordemManutencaoId], references: [id])
+  // Qual atividade (do catálogo) essa foto documenta, dentro da OM acima —
+  // uma OM pode cobrir mais de uma atividade no mesmo dia (ex.: "Roçagem"
+  // e "Limpeza de bueiros" na mesma OM), e o Relatório Fotográfico precisa
+  // de 2 pares de foto POR atividade, não só por OM. Só faz sentido junto
+  // de ordemManutencaoId, mas fica opcional (foto geral tirada sem
+  // especificar qual atividade continua indo pro grupo "sem atividade").
+  atividadeCatalogoId String?
+  atividadeCatalogo   AtividadeCatalogo?         @relation(fields: [atividadeCatalogoId], references: [id])
   criadoEm          DateTime                   @default(now())
   fotosDeRelatorio  RelatorioFotograficoFoto[]
 }
