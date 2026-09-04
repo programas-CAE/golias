@@ -1209,7 +1209,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
 
   /**
    * Farol de RDO: uma linha por equipe ativa, uma coluna por dia do ciclo
-   * de medição (dia 19 do mês anterior ao dia 20 do mês informado — mesmo
+   * de medição (dia 21 do mês anterior ao dia 20 do mês informado — mesmo
    * ciclo do Farol de OM, não o mês corrido) — pra grade "equipe × dia"
    * mostrar de relance quem já mandou o RDO, quem está aguardando
    * assinatura, quem foi aprovado/reprovado. Sem colunas de
@@ -1224,7 +1224,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         : new Date().toISOString().slice(0, 7);
     const ano = Number(periodo.slice(0, 4));
     const mes = Number(periodo.slice(5, 7));
-    const inicio = new Date(Date.UTC(ano, mes - 2, 19));
+    const inicio = new Date(Date.UTC(ano, mes - 2, 21));
     const fim = new Date(Date.UTC(ano, mes - 1, 20, 23, 59, 59, 999));
 
     const [equipes, rdos] = await Promise.all([

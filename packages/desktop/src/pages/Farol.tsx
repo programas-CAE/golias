@@ -159,7 +159,7 @@ const RDO_LEGENDA: Array<{ classe: string; texto: string }> = [
 const DIAS_SEMANA_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
 /**
- * Período (rótulo do ciclo de medição, dia 19 do mês anterior ao dia 20 do
+ * Período (rótulo do ciclo de medição, dia 21 do mês anterior ao dia 20 do
  * mês rotulado) que contém a data de hoje — não é sempre o mês civil
  * corrente: do dia 21 em diante, o ciclo vigente já "pertence" ao mês
  * seguinte (só fecha no dia 20 dele). Sem essa conta, o Farol abria por
@@ -301,8 +301,8 @@ export default function Farol(): ReactElement {
             <h1 className="list-title">{aba === "om" ? "Farol de OM" : "Farol de RDO"}</h1>
             <p className="list-subtitle">
               {aba === "om"
-                ? "Ciclo de medição — do dia 19 do mês anterior ao dia 20 do mês selecionado, dia a dia"
-                : "Recebimento e assinatura dos RDOs por equipe — mesmo ciclo de medição, do dia 19 do mês anterior ao dia 20 do mês selecionado"}
+                ? "Ciclo de medição — do dia 21 do mês anterior ao dia 20 do mês selecionado, dia a dia"
+                : "Recebimento e assinatura dos RDOs por equipe — mesmo ciclo de medição, do dia 21 do mês anterior ao dia 20 do mês selecionado"}
             </p>
           </div>
           <input type="month" className="field-input" value={mes} onChange={(event) => setMes(event.target.value)} />

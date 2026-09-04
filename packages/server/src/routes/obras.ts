@@ -113,7 +113,7 @@ export function registerObrasRoutes(app: FastifyInstance): void {
   /**
    * Cronograma da obra: etapas PLANEJADAS (todas, pra desenhar a barra
    * mesmo quando ultrapassam o mês visível) + apontamentos REAIS (RDOs) do
-   * ciclo de medição informado — mesmo ciclo dia 19 do mês anterior ao dia
+   * ciclo de medição informado — mesmo ciclo dia 21 do mês anterior ao dia
    * 20 do mês selecionado usado no Farol de OM/RDO, pra bater com o
    * fechamento mensal que a obra também segue.
    */
@@ -129,7 +129,7 @@ export function registerObrasRoutes(app: FastifyInstance): void {
           : new Date().toISOString().slice(0, 7);
       const ano = Number(mesParam.slice(0, 4));
       const mes = Number(mesParam.slice(5, 7));
-      const inicio = new Date(Date.UTC(ano, mes - 2, 19));
+      const inicio = new Date(Date.UTC(ano, mes - 2, 21));
       const fim = new Date(Date.UTC(ano, mes - 1, 20, 23, 59, 59, 999));
 
       const [rdos, etapas] = await Promise.all([

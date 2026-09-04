@@ -82,7 +82,7 @@ interface AtividadeCatalogo {
 }
 
 /**
- * Rótulo do ciclo de medição (dia 19 do mês anterior ao dia 20 do mês
+ * Rótulo do ciclo de medição (dia 21 do mês anterior ao dia 20 do mês
  * rotulado) que contém a data de hoje — do dia 21 em diante, o ciclo
  * vigente já "pertence" ao mês seguinte (só fecha no dia 20 dele). Mesma
  * conta do Farol de status (Farol.tsx).
@@ -162,7 +162,7 @@ export default function Home(): ReactElement {
           <div>
             <h1 className="list-title">Indicadores</h1>
             <p className="list-subtitle">
-              Produtividade e eficiência das equipes preventivas — ciclo de medição do dia 19 do mês anterior ao dia
+              Produtividade e eficiência das equipes preventivas — ciclo de medição do dia 21 do mês anterior ao dia
               20 do mês selecionado
             </p>
           </div>

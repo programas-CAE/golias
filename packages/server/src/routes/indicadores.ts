@@ -227,7 +227,7 @@ export function extrairMetasDoMesAnterior(resumoMesAnterior: ResumoProdutividade
 }
 
 /**
- * Intervalo [início, fim) do ciclo de medição rotulado "YYYY-MM" — do dia 19
+ * Intervalo [início, fim) do ciclo de medição rotulado "YYYY-MM" — do dia 21
  * do mês anterior ao dia 20 do mês rotulado (mesmo ciclo do Farol de status,
  * GET /rdos/farol-status e GET /ordens-manutencao/farol), não o mês civil.
  * Usa o ciclo atual se omitido/inválido.
@@ -238,7 +238,7 @@ export function intervaloDoMes(mes: string | undefined): { periodo: string; inic
   const mesNum = Number(valido.slice(5, 7));
   return {
     periodo: valido,
-    inicio: new Date(Date.UTC(ano, mesNum - 2, 19)),
+    inicio: new Date(Date.UTC(ano, mesNum - 2, 21)),
     fim: new Date(Date.UTC(ano, mesNum - 1, 21)),
   };
 }

@@ -178,12 +178,12 @@ describe("GET /obras/:id/calendario", () => {
     expect(response.statusCode).toBe(404);
   });
 
-  it("usa o mesmo ciclo de medição do Farol (dia 19 do mês anterior ao dia 20 do mês pedido), não o mês civil", async () => {
+  it("usa o mesmo ciclo de medição do Farol (dia 21 do mês anterior ao dia 20 do mês pedido), não o mês civil", async () => {
     const { frente, equipe, atividade } = await criarCenario();
     const obra = await prisma.obra.create({ data: { nome: "Obra do ciclo" } });
 
-    const foraAntes = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-08-18", atividadeId: atividade.id });
-    const dentroInicio = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-08-19", atividadeId: atividade.id });
+    const foraAntes = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-08-20", atividadeId: atividade.id });
+    const dentroInicio = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-08-21", atividadeId: atividade.id });
     const dentroFim = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-09-20", atividadeId: atividade.id });
     const foraDepois = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-09-21", atividadeId: atividade.id });
 
@@ -191,7 +191,7 @@ describe("GET /obras/:id/calendario", () => {
     const response = await app.inject({ method: "GET", url: `/obras/${obra.id}/calendario?mes=2026-09` });
 
     const body = response.json() as { periodo: { inicio: string; fim: string }; rdos: Array<{ id: string }> };
-    expect(body.periodo).toMatchObject({ inicio: "2026-08-19", fim: "2026-09-20" });
+    expect(body.periodo).toMatchObject({ inicio: "2026-08-21", fim: "2026-09-20" });
     const ids = body.rdos.map((r) => r.id);
     expect(ids).toContain(dentroInicio.id);
     expect(ids).toContain(dentroFim.id);

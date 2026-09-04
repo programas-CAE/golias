@@ -58,8 +58,8 @@ function mesAtual(): string {
 
 /**
  * Período (dia 21 do mês anterior ao dia 20 do mês selecionado) usado pra
- * arquivar/consultar os RDOs por ciclo, a pedido do usuário — não é o
- * mesmo ciclo do Farol (dia 19 a 20), é um período de arquivo diferente.
+ * arquivar/consultar os RDOs por ciclo — mesmo ciclo de medição do Farol
+ * (Farol.tsx) e dos indicadores, unificado em todo o sistema.
  */
 function periodoDoArquivo(mes: string): { inicio: string; fim: string } {
   const [anoStr, mesStr] = mes.split("-");

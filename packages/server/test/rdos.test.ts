@@ -1132,7 +1132,7 @@ describe("POST /rdos/:id/enviar-fiscal", () => {
 });
 
 describe("GET /rdos/farol-status", () => {
-  it("monta a grade equipe x dia com o status de cada RDO no ciclo de medição (dia 19 do mês anterior ao dia 20 do mês selecionado)", async () => {
+  it("monta a grade equipe x dia com o status de cada RDO no ciclo de medição (dia 21 do mês anterior ao dia 20 do mês selecionado)", async () => {
     const { frente, equipe } = await criarCenario();
     await prisma.rdo.create({
       data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-15"), status: "APROVADO" },
@@ -1148,9 +1148,9 @@ describe("GET /rdos/farol-status", () => {
       linhas: Array<{ equipeId: string; porDia: Record<string, string | null> }>;
     };
     expect(body.periodo).toBe("2026-07");
-    // Ciclo: 19/06 a 20/07 — 12 dias em junho (19..30) + 20 dias em julho (1..20) = 32.
-    expect(body.dias).toHaveLength(32);
-    expect(body.dias[0]).toBe("2026-06-19");
+    // Ciclo: 21/06 a 20/07 — 10 dias em junho (21..30) + 20 dias em julho (1..20) = 30.
+    expect(body.dias).toHaveLength(30);
+    expect(body.dias[0]).toBe("2026-06-21");
     expect(body.dias[body.dias.length - 1]).toBe("2026-07-20");
     const linha = body.linhas.find((l) => l.equipeId === equipe.id);
     expect(linha?.porDia["2026-07-15"]).toBe("APROVADO");

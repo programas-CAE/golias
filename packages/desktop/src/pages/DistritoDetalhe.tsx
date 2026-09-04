@@ -88,7 +88,7 @@ interface EquipeEfetiva {
 }
 
 /**
- * Rótulo do ciclo de medição (dia 19 do mês anterior ao dia 20 do mês
+ * Rótulo do ciclo de medição (dia 21 do mês anterior ao dia 20 do mês
  * rotulado) que contém a data de hoje — do dia 21 em diante, o ciclo
  * vigente já "pertence" ao mês seguinte (só fecha no dia 20 dele). Mesma
  * conta do Farol de status (Farol.tsx).

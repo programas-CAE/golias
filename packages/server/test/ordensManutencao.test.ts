@@ -247,7 +247,7 @@ describe("GET /ordens-manutencao/farol", () => {
       linhas: Array<{ equipeId: string; equipe: string; porDia: Record<string, { quantidade: number; status: string } | null> }>;
       itens: Array<{ numero: string; dataRealizada: string | null }>;
     };
-    expect(body.periodo).toEqual({ inicio: "2019-12-19", fim: "2020-01-20" });
+    expect(body.periodo).toEqual({ inicio: "2019-12-21", fim: "2020-01-20" });
 
     const dia = body.diasResumo.find((d) => d.data === "2020-01-10");
     expect(dia?.realizada).toBe(1);

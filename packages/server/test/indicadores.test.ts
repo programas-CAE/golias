@@ -50,14 +50,14 @@ async function criarRdoCompleto(
 }
 
 describe("GET /indicadores", () => {
-  it("usa o ciclo de medição (dia 19 do mês anterior ao dia 20 do mês selecionado), não o mês civil", async () => {
+  it("usa o ciclo de medição (dia 21 do mês anterior ao dia 20 do mês selecionado), não o mês civil", async () => {
     const { frenteA, equipeA, atividade1 } = await criarCenario();
     const app = buildApp();
 
-    // Fora do ciclo de "2026-09" (começa em 19/08): dia 18/08 fica de fora.
-    await criarRdoCompleto(app, { frenteId: frenteA.id, equipeId: equipeA.id, data: "2026-08-18", atividadeCatalogoId: atividade1.id });
-    // Dentro do ciclo: começo (19/08) e fim (20/09).
-    await criarRdoCompleto(app, { frenteId: frenteA.id, equipeId: equipeA.id, data: "2026-08-19", atividadeCatalogoId: atividade1.id });
+    // Fora do ciclo de "2026-09" (começa em 21/08): dia 20/08 fica de fora.
+    await criarRdoCompleto(app, { frenteId: frenteA.id, equipeId: equipeA.id, data: "2026-08-20", atividadeCatalogoId: atividade1.id });
+    // Dentro do ciclo: começo (21/08) e fim (20/09).
+    await criarRdoCompleto(app, { frenteId: frenteA.id, equipeId: equipeA.id, data: "2026-08-21", atividadeCatalogoId: atividade1.id });
     await criarRdoCompleto(app, { frenteId: frenteA.id, equipeId: equipeA.id, data: "2026-09-20", atividadeCatalogoId: atividade1.id });
     // Fora do ciclo de "2026-09": dia 21/09 já pertence ao ciclo de "2026-10".
     await criarRdoCompleto(app, { frenteId: frenteA.id, equipeId: equipeA.id, data: "2026-09-21", atividadeCatalogoId: atividade1.id });

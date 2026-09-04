@@ -76,7 +76,7 @@ const CORES_ETAPA = ["#2563eb", "#d97706", "#16a34a", "#db2777", "#7c3aed", "#08
 const DIAS_SEMANA_ABREV = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"];
 
 /**
- * Ciclo de medição vigente (dia 19 do mês anterior ao dia 20 do mês
+ * Ciclo de medição vigente (dia 21 do mês anterior ao dia 20 do mês
  * rotulado) — mesma conta do Farol, porque a Obra fecha no mesmo ciclo das
  * equipes normais, não no mês civil.
  */

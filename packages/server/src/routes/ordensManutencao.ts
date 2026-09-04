@@ -95,7 +95,7 @@ function foiLancada(atividades: { statusOm: string | null }[]): boolean {
 
 export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
   /**
-   * Painel do ciclo de medição (dia 19 do mês anterior ao dia 20 do mês
+   * Painel do ciclo de medição (dia 21 do mês anterior ao dia 20 do mês
    * informado, não o mês corrido) — compara OM programada x OM realizada.
    * `dias`: contagem por dia (realizada/aguardando validação/reprovada/
    * pendente/não executada), pra visão geral rápida. `itens`: uma linha por
@@ -110,7 +110,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
     const ano = Number(mesParam.slice(0, 4));
     const mes = Number(mesParam.slice(5, 7));
 
-    const inicio = new Date(Date.UTC(ano, mes - 2, 19));
+    const inicio = new Date(Date.UTC(ano, mes - 2, 21));
     const fim = new Date(Date.UTC(ano, mes - 1, 20, 23, 59, 59, 999));
 
     const [ordens, equipes] = await Promise.all([
