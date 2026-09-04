@@ -1,7 +1,7 @@
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import { registerAtividadesRoutes } from "./routes/atividades.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerColaboradoresRoutes } from "./routes/colaboradores.js";
@@ -52,6 +52,22 @@ export function buildApp(): FastifyInstance {
   void app.register(rateLimit, { global: false });
   void app.register(multipart, {
     limits: { fileSize: 15 * 1024 * 1024, files: 1 },
+  });
+
+  // Sem isso, qualquer exceção não tratada numa rota (ex.: erro do Prisma
+  // que escapou de um try/catch) virava o "Internal Server Error" cru do
+  // Fastify na tela do usuário — sem contexto nenhum do que fazer. O erro
+  // completo continua indo pro log (pra investigar depois); só a mensagem
+  // que o usuário vê fica mais útil. Erros com status < 500 (validação,
+  // rate limit etc.) já têm mensagem própria — só o genérico >= 500 é
+  // trocado.
+  app.setErrorHandler((error: FastifyError, request, reply) => {
+    request.log.error(error);
+    const status = error.statusCode ?? 500;
+    if (status >= 500) {
+      return reply.status(status).send({ error: "Não foi possível concluir a operação. Tente novamente em instantes." });
+    }
+    return reply.status(status).send({ error: error.message });
   });
 
   app.get("/health", async () => {

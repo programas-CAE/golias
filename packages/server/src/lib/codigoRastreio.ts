@@ -28,10 +28,15 @@ export async function comCodigoRastreio<T>(criar: (codigo: string) => Promise<T>
     try {
       return await criar(codigo);
     } catch (error) {
+      // `error.meta.target` era o jeito de achar o campo colidido nas
+      // versões antigas do Prisma Client — com os driver adapters (Prisma
+      // 7), o P2002 chega sem `target`, só com o detalhe dentro de
+      // `meta.driverAdapterError`. Checar a mensagem em vez do formato
+      // interno do meta é mais robusto: ela sempre cita o nome do campo,
+      // independente da versão/adapter (bug real visto em produção — a
+      // colisão nunca era detectada, então nunca tentava de novo).
       const ehColisaoDeCodigo =
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === "P2002" &&
-        (error.meta?.target as string[] | undefined)?.includes("codigoRastreio");
+        error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && error.message.includes("codigoRastreio");
       if (!ehColisaoDeCodigo || tentativa >= 2) throw error;
     }
   }
