@@ -46,8 +46,9 @@ const TIPO_RDO_LABEL: Record<string, string> = {
   PREVENTIVA_CORRETIVA: "Preventiva / Corretiva",
   TERRAPLENAGEM: "Terraplenagem",
   SUPERESTRUTURA: "Superestrutura",
+  MOTORISTA_OPERADOR: "Motorista / Operador",
 };
-const TIPOS_RDO = ["PREVENTIVA_CORRETIVA", "TERRAPLENAGEM", "SUPERESTRUTURA"] as const;
+const TIPOS_RDO = ["PREVENTIVA_CORRETIVA", "TERRAPLENAGEM", "SUPERESTRUTURA", "MOTORISTA_OPERADOR"] as const;
 
 function chaveMemoriaEquipe(): string {
   return "golias:encarregado:ultimaEquipeId";

@@ -32,6 +32,7 @@ const TIPO_LABEL: Record<string, string> = {
   PREVENTIVA_CORRETIVA: "Preventiva/Corretiva",
   TERRAPLENAGEM: "Terraplenagem",
   SUPERESTRUTURA: "Superestrutura",
+  MOTORISTA_OPERADOR: "Motorista/Operador",
 };
 
 const MARCAS_DIACRITICAS = /[̀-ͯ]/g;

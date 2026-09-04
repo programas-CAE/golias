@@ -119,6 +119,11 @@ interface RdoEquipamentoSalvo {
   producaoUnidade: string | null;
   horimetroInicial: string | null;
   horimetroFinal: string | null;
+  kmInicial: string | null;
+  kmFinal: string | null;
+  rota: string | null;
+  combustivelLitros: string | null;
+  combustivelPosto: string | null;
 }
 
 interface MaterialCatalogoRef {
@@ -140,6 +145,7 @@ interface Rdo {
   frente: Ref;
   equipe: { id: string; nome: string; membros: EquipeMembro[] };
   data: string;
+  tipo: string;
   status: string;
   clima: string | null;
   horaExtraInicio: string | null;
@@ -235,10 +241,26 @@ interface EquipamentoDetalhe {
   producaoUnidade: string;
   horimetroInicial: string;
   horimetroFinal: string;
+  kmInicial: string;
+  kmFinal: string;
+  rota: string;
+  combustivelLitros: string;
+  combustivelPosto: string;
 }
 
 function detalheVazio(): EquipamentoDetalhe {
-  return { producaoDescricao: "", producaoValor: "", producaoUnidade: "", horimetroInicial: "", horimetroFinal: "" };
+  return {
+    producaoDescricao: "",
+    producaoValor: "",
+    producaoUnidade: "",
+    horimetroInicial: "",
+    horimetroFinal: "",
+    kmInicial: "",
+    kmFinal: "",
+    rota: "",
+    combustivelLitros: "",
+    combustivelPosto: "",
+  };
 }
 
 function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft {
@@ -469,6 +491,11 @@ export default function Campo(): ReactElement {
                 producaoUnidade: eq.producaoUnidade ?? "",
                 horimetroInicial: eq.horimetroInicial ?? "",
                 horimetroFinal: eq.horimetroFinal ?? "",
+                kmInicial: eq.kmInicial ?? "",
+                kmFinal: eq.kmFinal ?? "",
+                rota: eq.rota ?? "",
+                combustivelLitros: eq.combustivelLitros ?? "",
+                combustivelPosto: eq.combustivelPosto ?? "",
               },
             ]),
           ),
@@ -883,6 +910,11 @@ export default function Campo(): ReactElement {
             producaoUnidade: detalhe.producaoUnidade.trim() || null,
             horimetroInicial: detalhe.horimetroInicial !== "" ? Number(detalhe.horimetroInicial) : null,
             horimetroFinal: detalhe.horimetroFinal !== "" ? Number(detalhe.horimetroFinal) : null,
+            kmInicial: detalhe.kmInicial !== "" ? Number(detalhe.kmInicial) : null,
+            kmFinal: detalhe.kmFinal !== "" ? Number(detalhe.kmFinal) : null,
+            rota: detalhe.rota.trim() || null,
+            combustivelLitros: detalhe.combustivelLitros !== "" ? Number(detalhe.combustivelLitros) : null,
+            combustivelPosto: detalhe.combustivelPosto.trim() || null,
           };
         }),
       materiais: materiais
@@ -1064,6 +1096,7 @@ export default function Campo(): ReactElement {
         </button>
       </section>
 
+      {dados.rdo.tipo !== "MOTORISTA_OPERADOR" && (
       <section className="campo-secao">
         <h2>Locais trabalhados</h2>
         {locais.map((local, localIndice) => (
@@ -1503,6 +1536,7 @@ export default function Campo(): ReactElement {
           + Adicionar local
         </button>
       </section>
+      )}
 
       <section className="campo-secao">
         <h2>Mão de obra</h2>
@@ -1609,6 +1643,60 @@ export default function Campo(): ReactElement {
                           placeholder="Ex.: 1240.00"
                           value={detalhe.horimetroFinal}
                           onChange={(event) => atualizarDetalheEquipamento(item.id, "horimetroFinal", event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <p className="list-subtitle">
+                      Motorista/operador: km rodado, rota e combustível abastecido, quando fizer sentido.
+                    </p>
+                    <div className="campo-grid-2">
+                      <div>
+                        <label className="field-label">Km inicial</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min={0}
+                          className="field-input"
+                          value={detalhe.kmInicial}
+                          onChange={(event) => atualizarDetalheEquipamento(item.id, "kmInicial", event.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="field-label">Km final</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          min={0}
+                          className="field-input"
+                          value={detalhe.kmFinal}
+                          onChange={(event) => atualizarDetalheEquipamento(item.id, "kmFinal", event.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <input
+                      className="field-input"
+                      placeholder="Rota (ex.: Marabá — Parauapebas)"
+                      value={detalhe.rota}
+                      onChange={(event) => atualizarDetalheEquipamento(item.id, "rota", event.target.value)}
+                    />
+                    <div className="campo-grid-2">
+                      <div>
+                        <label className="field-label">Combustível abastecido (litros)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          className="field-input"
+                          value={detalhe.combustivelLitros}
+                          onChange={(event) => atualizarDetalheEquipamento(item.id, "combustivelLitros", event.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="field-label">Posto</label>
+                        <input
+                          className="field-input"
+                          value={detalhe.combustivelPosto}
+                          onChange={(event) => atualizarDetalheEquipamento(item.id, "combustivelPosto", event.target.value)}
                         />
                       </div>
                     </div>

@@ -8,6 +8,7 @@ export * from "./schemas/equipe.schema.js";
 export * from "./schemas/frente.schema.js";
 export * from "./schemas/materialCatalogo.schema.js";
 export * from "./schemas/obra.schema.js";
+export * from "./schemas/obraEtapa.schema.js";
 export * from "./schemas/ordemManutencao.schema.js";
 export * from "./schemas/portalFiscal.schema.js";
 export * from "./schemas/rdo.schema.js";

@@ -72,6 +72,11 @@ export interface RdoPdfEquipamentoItem {
   producaoUnidade: string | null;
   horimetroInicial: number | null;
   horimetroFinal: number | null;
+  kmInicial: number | null;
+  kmFinal: number | null;
+  rota: string | null;
+  combustivelLitros: number | null;
+  combustivelPosto: string | null;
 }
 
 export interface RdoPdfMaterialItem {
@@ -598,6 +603,15 @@ function desenharRecursos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
         item.horimetroInicial != null
           ? ` — horímetro: ${formatarNumero(item.horimetroInicial)} a ${formatarNumero(item.horimetroFinal)} h`
           : ` — horímetro final: ${formatarNumero(item.horimetroFinal)} h`;
+    }
+    // Motorista/operador: km rodado, rota e combustível — junto no nome,
+    // mesma razão do produção/horímetro acima.
+    if (item.kmFinal != null) {
+      producao += ` — km: ${item.kmInicial != null ? `${formatarNumero(item.kmInicial)} a ` : ""}${formatarNumero(item.kmFinal)}`;
+    }
+    if (item.rota) producao += ` — rota: ${item.rota}`;
+    if (item.combustivelLitros != null) {
+      producao += ` — combustível: ${formatarNumero(item.combustivelLitros)} L${item.combustivelPosto ? ` (${item.combustivelPosto})` : ""}`;
     }
     return { nome: `${item.nome}${producao}`, quantidade: String(item.quantidade), unidade: "UN" };
   });

@@ -197,6 +197,15 @@ export const rdoEquipamentoInputSchema = z.object({
   // o final de hoje.
   horimetroInicial: z.number().nonnegative().nullable().optional(),
   horimetroFinal: z.number().nonnegative().nullable().optional(),
+  // Motorista/operador (RdoTipo.MOTORISTA_OPERADOR) — km rodado/rota e
+  // combustível abastecido. Campos genéricos aqui (não numa tabela própria)
+  // porque são, no fundo, mais uma forma de apontar o uso do equipamento no
+  // dia, igual produção/horímetro já são.
+  kmInicial: z.number().nonnegative().nullable().optional(),
+  kmFinal: z.number().nonnegative().nullable().optional(),
+  rota: z.string().trim().max(160).nullable().optional(),
+  combustivelLitros: z.number().nonnegative().nullable().optional(),
+  combustivelPosto: z.string().trim().max(120).nullable().optional(),
 });
 
 export type RdoEquipamentoInput = z.infer<typeof rdoEquipamentoInputSchema>;
@@ -213,7 +222,7 @@ export const rdoMaterialInputSchema = z.object({
 
 export type RdoMaterialInput = z.infer<typeof rdoMaterialInputSchema>;
 
-export const RDO_TIPO_VALUES = ["PREVENTIVA_CORRETIVA", "TERRAPLENAGEM", "SUPERESTRUTURA"] as const;
+export const RDO_TIPO_VALUES = ["PREVENTIVA_CORRETIVA", "TERRAPLENAGEM", "SUPERESTRUTURA", "MOTORISTA_OPERADOR"] as const;
 export const rdoTipoSchema = z.enum(RDO_TIPO_VALUES);
 export type RdoTipo = z.infer<typeof rdoTipoSchema>;
 
@@ -293,6 +302,30 @@ export const rdoCreateInputSchema = z
       return;
     }
 
+    // Conteúdo mensurável de um equipamento no dia — produção/horímetro
+    // (terraplenagem) ou km/combustível (motorista/operador). Qualquer um
+    // desses já basta pra esse item "valer" como apontamento.
+    const temConteudo = (equipamento: RdoEquipamentoInput) =>
+      equipamento.producaoValor != null ||
+      equipamento.horimetroFinal != null ||
+      equipamento.kmFinal != null ||
+      equipamento.combustivelLitros != null;
+
+    // Motorista/operador não usa "locais" (não tem atividade do catálogo
+    // pra apontar, é exclusivo pra acompanhar produção/km/combustível do
+    // veículo/máquina) — igual Superestrutura, mas reaproveitando
+    // RdoEquipamento em vez de uma tabela própria.
+    if (data.tipo === "MOTORISTA_OPERADOR") {
+      if (!data.equipamentos.some(temConteudo)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Informe ao menos a produção, o horímetro, o km ou o combustível de algum equipamento",
+          path: ["equipamentos"],
+        });
+      }
+      return;
+    }
+
     if (data.locais.length === 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Informe ao menos um local trabalhado", path: ["locais"] });
       return;
@@ -302,9 +335,7 @@ export const rdoCreateInputSchema = z
     // (terraplenagem, ver rdoEquipamentoInputSchema). Local sem atividade
     // sozinho (só descrevendo o trecho) não basta.
     const temAtividade = data.locais.some((local) => local.atividades.length > 0);
-    const temProducaoEquipamento = data.equipamentos.some(
-      (equipamento) => equipamento.producaoValor != null || equipamento.horimetroFinal != null,
-    );
+    const temProducaoEquipamento = data.equipamentos.some(temConteudo);
     if (!temAtividade && !temProducaoEquipamento) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

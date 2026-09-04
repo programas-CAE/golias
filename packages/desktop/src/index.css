@@ -965,13 +965,28 @@ textarea.field-input {
   padding: 6px;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 4px;
   background: var(--surface);
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.obra-calendario-dia:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.obra-calendario-dia--selecionado {
+  border-color: var(--accent);
+  background: var(--surface-tint-active);
 }
 
 .obra-calendario-dia--vazio {
   background: transparent;
   border-color: transparent;
+  cursor: default;
 }
 
 .obra-calendario-dia-numero {
@@ -980,40 +995,23 @@ textarea.field-input {
   color: var(--text-tertiary);
 }
 
-.obra-calendario-rdos {
+.obra-calendario-etapas {
   display: flex;
-  flex-direction: column;
   gap: 3px;
-  overflow-y: auto;
+  width: 100%;
 }
 
-.obra-calendario-rdo-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 6px;
-  border: none;
+.obra-calendario-etapa-barra {
+  height: 5px;
+  flex: 1;
   border-radius: 999px;
-  background: var(--surface-soft-2);
-  color: var(--text-secondary);
-  font-size: 0.7rem;
+}
+
+.obra-calendario-rdo-contagem {
+  margin-top: auto;
+  font-size: 0.68rem;
   font-weight: 600;
-  cursor: pointer;
-  text-align: left;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-family: inherit;
-}
-
-.obra-calendario-rdo-item:hover {
-  background: var(--surface-tint-active);
-}
-
-.obra-calendario-rdo-item .farol-dot {
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
+  color: var(--accent-strong);
 }
 
 .tabs-row {

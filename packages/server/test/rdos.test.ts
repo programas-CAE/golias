@@ -240,6 +240,60 @@ describe("POST /rdos/completo", () => {
     expect(response.statusCode).toBe(400);
   });
 
+  it("MOTORISTA_OPERADOR: aceita sem locais, com km/rota/combustível no equipamento", async () => {
+    const { frente, equipe, equipamento } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        tipo: "MOTORISTA_OPERADOR",
+        equipamentos: [
+          {
+            equipamentoCatalogoId: equipamento.id,
+            quantidade: 1,
+            kmInicial: 1000,
+            kmFinal: 1150,
+            rota: "Marabá — Parauapebas",
+            combustivelLitros: 80,
+            combustivelPosto: "Posto Central",
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as {
+      id: string;
+      equipamentos: Array<{ kmInicial: string; kmFinal: string; rota: string; combustivelLitros: string; combustivelPosto: string }>;
+    };
+    expect(body.equipamentos[0]).toMatchObject({ rota: "Marabá — Parauapebas", combustivelPosto: "Posto Central" });
+    expect(Number(body.equipamentos[0]?.kmFinal)).toBe(1150);
+  });
+
+  it("MOTORISTA_OPERADOR: retorna 400 quando nenhum equipamento tem produção/horímetro/km/combustível", async () => {
+    const { frente, equipe, equipamento } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        tipo: "MOTORISTA_OPERADOR",
+        equipamentos: [{ equipamentoCatalogoId: equipamento.id, quantidade: 1 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
   it("soma pontos extras da mesma atividade/OM no totalCalculado, cada um com seu próprio memorial", async () => {
     const { frente, equipe, atividade } = await criarCenario();
 

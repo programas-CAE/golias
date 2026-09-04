@@ -18,7 +18,8 @@ async function criarCenario() {
   const material = await prisma.materialCatalogo.create({
     data: { contratoId: contrato.id, codigo: "M001", descricao: "Cimento", unidade: "saco", precoUnitario: 30 },
   });
-  return { frente, distrito, equipe, atividade, material };
+  const funcao = await prisma.funcaoCatalogo.create({ data: { nome: "Servente de Obras" } });
+  return { frente, distrito, equipe, atividade, material, funcao };
 }
 
 async function criarRdoNaObra(params: {
@@ -29,6 +30,8 @@ async function criarRdoNaObra(params: {
   atividadeId: string;
   materialId?: string;
   quantidadeMaterial?: number;
+  funcaoId?: string;
+  blocosHorario?: Array<{ horarioInicial: string; horarioFinal: string; descricao: string }>;
 }) {
   const app = buildApp();
   const response = await app.inject({
@@ -39,6 +42,7 @@ async function criarRdoNaObra(params: {
       equipeId: params.equipeId,
       obraId: params.obraId,
       data: params.data,
+      blocosHorario: params.blocosHorario ?? [],
       locais: [
         {
           descricao: "Trecho teste",
@@ -49,6 +53,7 @@ async function criarRdoNaObra(params: {
       materiais: params.materialId
         ? [{ materialCatalogoId: params.materialId, quantidade: params.quantidadeMaterial ?? 1 }]
         : [],
+      maoDeObra: params.funcaoId ? [{ funcaoId: params.funcaoId, quantidade: 3 }] : [],
     },
   });
   expect(response.statusCode).toBe(201);
@@ -171,6 +176,143 @@ describe("GET /obras/:id/calendario", () => {
     const app = buildApp();
     const response = await app.inject({ method: "GET", url: "/obras/nao-existe/calendario" });
     expect(response.statusCode).toBe(404);
+  });
+
+  it("usa o mesmo ciclo de medição do Farol (dia 19 do mês anterior ao dia 20 do mês pedido), não o mês civil", async () => {
+    const { frente, equipe, atividade } = await criarCenario();
+    const obra = await prisma.obra.create({ data: { nome: "Obra do ciclo" } });
+
+    const foraAntes = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-08-18", atividadeId: atividade.id });
+    const dentroInicio = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-08-19", atividadeId: atividade.id });
+    const dentroFim = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-09-20", atividadeId: atividade.id });
+    const foraDepois = await criarRdoNaObra({ frenteId: frente.id, equipeId: equipe.id, obraId: obra.id, data: "2026-09-21", atividadeId: atividade.id });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: `/obras/${obra.id}/calendario?mes=2026-09` });
+
+    const body = response.json() as { periodo: { inicio: string; fim: string }; rdos: Array<{ id: string }> };
+    expect(body.periodo).toMatchObject({ inicio: "2026-08-19", fim: "2026-09-20" });
+    const ids = body.rdos.map((r) => r.id);
+    expect(ids).toContain(dentroInicio.id);
+    expect(ids).toContain(dentroFim.id);
+    expect(ids).not.toContain(foraAntes.id);
+    expect(ids).not.toContain(foraDepois.id);
+  });
+
+  it("traz horas trabalhadas, efetivo e materiais de cada RDO (apontamentos do dia)", async () => {
+    const { frente, equipe, atividade, material, funcao } = await criarCenario();
+    const obra = await prisma.obra.create({ data: { nome: "Obra dos apontamentos" } });
+
+    const rdo = await criarRdoNaObra({
+      frenteId: frente.id,
+      equipeId: equipe.id,
+      obraId: obra.id,
+      data: "2026-09-03",
+      atividadeId: atividade.id,
+      materialId: material.id,
+      quantidadeMaterial: 12,
+      funcaoId: funcao.id,
+      blocosHorario: [{ horarioInicial: "07:00", horarioFinal: "11:00", descricao: "DSS" }],
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: `/obras/${obra.id}/calendario?mes=2026-09` });
+    const body = response.json() as {
+      rdos: Array<{
+        id: string;
+        horasTrabalhadas: number;
+        maoDeObra: Array<{ funcao: string; quantidade: number }>;
+        materiais: Array<{ descricao: string; unidade: string; quantidade: number }>;
+      }>;
+    };
+
+    const linha = body.rdos.find((r) => r.id === rdo.id);
+    expect(linha?.horasTrabalhadas).toBe(4);
+    expect(linha?.maoDeObra).toEqual([{ funcao: "Servente de Obras", quantidade: 3 }]);
+    expect(linha?.materiais).toEqual([{ descricao: "Cimento", unidade: "saco", quantidade: 12 }]);
+  });
+});
+
+describe("Etapas da obra (cronograma planejado)", () => {
+  it("cria, lista ordenado por data de início, edita e remove uma etapa", async () => {
+    const obra = await prisma.obra.create({ data: { nome: "Obra com etapas" } });
+    const app = buildApp();
+
+    const criada2 = await app.inject({
+      method: "POST",
+      url: `/obras/${obra.id}/etapas`,
+      payload: { nome: "Base", dataInicioPrevista: "2026-09-16", dataFimPrevista: "2026-09-30" },
+    });
+    const criada1 = await app.inject({
+      method: "POST",
+      url: `/obras/${obra.id}/etapas`,
+      payload: { nome: "Terraplenagem", dataInicioPrevista: "2026-09-01", dataFimPrevista: "2026-09-15" },
+    });
+    expect(criada1.statusCode).toBe(201);
+    expect(criada2.statusCode).toBe(201);
+    const etapa1 = criada1.json() as { id: string };
+
+    const lista = await app.inject({ method: "GET", url: `/obras/${obra.id}/etapas` });
+    expect((lista.json() as Array<{ nome: string }>).map((e) => e.nome)).toEqual(["Terraplenagem", "Base"]);
+
+    const editada = await app.inject({
+      method: "PATCH",
+      url: `/obras/${obra.id}/etapas/${etapa1.id}`,
+      payload: { nome: "Terraplenagem (revisado)", dataInicioPrevista: "2026-09-01", dataFimPrevista: "2026-09-18" },
+    });
+    expect(editada.statusCode).toBe(200);
+    expect((editada.json() as { nome: string }).nome).toBe("Terraplenagem (revisado)");
+
+    const removida = await app.inject({ method: "DELETE", url: `/obras/${obra.id}/etapas/${etapa1.id}` });
+    expect(removida.statusCode).toBe(204);
+    const listaFinal = await app.inject({ method: "GET", url: `/obras/${obra.id}/etapas` });
+    expect((listaFinal.json() as Array<{ nome: string }>).map((e) => e.nome)).toEqual(["Base"]);
+  });
+
+  it("retorna 400 quando a data fim é antes da data início", async () => {
+    const obra = await prisma.obra.create({ data: { nome: "Obra" } });
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: `/obras/${obra.id}/etapas`,
+      payload: { nome: "Etapa inválida", dataInicioPrevista: "2026-09-15", dataFimPrevista: "2026-09-01" },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+
+  it("não deixa editar/remover etapa de outra obra (isolamento por obraId)", async () => {
+    const obraA = await prisma.obra.create({ data: { nome: "Obra A" } });
+    const obraB = await prisma.obra.create({ data: { nome: "Obra B" } });
+    const app = buildApp();
+    const etapa = (
+      await app.inject({
+        method: "POST",
+        url: `/obras/${obraA.id}/etapas`,
+        payload: { nome: "Etapa da A", dataInicioPrevista: "2026-09-01", dataFimPrevista: "2026-09-10" },
+      })
+    ).json() as { id: string };
+
+    const editar = await app.inject({
+      method: "PATCH",
+      url: `/obras/${obraB.id}/etapas/${etapa.id}`,
+      payload: { nome: "Tentativa", dataInicioPrevista: "2026-09-01", dataFimPrevista: "2026-09-10" },
+    });
+    expect(editar.statusCode).toBe(404);
+
+    const remover = await app.inject({ method: "DELETE", url: `/obras/${obraB.id}/etapas/${etapa.id}` });
+    expect(remover.statusCode).toBe(404);
+  });
+
+  it("retorna 404 pra obra inexistente", async () => {
+    const app = buildApp();
+    const listar = await app.inject({ method: "GET", url: "/obras/nao-existe/etapas" });
+    expect(listar.statusCode).toBe(404);
+    const criar = await app.inject({
+      method: "POST",
+      url: "/obras/nao-existe/etapas",
+      payload: { nome: "X", dataInicioPrevista: "2026-09-01", dataFimPrevista: "2026-09-10" },
+    });
+    expect(criar.statusCode).toBe(404);
   });
 });
 

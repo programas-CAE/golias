@@ -393,6 +393,11 @@ export const rdoCampoSelect = {
       producaoUnidade: true,
       horimetroInicial: true,
       horimetroFinal: true,
+      kmInicial: true,
+      kmFinal: true,
+      rota: true,
+      combustivelLitros: true,
+      combustivelPosto: true,
     },
   },
   materiais: {
@@ -562,6 +567,11 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
         producaoUnidade: item.producaoUnidade,
         horimetroInicial: item.horimetroInicial != null ? Number(item.horimetroInicial) : null,
         horimetroFinal: item.horimetroFinal != null ? Number(item.horimetroFinal) : null,
+        kmInicial: item.kmInicial != null ? Number(item.kmInicial) : null,
+        kmFinal: item.kmFinal != null ? Number(item.kmFinal) : null,
+        rota: item.rota,
+        combustivelLitros: item.combustivelLitros != null ? Number(item.combustivelLitros) : null,
+        combustivelPosto: item.combustivelPosto,
       })),
     materiais: rdo.materiais
       .filter((item) => Number(item.quantidade) > 0)

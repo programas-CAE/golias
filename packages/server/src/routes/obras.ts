@@ -1,10 +1,35 @@
-import { obraCreateInputSchema, obraUpdateInputSchema } from "@golias/shared";
+import { obraCreateInputSchema, obraEtapaInputSchema, obraUpdateInputSchema } from "@golias/shared";
 import { Prisma } from "@prisma/client";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { parseBody } from "../lib/validate.js";
 
 const obraSelect = { id: true, nome: true, ativo: true, criadoEm: true } as const;
+const etapaSelect = { id: true, obraId: true, nome: true, dataInicioPrevista: true, dataFimPrevista: true } as const;
+
+function minutosDoHorario(horario: string): number {
+  const [horaStr, minutoStr] = horario.split(":");
+  return Number(horaStr) * 60 + Number(minutoStr);
+}
+
+/** Soma blocos de horário + horasTrabalhadas já derivado de cada atividade — mesmo cálculo usado no PDF do RDO. */
+function calcularHorasTrabalhadas(rdo: {
+  blocosHorario: Array<{ horarioInicial: string; horarioFinal: string }>;
+  locais: Array<{ atividades: Array<{ horasTrabalhadas: Prisma.Decimal | null }> }>;
+}): number {
+  let minutos = 0;
+  for (const bloco of rdo.blocosHorario) {
+    const diferenca = minutosDoHorario(bloco.horarioFinal) - minutosDoHorario(bloco.horarioInicial);
+    if (diferenca > 0) minutos += diferenca;
+  }
+  let horasAtividades = 0;
+  for (const local of rdo.locais) {
+    for (const atividade of local.atividades) {
+      if (atividade.horasTrabalhadas != null) horasAtividades += Number(atividade.horasTrabalhadas);
+    }
+  }
+  return minutos / 60 + horasAtividades;
+}
 
 export function registerObrasRoutes(app: FastifyInstance): void {
   /**
@@ -42,12 +67,55 @@ export function registerObrasRoutes(app: FastifyInstance): void {
     }
   });
 
+  /** Etapas/fases PLANEJADAS da obra (cronograma) — datas previstas cadastradas pelo escritório. */
+  app.get<{ Params: { id: string } }>("/obras/:id/etapas", async (request, reply) => {
+    const obra = await prisma.obra.findUnique({ where: { id: request.params.id }, select: { id: true } });
+    if (!obra) return reply.status(404).send({ error: "Obra não encontrada" });
+
+    return prisma.obraEtapa.findMany({
+      where: { obraId: obra.id },
+      orderBy: { dataInicioPrevista: "asc" },
+      select: etapaSelect,
+    });
+  });
+
+  app.post<{ Params: { id: string } }>("/obras/:id/etapas", async (request, reply) => {
+    const obra = await prisma.obra.findUnique({ where: { id: request.params.id }, select: { id: true } });
+    if (!obra) return reply.status(404).send({ error: "Obra não encontrada" });
+
+    const data = parseBody(obraEtapaInputSchema, request.body, reply);
+    if (!data) return;
+
+    const criada = await prisma.obraEtapa.create({ data: { ...data, obraId: obra.id }, select: etapaSelect });
+    return await reply.status(201).send(criada);
+  });
+
+  app.patch<{ Params: { id: string; etapaId: string } }>("/obras/:id/etapas/:etapaId", async (request, reply) => {
+    const data = parseBody(obraEtapaInputSchema, request.body, reply);
+    if (!data) return;
+
+    const { count } = await prisma.obraEtapa.updateMany({
+      where: { id: request.params.etapaId, obraId: request.params.id },
+      data,
+    });
+    if (count === 0) return reply.status(404).send({ error: "Etapa não encontrada" });
+    return prisma.obraEtapa.findUniqueOrThrow({ where: { id: request.params.etapaId }, select: etapaSelect });
+  });
+
+  app.delete<{ Params: { id: string; etapaId: string } }>("/obras/:id/etapas/:etapaId", async (request, reply) => {
+    const { count } = await prisma.obraEtapa.deleteMany({
+      where: { id: request.params.etapaId, obraId: request.params.id },
+    });
+    if (count === 0) return reply.status(404).send({ error: "Etapa não encontrada" });
+    return reply.status(204).send();
+  });
+
   /**
-   * Cronograma da obra — todos os RDOs lançados nela dentro do mês
-   * informado, pra montar o calendário na tela. Diferente do Farol (ciclo
-   * de medição dia 19-20), aqui é o mês civil mesmo: Obra não é sobre
-   * medição de OM, é sobre acompanhar quando essa obra teve gente
-   * trabalhando nela.
+   * Cronograma da obra: etapas PLANEJADAS (todas, pra desenhar a barra
+   * mesmo quando ultrapassam o mês visível) + apontamentos REAIS (RDOs) do
+   * ciclo de medição informado — mesmo ciclo dia 19 do mês anterior ao dia
+   * 20 do mês selecionado usado no Farol de OM/RDO, pra bater com o
+   * fechamento mensal que a obra também segue.
    */
   app.get<{ Params: { id: string }; Querystring: { mes?: string } }>(
     "/obras/:id/calendario",
@@ -61,25 +129,42 @@ export function registerObrasRoutes(app: FastifyInstance): void {
           : new Date().toISOString().slice(0, 7);
       const ano = Number(mesParam.slice(0, 4));
       const mes = Number(mesParam.slice(5, 7));
-      const inicio = new Date(Date.UTC(ano, mes - 1, 1));
-      const fim = new Date(Date.UTC(ano, mes, 0, 23, 59, 59, 999));
+      const inicio = new Date(Date.UTC(ano, mes - 2, 19));
+      const fim = new Date(Date.UTC(ano, mes - 1, 20, 23, 59, 59, 999));
 
-      const rdos = await prisma.rdo.findMany({
-        where: { obraId: obra.id, data: { gte: inicio, lte: fim } },
-        orderBy: { data: "asc" },
-        select: {
-          id: true,
-          data: true,
-          status: true,
-          equipe: { select: { id: true, nome: true } },
-          frente: { select: { id: true, nome: true } },
-        },
-      });
+      const [rdos, etapas] = await Promise.all([
+        prisma.rdo.findMany({
+          where: { obraId: obra.id, data: { gte: inicio, lte: fim } },
+          orderBy: { data: "asc" },
+          select: {
+            id: true,
+            data: true,
+            status: true,
+            equipe: { select: { id: true, nome: true } },
+            frente: { select: { id: true, nome: true } },
+            blocosHorario: { select: { horarioInicial: true, horarioFinal: true } },
+            locais: { select: { atividades: { select: { horasTrabalhadas: true } } } },
+            maoDeObra: { select: { quantidade: true, funcao: { select: { nome: true } } } },
+            materiais: { select: { quantidade: true, materialCatalogo: { select: { descricao: true, unidade: true } } } },
+          },
+        }),
+        prisma.obraEtapa.findMany({ where: { obraId: obra.id }, orderBy: { dataInicioPrevista: "asc" }, select: etapaSelect }),
+      ]);
 
       return {
         obra,
         periodo: { mes: mesParam, inicio: inicio.toISOString().slice(0, 10), fim: fim.toISOString().slice(0, 10) },
-        rdos,
+        etapas,
+        rdos: rdos.map(({ blocosHorario, locais, maoDeObra, materiais, ...rdo }) => ({
+          ...rdo,
+          horasTrabalhadas: calcularHorasTrabalhadas({ blocosHorario, locais }),
+          maoDeObra: maoDeObra.map((item) => ({ funcao: item.funcao.nome, quantidade: item.quantidade })),
+          materiais: materiais.map((item) => ({
+            descricao: item.materialCatalogo.descricao,
+            unidade: item.materialCatalogo.unidade,
+            quantidade: Number(item.quantidade),
+          })),
+        })),
       };
     },
   );

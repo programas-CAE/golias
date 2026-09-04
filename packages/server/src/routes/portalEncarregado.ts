@@ -55,7 +55,7 @@ interface CriarOuAcharRdoHojeInput {
   frenteId: string;
   equipeId: string;
   encarregadoId?: string | null;
-  tipo?: "PREVENTIVA_CORRETIVA" | "TERRAPLENAGEM" | "SUPERESTRUTURA";
+  tipo?: "PREVENTIVA_CORRETIVA" | "TERRAPLENAGEM" | "SUPERESTRUTURA" | "MOTORISTA_OPERADOR";
   obraId?: string | null;
 }
 

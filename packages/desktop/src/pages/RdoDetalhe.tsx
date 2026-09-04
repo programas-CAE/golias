@@ -55,6 +55,11 @@ interface EquipamentoDetalhe {
   producaoUnidade: string | null;
   horimetroInicial: string | null;
   horimetroFinal: string | null;
+  kmInicial: string | null;
+  kmFinal: string | null;
+  rota: string | null;
+  combustivelLitros: string | null;
+  combustivelPosto: string | null;
 }
 
 interface MaterialDetalhe {
@@ -143,7 +148,31 @@ const TIPO_LABEL: Record<string, string> = {
   PREVENTIVA_CORRETIVA: "Preventiva/Corretiva",
   TERRAPLENAGEM: "Terraplenagem",
   SUPERESTRUTURA: "Superestrutura",
+  MOTORISTA_OPERADOR: "Motorista/Operador",
 };
+
+function formatarDetalheEquipamento(item: EquipamentoDetalhe): string {
+  const partes: string[] = [];
+  if (item.producaoValor != null) {
+    partes.push(
+      `${item.producaoDescricao ? `${item.producaoDescricao}: ` : ""}${Number(item.producaoValor).toLocaleString("pt-BR")}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`,
+    );
+  } else if (item.horimetroFinal != null) {
+    partes.push(
+      `Horímetro: ${item.horimetroInicial != null ? `${Number(item.horimetroInicial).toLocaleString("pt-BR")} a ` : ""}${Number(item.horimetroFinal).toLocaleString("pt-BR")} h`,
+    );
+  }
+  if (item.kmFinal != null) {
+    partes.push(
+      `Km: ${item.kmInicial != null ? `${Number(item.kmInicial).toLocaleString("pt-BR")} a ` : ""}${Number(item.kmFinal).toLocaleString("pt-BR")}`,
+    );
+  }
+  if (item.rota) partes.push(`Rota: ${item.rota}`);
+  if (item.combustivelLitros != null) {
+    partes.push(`Combustível: ${Number(item.combustivelLitros).toLocaleString("pt-BR")} L${item.combustivelPosto ? ` (${item.combustivelPosto})` : ""}`);
+  }
+  return partes.length > 0 ? partes.join(" — ") : "—";
+}
 
 /** Agrupa as fotos do RDO pela OM que o encarregado marcou ao enviar cada uma — mesma lógica do PDF e do Campo.tsx. */
 function agruparFotosPorOm(anexos: AnexoDetalhe[]): { omNumero: string | null; fotos: AnexoDetalhe[] }[] {
@@ -479,13 +508,7 @@ export default function RdoDetalhe(): ReactElement {
                     <tr key={item.id}>
                       <td>{item.equipamentoCatalogo.nome}</td>
                       <td>{item.quantidade}</td>
-                      <td>
-                        {item.producaoValor != null
-                          ? `${item.producaoDescricao ? `${item.producaoDescricao}: ` : ""}${Number(item.producaoValor).toLocaleString("pt-BR")}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`
-                          : item.horimetroFinal != null
-                            ? `Horímetro: ${item.horimetroInicial != null ? `${Number(item.horimetroInicial).toLocaleString("pt-BR")} a ` : ""}${Number(item.horimetroFinal).toLocaleString("pt-BR")} h`
-                            : "—"}
-                      </td>
+                      <td>{formatarDetalheEquipamento(item)}</td>
                     </tr>
                   ))}
                 </tbody>

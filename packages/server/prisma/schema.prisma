@@ -380,17 +380,34 @@ model Rdo {
 // Frente/Equipe (estrutura organizacional fixa do contrato): uma Obra é
 // específica de um trabalho, cadastrada livremente pelo escritório.
 model Obra {
-  id       String   @id @default(cuid())
+  id       String      @id @default(cuid())
   nome     String
-  ativo    Boolean  @default(true)
-  criadoEm DateTime @default(now())
+  ativo    Boolean     @default(true)
+  criadoEm DateTime    @default(now())
   rdos     Rdo[]
+  etapas   ObraEtapa[]
+}
+
+// Etapa/fase PLANEJADA da obra (ex.: "Terraplenagem: 01 a 15/09"), cadastrada
+// pelo escritório antes de acontecer — o cronograma em si. Diferente dos
+// RDOs vinculados à obra (Rdo.obraId), que são o que REALMENTE foi
+// executado; a tela de Obras compara as duas coisas lado a lado.
+model ObraEtapa {
+  id                 String   @id @default(cuid())
+  obraId             String
+  obra               Obra     @relation(fields: [obraId], references: [id])
+  nome               String
+  dataInicioPrevista DateTime @db.Date
+  dataFimPrevista    DateTime @db.Date
+
+  @@index([obraId])
 }
 
 enum RdoTipo {
   PREVENTIVA_CORRETIVA
   TERRAPLENAGEM
   SUPERESTRUTURA
+  MOTORISTA_OPERADOR
 }
 
 // Dados extras de um RDO tipo SUPERESTRUTURA (manutenção de via férrea —
@@ -581,6 +598,14 @@ model RdoEquipamento {
   // não campos que se somam; a tela decide qual mostrar por equipamento.
   horimetroInicial      Decimal?            @db.Decimal(10, 2)
   horimetroFinal        Decimal?            @db.Decimal(10, 2)
+  // Motorista/operador (RdoTipo.MOTORISTA_OPERADOR) — km rodado/rota e
+  // combustível abastecido no dia, outra forma de apontar o uso do
+  // equipamento/veículo (ver rdoEquipamentoInputSchema em packages/shared).
+  kmInicial             Decimal?            @db.Decimal(10, 1)
+  kmFinal               Decimal?            @db.Decimal(10, 1)
+  rota                  String?
+  combustivelLitros     Decimal?            @db.Decimal(10, 2)
+  combustivelPosto      String?
 }
 
 // Catálogo oficial de materiais/serviços com preço unitário (Price List do
