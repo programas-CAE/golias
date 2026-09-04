@@ -132,7 +132,7 @@ export default function RelatoriosFotograficos(): ReactElement {
                       <button
                         type="button"
                         className="button button--ghost button--small"
-                        onClick={() => navigate(`/ordens-manutencao/${ordem.id}/relatorio-fotografico`)}
+                        onClick={() => navigate(`/ordens-manutencao/${ordem.id}/relatorios-fotograficos`)}
                       >
                         Abrir
                       </button>

@@ -211,9 +211,9 @@ model OrdemManutencao {
   kmFinal              Decimal?              @db.Decimal(10, 3)
   lado                 String?
   detalhes             String?
-  atividades           RdoAtividade[]
-  anexos               RdoAnexo[]
-  relatorioFotografico RelatorioFotografico?
+  atividades            RdoAtividade[]
+  anexos                RdoAnexo[]
+  relatoriosFotograficos RelatorioFotografico[]
 }
 
 // Checklist de Conclusão de Manutenção Preventiva/Corretiva - Infraestrutura
@@ -222,10 +222,16 @@ model OrdemManutencao {
 // essa OM) na primeira vez que a tela é aberta no escritório; depois disso
 // é só ajuste — sincronizar novas fotos é uma ação separada, pra não
 // ressuscitar uma foto que o escritório removeu de propósito.
+// Um relatório por DIA trabalhado numa OM (não um por OM) — a mesma OM
+// pode ser trabalhada em vários dias até fechar, e cada dia documenta suas
+// próprias fotos e o % concluído daquele dia (RdoAtividade.percentualConcluido,
+// lido no momento de montar o relatório, não duplicado aqui).
 model RelatorioFotografico {
   id                   String                     @id @default(cuid())
-  ordemManutencaoId    String                     @unique
+  ordemManutencaoId    String
   ordemManutencao      OrdemManutencao            @relation(fields: [ordemManutencaoId], references: [id])
+  rdoId                String
+  rdo                  Rdo                        @relation(fields: [rdoId], references: [id])
   dataConclusao        DateTime?                  @db.Date
   // "* Todas as atividades listadas na OM foram executadas;" — único item
   // do checklist original, com a caixa "OK".
@@ -235,6 +241,8 @@ model RelatorioFotografico {
   fotos                RelatorioFotograficoFoto[]
   criadoEm             DateTime                   @default(now())
   atualizadoEm         DateTime                   @updatedAt
+
+  @@unique([ordemManutencaoId, rdoId])
 }
 
 model RelatorioFotograficoFoto {
@@ -381,6 +389,7 @@ model Rdo {
   aprovacoes     AprovacaoFiscal[]
   historico      RdoHistorico[]
   superestrutura RdoSuperestrutura?
+  relatoriosFotograficos RelatorioFotografico[]
 
   @@index([frenteId, data])
   @@index([status])

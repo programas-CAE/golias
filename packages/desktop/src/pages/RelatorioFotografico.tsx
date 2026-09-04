@@ -14,13 +14,22 @@ interface FotoRelatorio {
 interface RelatorioFotograficoResponse {
   id: string;
   ordemManutencaoId: string;
+  rdoId: string;
   omNumero: string;
   dataConclusao: string | null;
   atividadesExecutadas: boolean;
   comentarios: string | null;
   pdfDisponivel: boolean;
   fotos: FotoRelatorio[];
+  statusOm: string | null;
+  percentualConcluido: number | null;
+  rdo: { data: string; equipe: { nome: string } };
 }
+
+const STATUS_OM_LABEL: Record<string, string> = {
+  EM_ANDAMENTO: "Em andamento",
+  CONCLUIDA: "Concluída",
+};
 
 interface ParDeFotos {
   indice: number;
@@ -59,7 +68,7 @@ function montarPares(fotos: FotoRelatorio[], paresVaziosLocais: number[]): ParDe
  * foto, escrever o comentário) e gerar o PDF, não montar do zero.
  */
 export default function RelatorioFotografico(): ReactElement {
-  const { id } = useParams<{ id: string }>();
+  const { id, relatorioId } = useParams<{ id: string; relatorioId: string }>();
   const navigate = useNavigate();
   const [relatorio, setRelatorio] = useState<RelatorioFotograficoResponse | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -81,9 +90,11 @@ export default function RelatorioFotografico(): ReactElement {
   const [paresVaziosLocais, setParesVaziosLocais] = useState<number[]>([]);
 
   async function carregar(): Promise<void> {
-    if (!id) return;
+    if (!id || !relatorioId) return;
     try {
-      const resposta = await api.get<RelatorioFotograficoResponse>(`/ordens-manutencao/${id}/relatorio-fotografico`);
+      const resposta = await api.get<RelatorioFotograficoResponse>(
+        `/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}`,
+      );
       setRelatorio(resposta);
       setDataConclusao(resposta.dataConclusao?.slice(0, 10) ?? "");
       setAtividadesExecutadas(resposta.atividadesExecutadas);
@@ -97,14 +108,14 @@ export default function RelatorioFotografico(): ReactElement {
     void carregar();
     void getSettings().then((settings) => setApiUrl(settings.apiUrl));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, relatorioId]);
 
   async function salvar(): Promise<void> {
-    if (!id) return;
+    if (!id || !relatorioId) return;
     setSalvando(true);
     setErro(null);
     try {
-      await api.patch(`/ordens-manutencao/${id}/relatorio-fotografico`, {
+      await api.patch(`/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}`, {
         dataConclusao: dataConclusao === "" ? null : dataConclusao,
         atividadesExecutadas,
         comentarios: comentarios === "" ? null : comentarios,
@@ -119,12 +130,12 @@ export default function RelatorioFotografico(): ReactElement {
   }
 
   async function sincronizarFotos(): Promise<void> {
-    if (!id) return;
+    if (!id || !relatorioId) return;
     setSincronizando(true);
     setErro(null);
     try {
       const resposta = await api.post<RelatorioFotograficoResponse & { fotosAdicionadas: number }>(
-        `/ordens-manutencao/${id}/relatorio-fotografico/sincronizar-fotos`,
+        `/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/sincronizar-fotos`,
         {},
       );
       setRelatorio((atual) => (atual ? { ...atual, fotos: resposta.fotos } : atual));
@@ -137,7 +148,7 @@ export default function RelatorioFotografico(): ReactElement {
 
   /** Manda a foto e já move ela pro slot certo do par (Antes/Depois de um par específico). */
   async function enviarFotoNoSlot(parIndice: number, lado: "antes" | "depois", arquivo: File): Promise<void> {
-    if (!id) return;
+    if (!id || !relatorioId) return;
     const chaveSlot = `${parIndice}-${lado}`;
     setEnviandoSlot(chaveSlot);
     setErro(null);
@@ -145,7 +156,7 @@ export default function RelatorioFotografico(): ReactElement {
       const form = new FormData();
       form.append("arquivo", arquivo);
       const resposta = await api.postForm<RelatorioFotograficoResponse>(
-        `/ordens-manutencao/${id}/relatorio-fotografico/fotos`,
+        `/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/fotos`,
         form,
       );
       // A foto acabou de ser criada com o maior `ordem` da lista (ver
@@ -153,7 +164,7 @@ export default function RelatorioFotografico(): ReactElement {
       const novaFoto = [...resposta.fotos].sort((a, b) => b.ordem - a.ordem)[0];
       if (novaFoto) {
         const ordemAlvo = parIndice * 2 + (lado === "antes" ? 0 : 1);
-        await api.patch(`/ordens-manutencao/${id}/relatorio-fotografico/fotos/${novaFoto.id}`, {
+        await api.patch(`/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/fotos/${novaFoto.id}`, {
           ordem: ordemAlvo,
           legenda: lado === "antes" ? "Antes" : "Depois",
         });
@@ -168,9 +179,9 @@ export default function RelatorioFotografico(): ReactElement {
   }
 
   async function removerFoto(fotoId: string): Promise<void> {
-    if (!id) return;
+    if (!id || !relatorioId) return;
     try {
-      await api.delete(`/ordens-manutencao/${id}/relatorio-fotografico/fotos/${fotoId}`);
+      await api.delete(`/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/fotos/${fotoId}`);
       setRelatorio((atual) => (atual ? { ...atual, fotos: atual.fotos.filter((f) => f.id !== fotoId) } : atual));
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível remover a foto.");
@@ -193,11 +204,11 @@ export default function RelatorioFotografico(): ReactElement {
   }
 
   async function gerarPdf(): Promise<void> {
-    if (!id) return;
+    if (!id || !relatorioId) return;
     setGerandoPdf(true);
     setErro(null);
     try {
-      await api.post(`/ordens-manutencao/${id}/relatorio-fotografico/pdf`, {});
+      await api.post(`/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/pdf`, {});
       setRelatorio((atual) => (atual ? { ...atual, pdfDisponivel: true } : atual));
     } catch (error) {
       setErro(error instanceof ApiError ? error.message : "Não foi possível gerar o PDF.");
@@ -207,9 +218,11 @@ export default function RelatorioFotografico(): ReactElement {
   }
 
   async function baixarPdf(): Promise<void> {
-    if (!id) return;
+    if (!id || !relatorioId) return;
     const settings = await getSettings();
-    await abrirExterno(`${settings.apiUrl.replace(/\/$/, "")}/ordens-manutencao/${id}/relatorio-fotografico/pdf`);
+    await abrirExterno(
+      `${settings.apiUrl.replace(/\/$/, "")}/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/pdf`,
+    );
   }
 
   const pares = useMemo(
@@ -218,7 +231,7 @@ export default function RelatorioFotografico(): ReactElement {
   );
 
   function urlDaFoto(fotoId: string): string {
-    return `${apiUrl.replace(/\/$/, "")}/ordens-manutencao/${id}/relatorio-fotografico/fotos/${fotoId}/arquivo`;
+    return `${apiUrl.replace(/\/$/, "")}/ordens-manutencao/${id}/relatorios-fotograficos/${relatorioId}/fotos/${fotoId}/arquivo`;
   }
 
   function Slot({ par, lado }: { par: ParDeFotos; lado: "antes" | "depois" }): ReactElement {
@@ -271,10 +284,22 @@ export default function RelatorioFotografico(): ReactElement {
         <div className="list-header">
           <div>
             <h1 className="list-title">Relatório Fotográfico — OM {relatorio?.omNumero ?? "…"}</h1>
-            <p className="list-subtitle">Check List de Conclusão de Manutenção — Infraestrutura</p>
+            <p className="list-subtitle">
+              Check List de Conclusão de Manutenção — Infraestrutura
+              {relatorio && (
+                <>
+                  {" "}
+                  · Dia trabalhado: {relatorio.rdo.data.slice(0, 10)} ({relatorio.rdo.equipe.nome})
+                </>
+              )}
+            </p>
           </div>
           <div style={{ display: "flex", gap: 12 }}>
-            <button type="button" className="button button--secondary" onClick={() => navigate("/relatorios-fotograficos")}>
+            <button
+              type="button"
+              className="button button--secondary"
+              onClick={() => navigate(`/ordens-manutencao/${id}/relatorios-fotograficos`)}
+            >
               Voltar
             </button>
             <button type="button" className="button button--secondary" onClick={() => void gerarPdf()} disabled={gerandoPdf}>
@@ -300,6 +325,13 @@ export default function RelatorioFotografico(): ReactElement {
           <>
             <section className="form-section">
               <h2 className="form-section-title">Dados de planejamento</h2>
+              {!relatorio.dataConclusao && (relatorio.statusOm || relatorio.percentualConcluido != null) && (
+                <p className="form-section-subtitle">
+                  OM ainda em andamento — status neste dia:{" "}
+                  {relatorio.statusOm ? (STATUS_OM_LABEL[relatorio.statusOm] ?? relatorio.statusOm) : "—"}
+                  {relatorio.percentualConcluido != null && <> · {relatorio.percentualConcluido}% concluído neste dia</>}
+                </p>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                 <div>
                   <label className="field-label" htmlFor="dataConclusao">

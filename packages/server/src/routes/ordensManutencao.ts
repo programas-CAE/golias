@@ -67,15 +67,16 @@ const ordemSelect = {
 
 /**
  * A OM "precisa" do Relatório Fotográfico quando algum RDO já declarou uma
- * atividade dela como CONCLUIDA e ainda não existe um relatório com pelo
- * menos 1 foto — é só um indicador (badge na lista/Farol), não trava nada.
+ * atividade dela como CONCLUIDA e nenhum dos relatórios diários dela (um
+ * por dia trabalhado, ver relatoriosFotograficos.ts) tem foto ainda — é só
+ * um indicador (badge na lista/Farol), não trava nada.
  */
 function precisaRelatorioFotografico(
   atividades: { statusOm: string | null }[],
-  relatorioFotografico: { fotos: unknown[] } | null,
+  relatoriosFotograficos: { fotos: unknown[] }[],
 ): boolean {
   const temAtividadeConcluida = atividades.some((a) => a.statusOm === "CONCLUIDA");
-  const temRelatorioComFoto = (relatorioFotografico?.fotos.length ?? 0) > 0;
+  const temRelatorioComFoto = relatoriosFotograficos.some((relatorio) => relatorio.fotos.length > 0);
   return temAtividadeConcluida && !temRelatorioComFoto;
 }
 
@@ -129,7 +130,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
               rdoLocal: { select: { rdo: { select: { equipeId: true, status: true, data: true } } } },
             },
           },
-          relatorioFotografico: { select: { fotos: { select: { id: true } } } },
+          relatoriosFotograficos: { select: { fotos: { select: { id: true } } } },
         },
       }),
       prisma.equipe.findMany({
@@ -216,7 +217,7 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
         lado: ordem.lado,
         detalhes: ordem.detalhes,
         status,
-        precisaRelatorioFotografico: precisaRelatorioFotografico(ordem.atividades, ordem.relatorioFotografico),
+        precisaRelatorioFotografico: precisaRelatorioFotografico(ordem.atividades, ordem.relatoriosFotograficos),
       });
     }
 
@@ -255,12 +256,12 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
       select: {
         ...ordemSelect,
         atividades: { select: { statusOm: true } },
-        relatorioFotografico: { select: { fotos: { select: { id: true } } } },
+        relatoriosFotograficos: { select: { fotos: { select: { id: true } } } },
       },
     });
-    return ordens.map(({ atividades, relatorioFotografico, ...ordem }) => ({
+    return ordens.map(({ atividades, relatoriosFotograficos, ...ordem }) => ({
       ...ordem,
-      precisaRelatorioFotografico: precisaRelatorioFotografico(atividades, relatorioFotografico),
+      precisaRelatorioFotografico: precisaRelatorioFotografico(atividades, relatoriosFotograficos),
       foiLancada: foiLancada(atividades),
     }));
   });
@@ -290,16 +291,16 @@ export function registerOrdensManutencaoRoutes(app: FastifyInstance): void {
     if (!data) return;
 
     try {
-      const { atividades, relatorioFotografico, ...ordem } = await prisma.ordemManutencao.update({
+      const { atividades, relatoriosFotograficos, ...ordem } = await prisma.ordemManutencao.update({
         where: { id: request.params.id },
         data,
         select: {
           ...ordemSelect,
           atividades: { select: { statusOm: true } },
-          relatorioFotografico: { select: { fotos: { select: { id: true } } } },
+          relatoriosFotograficos: { select: { fotos: { select: { id: true } } } },
         },
       });
-      return { ...ordem, precisaRelatorioFotografico: precisaRelatorioFotografico(atividades, relatorioFotografico) };
+      return { ...ordem, precisaRelatorioFotografico: precisaRelatorioFotografico(atividades, relatoriosFotograficos) };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === "P2025") {

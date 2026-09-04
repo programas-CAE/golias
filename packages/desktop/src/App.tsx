@@ -6,6 +6,7 @@ import FrenteDistritos from "./pages/FrenteDistritos";
 import DistritoDetalhe from "./pages/DistritoDetalhe";
 import OrdensManutencao from "./pages/OrdensManutencao";
 import RelatorioFotografico from "./pages/RelatorioFotografico";
+import RelatoriosFotograficosDaOm from "./pages/RelatoriosFotograficosDaOm";
 import RelatoriosFotograficos from "./pages/RelatoriosFotograficos";
 import Cadastro from "./pages/Cadastro";
 import Catalogos from "./pages/Catalogos";
@@ -30,7 +31,8 @@ export default function App(): ReactElement {
         <Route path="/frentes/:frenteId/distritos" element={<FrenteDistritos />} />
         <Route path="/distritos/:distritoId" element={<DistritoDetalhe />} />
         <Route path="/ordens-manutencao" element={<OrdensManutencao />} />
-        <Route path="/ordens-manutencao/:id/relatorio-fotografico" element={<RelatorioFotografico />} />
+        <Route path="/ordens-manutencao/:id/relatorios-fotograficos" element={<RelatoriosFotograficosDaOm />} />
+        <Route path="/ordens-manutencao/:id/relatorios-fotograficos/:relatorioId" element={<RelatorioFotografico />} />
         <Route path="/relatorios-fotograficos" element={<RelatoriosFotograficos />} />
         <Route path="/cadastro" element={<Cadastro />} />
         <Route path="/farol" element={<Farol />} />

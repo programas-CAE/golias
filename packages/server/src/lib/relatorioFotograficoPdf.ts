@@ -25,6 +25,10 @@ export interface RelatorioFotograficoDados {
   atividadesExecutadas: boolean;
   comentarios: string | null;
   fotos: RelatorioFotograficoFotoDados[];
+  // % concluído da OM registrado NESTE dia (RdoAtividade.percentualConcluido)
+  // — um relatório por dia trabalhado, então quando a OM ainda está em
+  // andamento (não fechou), mostra até onde chegou naquele dia específico.
+  percentualConcluido: number | null;
 }
 
 const LOGO_VALE = readFileSync(new URL("../assets/relatorio-fotografico/logo-vale.jpeg", import.meta.url));
@@ -121,7 +125,7 @@ function desenharDadosPlanejamento(doc: PDFKit.PDFDocument, dados: RelatorioFoto
   doc.moveTo(MARGEM, doc.y + 2).lineTo(LARGURA_PAGINA - MARGEM, doc.y + 2).lineWidth(0.5).stroke();
   doc.y += 10;
 
-  const colLargura = LARGURA_UTIL / 2 - 10;
+  const colLargura = LARGURA_UTIL / 3 - 10;
   const y0 = doc.y;
   doc.font("Helvetica-Bold").fontSize(8).text("ORDEM DE MANUTENÇÃO (OM)", MARGEM, y0);
   doc.font("Helvetica").fontSize(11).text(dados.omNumero, MARGEM, y0 + 12);
@@ -129,6 +133,15 @@ function desenharDadosPlanejamento(doc: PDFKit.PDFDocument, dados: RelatorioFoto
   const xData = MARGEM + colLargura + 20;
   doc.font("Helvetica-Bold").fontSize(8).text("DATA DE CONCLUSÃO", xData, y0);
   doc.font("Helvetica").fontSize(11).text(dados.dataConclusao ? formatarData(dados.dataConclusao) : "—", xData, y0 + 12);
+
+  // OM ainda em andamento (sem data de conclusão) — mostra até onde chegou
+  // neste dia específico, já que agora existe um relatório por dia
+  // trabalhado, não só um no fechamento da OM.
+  if (!dados.dataConclusao && dados.percentualConcluido != null) {
+    const xPercentual = MARGEM + (colLargura + 20) * 2;
+    doc.font("Helvetica-Bold").fontSize(8).text("% CONCLUÍDO NESTE DIA", xPercentual, y0);
+    doc.font("Helvetica").fontSize(11).text(`${dados.percentualConcluido}%`, xPercentual, y0 + 12);
+  }
 
   doc.y = y0 + 30;
   doc
