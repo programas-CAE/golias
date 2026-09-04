@@ -15,6 +15,7 @@ interface RdoResumo {
   id: string;
   data: string;
   status: string;
+  enviadoParaFiscalEm: string | null;
   equipe: { id: string; nome: string };
 }
 
@@ -43,14 +44,59 @@ interface MaoDeObraDetalhe {
   quantidade: number;
 }
 
+interface EquipamentoDetalhe {
+  id: string;
+  equipamentoCatalogo: { nome: string };
+  quantidade: number;
+  producaoDescricao: string | null;
+  producaoValor: string | null;
+  producaoUnidade: string | null;
+  horimetroInicial: string | null;
+  horimetroFinal: string | null;
+  kmInicial: string | null;
+  kmFinal: string | null;
+  rota: string | null;
+}
+
+interface MaterialDetalhe {
+  id: string;
+  materialCatalogo: { descricao: string; unidade: string };
+  quantidade: string;
+}
+
+interface AnexoDetalhe {
+  id: string;
+  tipo: string;
+  nomeOriginal: string;
+  descricao: string | null;
+  ordemManutencao: { numero: string } | null;
+}
+
 interface RdoDetalhe {
   id: string;
   data: string;
   equipe: { nome: string };
   locais: LocalDetalhe[];
   maoDeObra: MaoDeObraDetalhe[];
+  equipamentos: EquipamentoDetalhe[];
+  materiais: MaterialDetalhe[];
+  anexos: AnexoDetalhe[];
   observacoesContratada: string | null;
 }
+
+/** Dias desde que o RDO entrou em "Aguardando aprovação" — null quando ainda não foi enviado ao fiscal. */
+function diasPendente(enviadoParaFiscalEm: string | null): number | null {
+  if (!enviadoParaFiscalEm) return null;
+  const diffMs = Date.now() - new Date(enviadoParaFiscalEm).getTime();
+  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+}
+
+const MOTIVOS_REPROVACAO_RAPIDOS = [
+  "Falta foto do serviço",
+  "Medida/quantidade divergente",
+  "Falta assinatura do encarregado",
+  "Descrição incompleta",
+];
 
 const STATUS_LABEL: Record<string, string> = {
   RASCUNHO: "Rascunho",
@@ -226,16 +272,31 @@ export default function FiscalDashboard(): ReactElement {
             <p className="list-subtitle">Nenhum RDO pendente no momento.</p>
           ) : (
             <ul className="causa-lista">
-              {lista.pendentes.map((rdo) => (
-                <li key={rdo.id} style={{ padding: 0 }}>
-                  <button type="button" className="lista-clicavel-item" onClick={() => void abrirRdo(rdo.id)}>
-                    <span>
-                      {rdo.data.slice(0, 10)} — {rdo.equipe.nome}
-                    </span>
-                    <StatusBadge status={rdo.status} />
-                  </button>
-                </li>
-              ))}
+              {lista.pendentes.map((rdo) => {
+                const dias = diasPendente(rdo.enviadoParaFiscalEm);
+                return (
+                  <li key={rdo.id} style={{ padding: 0 }}>
+                    <button type="button" className="lista-clicavel-item" onClick={() => void abrirRdo(rdo.id)}>
+                      <span>
+                        {rdo.data.slice(0, 10)} — {rdo.equipe.nome}
+                        {dias != null && (
+                          <span
+                            className="badge"
+                            style={{
+                              marginLeft: 8,
+                              background: dias >= 3 ? "#fee2e2" : "#f1f5f9",
+                              color: dias >= 3 ? "#b91c1c" : "#475569",
+                            }}
+                          >
+                            {dias === 0 ? "hoje" : dias === 1 ? "há 1 dia" : `há ${dias} dias`}
+                          </span>
+                        )}
+                      </span>
+                      <StatusBadge status={rdo.status} />
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
@@ -312,6 +373,61 @@ export default function FiscalDashboard(): ReactElement {
             <strong>Mão de obra:</strong>{" "}
             {rdoAberto.maoDeObra.map((item) => `${item.funcao.nome} (${item.quantidade})`).join(", ") || "—"}
           </p>
+
+          {rdoAberto.equipamentos.length > 0 && (
+            <p className="list-subtitle">
+              <strong>Equipamentos:</strong>{" "}
+              {rdoAberto.equipamentos
+                .map((item) => {
+                  const detalhes = [
+                    item.producaoValor != null && `produção ${item.producaoValor}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`,
+                    item.horimetroInicial != null &&
+                      item.horimetroFinal != null &&
+                      `horímetro ${item.horimetroInicial}→${item.horimetroFinal}`,
+                    item.kmInicial != null && item.kmFinal != null && `km ${item.kmInicial}→${item.kmFinal}`,
+                    item.rota && `rota ${item.rota}`,
+                  ].filter(Boolean);
+                  return `${item.equipamentoCatalogo.nome} (${item.quantidade})${detalhes.length > 0 ? ` — ${detalhes.join(", ")}` : ""}`;
+                })
+                .join("; ")}
+            </p>
+          )}
+
+          {rdoAberto.materiais.length > 0 && (
+            <p className="list-subtitle">
+              <strong>Materiais:</strong>{" "}
+              {rdoAberto.materiais
+                .map((item) => `${item.materialCatalogo.descricao} — ${item.quantidade} ${item.materialCatalogo.unidade}`)
+                .join(", ")}
+            </p>
+          )}
+
+          {rdoAberto.anexos.filter((anexo) => anexo.tipo === "FOTO").length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <p className="list-subtitle" style={{ marginBottom: 6 }}>
+                <strong>Fotos ({rdoAberto.anexos.filter((anexo) => anexo.tipo === "FOTO").length})</strong>
+              </p>
+              <ul className="campo-foto-grade">
+                {rdoAberto.anexos
+                  .filter((anexo) => anexo.tipo === "FOTO")
+                  .map((anexo) => (
+                    <li key={anexo.id} className="campo-foto-item">
+                      <a href={`${API_URL}/rdos/${rdoAberto.id}/anexos/${anexo.id}`} target="_blank" rel="noreferrer">
+                        <img src={`${API_URL}/rdos/${rdoAberto.id}/anexos/${anexo.id}`} alt={anexo.nomeOriginal} />
+                      </a>
+                      {(anexo.ordemManutencao || anexo.descricao) && (
+                        <span className="campo-foto-legenda">
+                          {anexo.ordemManutencao ? `OM ${anexo.ordemManutencao.numero}` : ""}
+                          {anexo.ordemManutencao && anexo.descricao ? " — " : ""}
+                          {anexo.descricao ?? ""}
+                        </span>
+                      )}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          )}
+
           {rdoAberto.observacoesContratada && (
             <p className="list-subtitle">
               <strong>Observações Engecom:</strong> {rdoAberto.observacoesContratada}
@@ -360,10 +476,25 @@ export default function FiscalDashboard(): ReactElement {
           {acao === "reprovar" && (
             <div style={{ marginTop: 16 }}>
               <label className="field-label">Motivo da reprovação</label>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                {MOTIVOS_REPROVACAO_RAPIDOS.map((motivo) => (
+                  <button
+                    key={motivo}
+                    type="button"
+                    className="button button--ghost button--small"
+                    onClick={() =>
+                      setComentario((atual) => (atual.trim() === "" ? motivo : `${atual.trim()}; ${motivo}`))
+                    }
+                  >
+                    + {motivo}
+                  </button>
+                ))}
+              </div>
               <textarea
                 className="field-input campo-textarea"
                 value={comentario}
                 onChange={(event) => setComentario(event.target.value)}
+                placeholder="Escreva o motivo ou use os atalhos acima…"
               />
               {erroAcao && <p className="feedback feedback--erro">{erroAcao}</p>}
               <div className="campo-acoes" style={{ marginTop: 12 }}>
