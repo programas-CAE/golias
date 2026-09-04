@@ -513,16 +513,15 @@ function formatarHoras(horas: number): string {
 function desenharResumoHoras(doc: PDFKit.PDFDocument, dados: RdoPdfDados, y: number): void {
   const horasTrabalhadas = calcularHorasTrabalhadas(dados);
   const status = horasTrabalhadas >= JORNADA_REFERENCIA_HORAS ? "jornada completa" : "faltam apontar horas";
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(7.5)
-    .fillColor("#000000")
-    .text(
-      `${formatarHoras(horasTrabalhadas)} apontadas (linha do tempo + atividades) de ${JORNADA_REFERENCIA_HORAS}h de referência (${status}).`,
-      MARGEM,
-      y + 4,
-      { width: LARGURA_UTIL },
-    );
+  const texto = `${formatarHoras(horasTrabalhadas)} apontadas (linha do tempo + atividades) de ${JORNADA_REFERENCIA_HORAS}h de referência (${status}).`;
+  doc.font("Helvetica-Bold").fontSize(7.5).fillColor("#000000");
+  const altura = doc.heightOfString(texto, { width: LARGURA_UTIL });
+  doc.text(texto, MARGEM, y + 4, { width: LARGURA_UTIL });
+  // O resto do conteúdo (recursos/croquis/observações) continua logo
+  // abaixo, na MESMA página quando couber — sem isso, doc.y ficava parado
+  // onde a tabela unificada tinha terminado (antes deste texto), e o
+  // próximo bloco desenhava por cima dele.
+  doc.y = y + 4 + altura;
 }
 
 interface LinhaRecurso {
@@ -575,6 +574,7 @@ function desenharTabelaRecurso(
 /** Materiais / Recursos (equipamentos) / Mão de obra, em três tabelas lado a lado — página 2. */
 function desenharRecursos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   garantirEspaco(doc, 40);
+  doc.y += 10;
   doc.font("Helvetica-Bold").fontSize(11).fillColor("#000000").text("RECURSOS DO DIA", MARGEM, doc.y);
   doc.moveTo(MARGEM, doc.y + 4).lineTo(LARGURA_PAGINA - MARGEM, doc.y + 4).lineWidth(0.75).stroke();
   const y0 = doc.y + 14;
@@ -967,11 +967,13 @@ async function desenharRodape(doc: PDFKit.PDFDocument, dados: RdoPdfDados): Prom
 
 /**
  * Gera o PDF do RDO em paisagem, no modelo do RDO489 (referência de outro
- * sistema, adaptada — ver comentários de cada seção): página 1 é o
- * cabeçalho + a tabela única de horário/atividades; página 2 são os
- * recursos do dia (materiais/equipamentos/mão de obra em tabelas simples
- * lado a lado), croquis, observações e assinaturas; página 3 (só quando
- * há foto) é o registro fotográfico, agrupado por OM.
+ * sistema, adaptada — ver comentários de cada seção): cabeçalho + tabela
+ * única de horário/atividades, seguidos por recursos do dia (materiais/
+ * equipamentos/mão de obra em tabelas simples lado a lado), croquis,
+ * observações e assinaturas — tudo fluindo na mesma página quando o
+ * lançamento é curto, só pulando de página quando o conteúdo realmente não
+ * cabe (cada seção decide isso sozinha, via garantirEspaco). O registro
+ * fotográfico, quando existe, sempre começa numa página própria no final.
  */
 export async function gerarPdfRdo(dados: RdoPdfDados): Promise<Buffer> {
   const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: MARGEM, bufferPages: true });
@@ -987,7 +989,10 @@ export async function gerarPdfRdo(dados: RdoPdfDados): Promise<Buffer> {
   desenharTabelaUnificada(doc, dados, doc.y);
   desenharResumoHoras(doc, dados, doc.y);
 
-  doc.addPage();
+  // Sem quebra de página fixa aqui — recursos/croquis/observações/
+  // assinaturas continuam na mesma página quando o lançamento é curto (só
+  // a tabela de horário já ocupou pouco espaço); cada seção abaixo já
+  // chama garantirEspaco() e só pula de página quando realmente precisa.
   desenharRecursos(doc, dados);
   desenharCroquis(doc, dados);
   desenharObservacoes(doc, dados);
