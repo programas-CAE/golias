@@ -41,6 +41,13 @@ export function atualizarAccessToken(accessToken: string): void {
   salvarSessao({ ...atual, accessToken });
 }
 
+/** Depois de PATCH /auth/perfil — sem isso o e-mail novo só apareceria após logar de novo. */
+export function atualizarEmailSessao(email: string): void {
+  const atual = lerSessao();
+  if (!atual) return;
+  salvarSessao({ ...atual, usuario: { ...atual.usuario, email } });
+}
+
 export function limparSessao(): void {
   try {
     localStorage.removeItem(CHAVE);

@@ -4,6 +4,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { gerarEArmazenarPdf, rdoCampoSelect } from "./rdos.js";
 import { assinaturaValida } from "../lib/anexoArquivo.js";
+import { enviarEmail } from "../lib/email.js";
 import { prisma } from "../lib/prisma.js";
 import { generateToken } from "../lib/tokens.js";
 import { parseBody } from "../lib/validate.js";
@@ -104,7 +105,17 @@ interface ReprovarRdoInput {
 }
 
 export async function reprovarRdo({ rdoId, fiscalNome, fiscalEmail, comentario, ip }: ReprovarRdoInput) {
-  const rdo = await prisma.rdo.findUniqueOrThrow({ where: { id: rdoId }, select: { id: true, status: true } });
+  const rdo = await prisma.rdo.findUniqueOrThrow({
+    where: { id: rdoId },
+    select: {
+      id: true,
+      status: true,
+      encarregadoId: true,
+      data: true,
+      frente: { select: { nome: true } },
+      equipe: { select: { nome: true } },
+    },
+  });
 
   await prisma.$transaction([
     prisma.aprovacaoFiscal.create({
@@ -127,7 +138,36 @@ export async function reprovarRdo({ rdoId, fiscalNome, fiscalEmail, comentario, 
     }),
   ]);
 
+  await notificarEncarregadoRdoReprovado({ ...rdo, fiscalNome, comentario });
   return prisma.rdo.findUnique({ where: { id: rdo.id }, select: rdoCampoSelect });
+}
+
+/**
+ * Avisa por e-mail o encarregado (se o login dele tiver e-mail cadastrado —
+ * a maioria loga só por matrícula, então isso é melhor esforço, não
+ * garantido) que o RDO dele foi reprovado e precisa ser corrigido.
+ */
+async function notificarEncarregadoRdoReprovado(rdo: {
+  encarregadoId: string | null;
+  frente: { nome: string };
+  equipe: { nome: string };
+  data: Date;
+  fiscalNome: string;
+  comentario: string;
+}): Promise<void> {
+  if (!rdo.encarregadoId) return;
+  const usuario = await prisma.usuario.findFirst({
+    where: { colaboradorId: rdo.encarregadoId, ativo: true, email: { not: null } },
+    select: { email: true },
+  });
+  if (!usuario) return;
+
+  const dataFormatada = rdo.data.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+  await enviarEmail({
+    para: usuario.email!,
+    assunto: `RDO reprovado — ${rdo.frente.nome} (${dataFormatada})`,
+    texto: `Seu RDO foi reprovado pelo fiscal ${rdo.fiscalNome}.\n\nFrente: ${rdo.frente.nome}\nEquipe: ${rdo.equipe.nome}\nData: ${dataFormatada}\nMotivo: ${rdo.comentario}\n\nAcesse o app pra corrigir e reenviar.`,
+  });
 }
 
 export function registerPortalFiscalRoutes(app: FastifyInstance): void {

@@ -10,6 +10,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ANEXO_MIME_EXTENSAO, ANEXO_TIPOS, assinaturaValida, salvarArquivoAnexo } from "../lib/anexoArquivo.js";
 import { comCodigoRastreio } from "../lib/codigoRastreio.js";
+import { enviarEmail } from "../lib/email.js";
 import { prisma } from "../lib/prisma.js";
 import { calcularHashConteudo, gerarPdfRdo, type RdoConteudo, type RdoPdfGrupoFotos } from "../lib/rdoPdf.js";
 import { gerarPdfRdoSuperestrutura } from "../lib/rdoSuperestruturaPdf.js";
@@ -202,6 +203,40 @@ function rdoTemConteudo(rdo: {
     (equipamento) => equipamento.producaoValor != null || equipamento.horimetroFinal != null,
   );
   return temAtividade || temProducaoEquipamento;
+}
+
+/**
+ * Avisa por e-mail os fiscais cadastrados (Usuario role FISCAL) da frente
+ * do RDO que acabou de chegar pra aprovação — sem isso, o fiscal só fica
+ * sabendo se abrir o portal por conta própria. Best-effort (enviarEmail já
+ * não derruba nada se o SMTP não estiver configurado ou o envio falhar).
+ */
+async function notificarFiscaisRdoAguardando(rdo: {
+  id: string;
+  frenteId: string;
+  frente: { nome: string };
+  equipe: { nome: string };
+  data: Date;
+}): Promise<void> {
+  const fiscais = await prisma.usuario.findMany({
+    where: { role: "FISCAL", frenteId: rdo.frenteId, ativo: true, email: { not: null } },
+    select: { email: true },
+  });
+  if (fiscais.length === 0) return;
+
+  const publicWebUrl = process.env.PUBLIC_WEB_URL ?? "http://localhost:5173";
+  const dataFormatada = rdo.data.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+  const texto = `Um RDO está aguardando sua aprovação.\n\nFrente: ${rdo.frente.nome}\nEquipe: ${rdo.equipe.nome}\nData: ${dataFormatada}\n\nAcesse ${publicWebUrl}/login pra revisar e assinar.`;
+
+  await Promise.all(
+    fiscais.map((fiscal) =>
+      enviarEmail({
+        para: fiscal.email!,
+        assunto: `RDO aguardando aprovação — ${rdo.frente.nome} (${dataFormatada})`,
+        texto,
+      }),
+    ),
+  );
 }
 
 /**
@@ -1314,6 +1349,10 @@ export function registerRdosRoutes(app: FastifyInstance): void {
         id: true,
         status: true,
         tipo: true,
+        data: true,
+        frenteId: true,
+        frente: { select: { nome: true } },
+        equipe: { select: { nome: true } },
         locais: { select: { atividades: { select: { id: true } } } },
         equipamentos: { select: { producaoValor: true, horimetroFinal: true } },
         superestrutura: { select: { servicos: { select: { id: true } } } },
@@ -1335,6 +1374,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
     ]);
 
     await gerarEArmazenarPdf(rdo.id);
+    await notificarFiscaisRdoAguardando(rdo);
     return prisma.rdo.findUnique({ where: { id: rdo.id }, select: rdoCampoSelect });
   });
 

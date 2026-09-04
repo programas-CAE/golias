@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { API_URL, ApiError, api } from "../lib/apiClient";
 import { lerSessao, limparSessao } from "../lib/session";
 import AssinaturaCanvas, { type AssinaturaCanvasHandle } from "../components/AssinaturaCanvas";
+import PerfilUsuario from "../components/PerfilUsuario";
 
 /**
  * Tela do fiscal logado — mesma função do antigo /portal-fiscal/:token
@@ -193,9 +194,12 @@ export default function FiscalDashboard(): ReactElement {
               {lista.frente.nome} — {sessao?.usuario.nome}
             </p>
           </div>
-          <button type="button" className="button button--ghost button--small" onClick={sair}>
-            Sair
-          </button>
+          <span style={{ display: "flex", gap: 8 }}>
+            <PerfilUsuario />
+            <button type="button" className="button button--ghost button--small" onClick={sair}>
+              Sair
+            </button>
+          </span>
         </div>
 
         <section className="campo-secao">

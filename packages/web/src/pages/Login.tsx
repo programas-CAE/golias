@@ -70,6 +70,14 @@ export default function Login(): ReactElement {
             </button>
           </div>
         </form>
+        <button
+          type="button"
+          className="button button--ghost button--small"
+          style={{ marginTop: 12 }}
+          onClick={() => navigate("/esqueci-senha")}
+        >
+          Esqueci minha senha
+        </button>
       </div>
     </div>
   );

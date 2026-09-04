@@ -283,7 +283,8 @@ model Usuario {
   // cadastrado (nome, matrícula, função continuam vindo de lá).
   colaboradorId  String?              @unique
   colaborador    Colaborador?         @relation(fields: [colaboradorId], references: [id])
-  refreshTokens  SessaoRefreshToken[]
+  refreshTokens     SessaoRefreshToken[]
+  redefinicoesSenha RedefinicaoSenhaToken[]
 }
 
 model SessaoRefreshToken {
@@ -295,6 +296,19 @@ model SessaoRefreshToken {
   revogadoEm DateTime?
   criadoIp   String?
   criadoEm   DateTime  @default(now())
+}
+
+// "Esqueci minha senha" — link de e-mail com validade curta (1h). Uma das
+// duas formas de trocar senha (a outra é POST /auth/trocar-senha, logado,
+// sabendo a senha atual).
+model RedefinicaoSenhaToken {
+  id        String    @id @default(cuid())
+  usuarioId String
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id])
+  tokenHash String    @unique
+  expiraEm  DateTime
+  usadoEm   DateTime?
+  criadoEm  DateTime  @default(now())
 }
 
 model Rdo {

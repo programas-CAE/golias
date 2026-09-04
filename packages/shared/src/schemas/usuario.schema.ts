@@ -52,3 +52,32 @@ export const usuarioUpdateInputSchema = z.object({
 });
 
 export type UsuarioUpdateInput = z.infer<typeof usuarioUpdateInputSchema>;
+
+/** Troca de senha por quem já está logado (sabe a senha atual) — uma das duas formas de trocar senha. */
+export const trocarSenhaInputSchema = z.object({
+  senhaAtual: z.string().min(1, "Informe a senha atual"),
+  novaSenha: z.string().min(6, "A nova senha precisa de pelo menos 6 caracteres"),
+});
+
+export type TrocarSenhaInput = z.infer<typeof trocarSenhaInputSchema>;
+
+/** "Esqueci minha senha" — outra forma de trocar, via link de e-mail (não precisa da senha atual). */
+export const esqueciSenhaInputSchema = z.object({
+  identificador: z.string().trim().min(1, "Informe seu e-mail ou matrícula"),
+});
+
+export type EsqueciSenhaInput = z.infer<typeof esqueciSenhaInputSchema>;
+
+export const redefinirSenhaInputSchema = z.object({
+  token: z.string().min(1),
+  novaSenha: z.string().min(6, "A nova senha precisa de pelo menos 6 caracteres"),
+});
+
+export type RedefinirSenhaInput = z.infer<typeof redefinirSenhaInputSchema>;
+
+/** Fiscal/encarregado editando o próprio e-mail (ex.: pra receber notificações de RDO). */
+export const perfilUpdateInputSchema = z.object({
+  email: z.string().trim().email("E-mail inválido"),
+});
+
+export type PerfilUpdateInput = z.infer<typeof perfilUpdateInputSchema>;

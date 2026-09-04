@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiError, api } from "../lib/apiClient";
 import { lerSessao, limparSessao } from "../lib/session";
+import PerfilUsuario from "../components/PerfilUsuario";
 
 interface Ref {
   id: string;
@@ -302,9 +303,12 @@ export default function EncarregadoDashboard(): ReactElement {
               {dados.frente.nome} — {sessao?.usuario.nome}
             </p>
           </div>
-          <button type="button" className="button button--ghost button--small" onClick={sair}>
-            Sair
-          </button>
+          <span style={{ display: "flex", gap: 8 }}>
+            <PerfilUsuario />
+            <button type="button" className="button button--ghost button--small" onClick={sair}>
+              Sair
+            </button>
+          </span>
         </div>
 
         {erro && <p className="feedback feedback--erro">{erro}</p>}

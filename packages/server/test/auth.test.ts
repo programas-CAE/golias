@@ -261,3 +261,161 @@ describe("Autonomia do encarregado sobre a própria equipe", () => {
     expect(response.statusCode).toBe(404);
   });
 });
+
+async function logar(app: ReturnType<typeof buildApp>, identificador: string, senha = "senha123"): Promise<string> {
+  const login = await app.inject({ method: "POST", url: "/auth/login", payload: { identificador, senha } });
+  return (login.json() as { accessToken: string }).accessToken;
+}
+
+describe("POST /auth/trocar-senha", () => {
+  it("troca a senha sabendo a atual, e a senha nova já loga", async () => {
+    const { fiscal } = await criarCenario();
+    const app = buildApp();
+    const accessToken = await logar(app, fiscal.email!);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/trocar-senha",
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { senhaAtual: "senha123", novaSenha: "senhaNova456" },
+    });
+    expect(response.statusCode).toBe(204);
+
+    const loginAntiga = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { identificador: fiscal.email, senha: "senha123" },
+    });
+    expect(loginAntiga.statusCode).toBe(401);
+
+    const loginNova = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { identificador: fiscal.email, senha: "senhaNova456" },
+    });
+    expect(loginNova.statusCode).toBe(200);
+  });
+
+  it("retorna 401 quando a senha atual está errada", async () => {
+    const { fiscal } = await criarCenario();
+    const app = buildApp();
+    const accessToken = await logar(app, fiscal.email!);
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/trocar-senha",
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { senhaAtual: "senhaErrada", novaSenha: "senhaNova456" },
+    });
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("retorna 401 sem token de acesso", async () => {
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/trocar-senha",
+      payload: { senhaAtual: "senha123", novaSenha: "senhaNova456" },
+    });
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+describe("POST /auth/esqueci-senha e /auth/redefinir-senha", () => {
+  it("gera um token de redefinição válido, que troca a senha e não pode ser reusado", async () => {
+    const { fiscal } = await criarCenario();
+    const app = buildApp();
+
+    const pedido = await app.inject({
+      method: "POST",
+      url: "/auth/esqueci-senha",
+      payload: { identificador: fiscal.email },
+    });
+    expect(pedido.statusCode).toBe(200);
+
+    const registro = await prisma.redefinicaoSenhaToken.findFirstOrThrow({ where: { usuarioId: fiscal.id } });
+    // O e-mail (não enviado de verdade, sem SMTP no teste) leva o token puro,
+    // só o hash fica no banco — sobrescreve com um token conhecido pra
+    // testar /redefinir-senha de ponta a ponta sem precisar capturar o e-mail.
+    const tokenConhecido = "token-de-teste-redefinicao";
+    const { createHash } = await import("node:crypto");
+    await prisma.redefinicaoSenhaToken.update({
+      where: { id: registro.id },
+      data: { tokenHash: createHash("sha256").update(tokenConhecido).digest("hex") },
+    });
+
+    const redefinir = await app.inject({
+      method: "POST",
+      url: "/auth/redefinir-senha",
+      payload: { token: tokenConhecido, novaSenha: "senhaNova456" },
+    });
+    expect(redefinir.statusCode).toBe(204);
+
+    const loginNova = await app.inject({
+      method: "POST",
+      url: "/auth/login",
+      payload: { identificador: fiscal.email, senha: "senhaNova456" },
+    });
+    expect(loginNova.statusCode).toBe(200);
+
+    const reusar = await app.inject({
+      method: "POST",
+      url: "/auth/redefinir-senha",
+      payload: { token: tokenConhecido, novaSenha: "outraSenha789" },
+    });
+    expect(reusar.statusCode).toBe(400);
+  });
+
+  it("responde 200 mesmo pra identificador inexistente (não revela se a conta existe)", async () => {
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/esqueci-senha",
+      payload: { identificador: "ninguem@example.com" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(await prisma.redefinicaoSenhaToken.count()).toBe(0);
+  });
+
+  it("retorna 400 pra token inválido ou expirado", async () => {
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/auth/redefinir-senha",
+      payload: { token: "nao-existe", novaSenha: "senhaNova456" },
+    });
+    expect(response.statusCode).toBe(400);
+  });
+});
+
+describe("PATCH /auth/perfil", () => {
+  it("atualiza o próprio e-mail", async () => {
+    const { fiscal } = await criarCenario();
+    const app = buildApp();
+    const accessToken = await logar(app, fiscal.email!);
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/auth/perfil",
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { email: "fiscal-novo@vale.com" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect((response.json() as { email: string }).email).toBe("fiscal-novo@vale.com");
+  });
+
+  it("retorna 409 quando o e-mail já pertence a outra conta", async () => {
+    const { fiscal, encarregado } = await criarCenario();
+    await prisma.usuario.update({ where: { id: encarregado.id }, data: { email: "encarregado@example.com" } });
+    const app = buildApp();
+    const accessToken = await logar(app, fiscal.email!);
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/auth/perfil",
+      headers: { authorization: `Bearer ${accessToken}` },
+      payload: { email: "encarregado@example.com" },
+    });
+    expect(response.statusCode).toBe(409);
+  });
+});
