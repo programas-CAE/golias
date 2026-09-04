@@ -1096,7 +1096,6 @@ export default function Campo(): ReactElement {
         </button>
       </section>
 
-      {dados.rdo.tipo !== "MOTORISTA_OPERADOR" && (
       <section className="campo-secao">
         <h2>Locais trabalhados</h2>
         {locais.map((local, localIndice) => (
@@ -1536,7 +1535,6 @@ export default function Campo(): ReactElement {
           + Adicionar local
         </button>
       </section>
-      )}
 
       <section className="campo-secao">
         <h2>Mão de obra</h2>

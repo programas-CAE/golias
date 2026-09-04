@@ -240,8 +240,8 @@ describe("POST /rdos/completo", () => {
     expect(response.statusCode).toBe(400);
   });
 
-  it("MOTORISTA_OPERADOR: aceita sem locais, com km/rota/combustível no equipamento", async () => {
-    const { frente, equipe, equipamento } = await criarCenario();
+  it("MOTORISTA_OPERADOR: aceita local+atividade de transporte, com km/rota/combustível no equipamento (basculante)", async () => {
+    const { frente, equipe, atividade, equipamento } = await criarCenario();
 
     const app = buildApp();
     const response = await app.inject({
@@ -252,10 +252,20 @@ describe("POST /rdos/completo", () => {
         equipeId: equipe.id,
         data: "2026-07-21",
         tipo: "MOTORISTA_OPERADOR",
+        locais: [
+          {
+            descricao: "Km 28+200 a 30+700",
+            ordem: 0,
+            atividades: [{ atividadeCatalogoId: atividade.id, largura: 2, comprimento: 20, unidade: "M2" }],
+          },
+        ],
         equipamentos: [
           {
             equipamentoCatalogoId: equipamento.id,
             quantidade: 1,
+            producaoDescricao: "Areia",
+            producaoValor: 12,
+            producaoUnidade: "carradas",
             kmInicial: 1000,
             kmFinal: 1150,
             rota: "Marabá — Parauapebas",
@@ -269,13 +279,26 @@ describe("POST /rdos/completo", () => {
     expect(response.statusCode).toBe(201);
     const body = response.json() as {
       id: string;
-      equipamentos: Array<{ kmInicial: string; kmFinal: string; rota: string; combustivelLitros: string; combustivelPosto: string }>;
+      equipamentos: Array<{
+        producaoDescricao: string;
+        producaoUnidade: string;
+        kmInicial: string;
+        kmFinal: string;
+        rota: string;
+        combustivelLitros: string;
+        combustivelPosto: string;
+      }>;
     };
-    expect(body.equipamentos[0]).toMatchObject({ rota: "Marabá — Parauapebas", combustivelPosto: "Posto Central" });
+    expect(body.equipamentos[0]).toMatchObject({
+      producaoDescricao: "Areia",
+      producaoUnidade: "carradas",
+      rota: "Marabá — Parauapebas",
+      combustivelPosto: "Posto Central",
+    });
     expect(Number(body.equipamentos[0]?.kmFinal)).toBe(1150);
   });
 
-  it("MOTORISTA_OPERADOR: retorna 400 quando nenhum equipamento tem produção/horímetro/km/combustível", async () => {
+  it("MOTORISTA_OPERADOR: aceita só produção de equipamento, sem atividade do catálogo (igual Terraplenagem)", async () => {
     const { frente, equipe, equipamento } = await criarCenario();
 
     const app = buildApp();
@@ -287,8 +310,24 @@ describe("POST /rdos/completo", () => {
         equipeId: equipe.id,
         data: "2026-07-21",
         tipo: "MOTORISTA_OPERADOR",
-        equipamentos: [{ equipamentoCatalogoId: equipamento.id, quantidade: 1 }],
+        locais: [{ descricao: "Pátio de equipamentos", ordem: 0, atividades: [] }],
+        equipamentos: [
+          { equipamentoCatalogoId: equipamento.id, quantidade: 1, kmInicial: 1000, kmFinal: 1150 },
+        ],
       },
+    });
+
+    expect(response.statusCode).toBe(201);
+  });
+
+  it("MOTORISTA_OPERADOR: retorna 400 quando não há local nem produção de equipamento (RDO vazio)", async () => {
+    const { frente, equipe } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: { frenteId: frente.id, equipeId: equipe.id, data: "2026-07-21", tipo: "MOTORISTA_OPERADOR" },
     });
 
     expect(response.statusCode).toBe(400);

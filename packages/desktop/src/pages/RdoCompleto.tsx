@@ -165,6 +165,7 @@ interface RdoExistente {
   frenteId: string;
   equipeId: string;
   obraId: string | null;
+  tipo: string;
   status: string;
   ultimaDecisaoFiscal: UltimaDecisaoFiscal | null;
   data: string;
@@ -309,6 +310,15 @@ function formatarHoras(horas: number): string {
   return `${h}h${String(min).padStart(2, "0")}`;
 }
 
+// Superestrutura fica de fora — tem formulário próprio (ferrovia, sem
+// local/atividade), incompatível com esta tela de cadastro completo.
+const TIPOS_RDO = ["PREVENTIVA_CORRETIVA", "TERRAPLENAGEM", "MOTORISTA_OPERADOR"] as const;
+const TIPO_RDO_LABEL: Record<(typeof TIPOS_RDO)[number], string> = {
+  PREVENTIVA_CORRETIVA: "Preventiva / Corretiva",
+  TERRAPLENAGEM: "Terraplenagem",
+  MOTORISTA_OPERADOR: "Motorista / Operador",
+};
+
 export default function RdoCompleto(): ReactElement {
   const navigate = useNavigate();
   const { id } = useParams<{ id?: string }>();
@@ -329,6 +339,7 @@ export default function RdoCompleto(): ReactElement {
   const [frenteId, setFrenteId] = useState("");
   const [equipeId, setEquipeId] = useState("");
   const [obraId, setObraId] = useState("");
+  const [tipo, setTipo] = useState<(typeof TIPOS_RDO)[number]>("PREVENTIVA_CORRETIVA");
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [encarregadoId, setEncarregadoId] = useState("");
   const [clima, setClima] = useState("");
@@ -392,6 +403,9 @@ export default function RdoCompleto(): ReactElement {
           setFrenteId(rdo.frenteId);
           setEquipeId(rdo.equipeId);
           setObraId(rdo.obraId ?? "");
+          if ((TIPOS_RDO as readonly string[]).includes(rdo.tipo)) {
+            setTipo(rdo.tipo as (typeof TIPOS_RDO)[number]);
+          }
           setData(rdo.data.slice(0, 10));
           setEncarregadoId(rdo.encarregadoId ?? "");
           setClima(rdo.clima ?? "");
@@ -751,6 +765,7 @@ export default function RdoCompleto(): ReactElement {
       frenteId,
       equipeId,
       obraId: obraId === "" ? null : obraId,
+      tipo,
       data,
       clima: clima === "" ? null : clima,
       encarregadoId: encarregadoId === "" ? null : encarregadoId,
@@ -968,6 +983,23 @@ export default function RdoCompleto(): ReactElement {
                   </option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="field-label">Tipo de RDO</label>
+            <div className="campo-acoes" style={{ flexWrap: "wrap" }}>
+              {TIPOS_RDO.map((opcao) => (
+                <button
+                  key={opcao}
+                  type="button"
+                  className={opcao === tipo ? "button button--small" : "button button--secondary button--small"}
+                  disabled={emEdicao}
+                  onClick={() => setTipo(opcao)}
+                >
+                  {TIPO_RDO_LABEL[opcao]}
+                </button>
+              ))}
             </div>
           </div>
 

@@ -311,21 +311,6 @@ export const rdoCreateInputSchema = z
       equipamento.kmFinal != null ||
       equipamento.combustivelLitros != null;
 
-    // Motorista/operador não usa "locais" (não tem atividade do catálogo
-    // pra apontar, é exclusivo pra acompanhar produção/km/combustível do
-    // veículo/máquina) — igual Superestrutura, mas reaproveitando
-    // RdoEquipamento em vez de uma tabela própria.
-    if (data.tipo === "MOTORISTA_OPERADOR") {
-      if (!data.equipamentos.some(temConteudo)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Informe ao menos a produção, o horímetro, o km ou o combustível de algum equipamento",
-          path: ["equipamentos"],
-        });
-      }
-      return;
-    }
-
     if (data.locais.length === 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Informe ao menos um local trabalhado", path: ["locais"] });
       return;
