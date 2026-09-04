@@ -149,7 +149,7 @@ export default function OrdensManutencao(): ReactElement {
               </thead>
               <tbody>
                 {ordensFiltradas.map((ordem) => (
-                  <tr key={ordem.id}>
+                  <tr key={ordem.id} className="table-row--clicavel" onClick={() => setEditando(ordem)} title="Editar esta OM">
                     <td>{ordem.numero}</td>
                     <td>{ordem.frente.nome}</td>
                     <td>{ordem.dataEmissao.slice(0, 10)}</td>
@@ -165,14 +165,20 @@ export default function OrdensManutencao(): ReactElement {
                       <button
                         type="button"
                         className="button button--ghost button--small"
-                        onClick={() => navigate(`/ordens-manutencao/${ordem.id}/relatorios-fotograficos`)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(`/ordens-manutencao/${ordem.id}/relatorios-fotograficos`);
+                        }}
                       >
                         Relatório fotográfico
                       </button>
                       <button
                         type="button"
                         className="button button--ghost button--small"
-                        onClick={() => setEditando(ordem)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setEditando(ordem);
+                        }}
                       >
                         Editar
                       </button>

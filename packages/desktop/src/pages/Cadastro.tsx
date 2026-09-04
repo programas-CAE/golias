@@ -115,7 +115,12 @@ export default function Cadastro(): ReactElement {
               </thead>
               <tbody>
                 {usuarios.map((usuario) => (
-                  <tr key={usuario.id}>
+                  <tr
+                    key={usuario.id}
+                    className="table-row--clicavel"
+                    onClick={() => setEditando(usuario)}
+                    title="Editar este usuário"
+                  >
                     <td>{usuario.nome}</td>
                     <td>{ROLE_LABEL[usuario.role]}</td>
                     <td>{usuario.email ?? usuario.matriculaLogin ?? "—"}</td>
@@ -126,10 +131,14 @@ export default function Cadastro(): ReactElement {
                       </span>
                     </td>
                     <td style={{ display: "flex", gap: 8 }}>
-                      <button type="button" className="button button--ghost button--small" onClick={() => setEditando(usuario)}>
-                        Editar
-                      </button>
-                      <button type="button" className="button button--ghost button--small" onClick={() => void excluir(usuario)}>
+                      <button
+                        type="button"
+                        className="button button--ghost button--small"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void excluir(usuario);
+                        }}
+                      >
                         Apagar
                       </button>
                     </td>

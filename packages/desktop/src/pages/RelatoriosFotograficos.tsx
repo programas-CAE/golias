@@ -132,7 +132,12 @@ export default function RelatoriosFotograficos(): ReactElement {
               </thead>
               <tbody>
                 {ordensFiltradas.map((ordem) => (
-                  <tr key={ordem.id}>
+                  <tr
+                    key={ordem.id}
+                    className="table-row--clicavel"
+                    onClick={() => navigate(`/ordens-manutencao/${ordem.id}/relatorios-fotograficos`)}
+                    title="Abrir relatório fotográfico desta OM"
+                  >
                     <td>{ordem.numero}</td>
                     <td>{ordem.frente.nome}</td>
                     <td>{ordem.dataEmissao.slice(0, 10)}</td>
@@ -148,11 +153,11 @@ export default function RelatoriosFotograficos(): ReactElement {
                       <button
                         type="button"
                         className="button button--ghost button--small"
-                        onClick={() => navigate(`/ordens-manutencao/${ordem.id}/relatorios-fotograficos`)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setEditando(ordem);
+                        }}
                       >
-                        Abrir
-                      </button>
-                      <button type="button" className="button button--ghost button--small" onClick={() => setEditando(ordem)}>
                         Editar
                       </button>
                     </td>

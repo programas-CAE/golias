@@ -64,7 +64,12 @@ export default function Obras(): ReactElement {
               </thead>
               <tbody>
                 {obras.map((obra) => (
-                  <tr key={obra.id}>
+                  <tr
+                    key={obra.id}
+                    className="table-row--clicavel"
+                    onClick={() => navigate(`/obras/${obra.id}`)}
+                    title="Acompanhar esta obra"
+                  >
                     <td>{obra.nome}</td>
                     <td>
                       <span className={`badge badge--${obra.ativo ? "ativo" : "inativo"}`}>
@@ -72,13 +77,13 @@ export default function Obras(): ReactElement {
                       </span>
                     </td>
                     <td style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                      <button type="button" className="button button--ghost button--small" onClick={() => navigate(`/obras/${obra.id}`)}>
-                        Acompanhar
-                      </button>
                       <button
                         type="button"
                         className="button button--ghost button--small"
-                        onClick={() => setEditando(obra)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setEditando(obra);
+                        }}
                       >
                         Editar
                       </button>

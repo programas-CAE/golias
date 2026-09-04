@@ -214,7 +214,12 @@ export default function Rdos(): ReactElement {
               </thead>
               <tbody>
                 {rdosDoPeriodo.map((rdo) => (
-                  <tr key={rdo.id}>
+                  <tr
+                    key={rdo.id}
+                    className="table-row--clicavel"
+                    onClick={() => navigate(`/rdos/${rdo.id}`)}
+                    title="Ver este RDO"
+                  >
                     <td>{rdo.codigoRastreio}</td>
                     <td>{rdo.data.slice(0, 10)}</td>
                     <td>{TIPO_LABEL[rdo.tipo] ?? rdo.tipo}</td>
@@ -225,15 +230,15 @@ export default function Rdos(): ReactElement {
                     </td>
                     <td>{rdo.linkCampoExpiraEm ? rdo.linkCampoExpiraEm.slice(0, 10) : "—"}</td>
                     <td style={{ display: "flex", gap: 8 }}>
-                      <button type="button" className="button button--ghost button--small" onClick={() => navigate(`/rdos/${rdo.id}`)}>
-                        Ver
-                      </button>
                       <button
                         type="button"
                         className="button button--ghost button--small"
                         disabled={!rdo.pdfDisponivel}
                         title={rdo.pdfDisponivel ? undefined : "PDF ainda não foi gerado"}
-                        onClick={() => void baixarPdf(rdo)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void baixarPdf(rdo);
+                        }}
                       >
                         Baixar PDF
                       </button>
@@ -241,7 +246,10 @@ export default function Rdos(): ReactElement {
                         <button
                           type="button"
                           className="button button--ghost button--small"
-                          onClick={() => void copiarLink(rdo)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void copiarLink(rdo);
+                          }}
                         >
                           {linkGerado?.rdo.id === rdo.id && linkGerado.copiado ? "Copiado!" : "Copiar link"}
                         </button>
@@ -251,7 +259,10 @@ export default function Rdos(): ReactElement {
                           type="button"
                           className="button button--ghost button--small"
                           disabled={excluindo === rdo.id}
-                          onClick={() => void excluirRascunho(rdo)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void excluirRascunho(rdo);
+                          }}
                         >
                           {excluindo === rdo.id ? "Apagando…" : "Apagar"}
                         </button>

@@ -12,6 +12,23 @@ interface ResultadoVerificacao {
   motivo: "OK" | "HASH_DESATUALIZADO" | "PDF_NAO_GERADO";
 }
 
+function IconCheck(): ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function IconAlerta(): ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ flexShrink: 0 }}>
+      <path d="M12 3 1 21h22L12 3Z" />
+      <path d="M12 10v4M12 17.5v.01" />
+    </svg>
+  );
+}
+
 const STATUS_LABEL: Record<string, string> = {
   RASCUNHO: "Rascunho",
   EM_CORRECAO: "Em correção",
@@ -58,15 +75,20 @@ export default function Verificar(): ReactElement {
         {resultado && (
           <div style={{ textAlign: "left", marginTop: 16 }}>
             {resultado.motivo === "OK" && (
-              <p style={{ color: "#22c55e", fontWeight: 700 }}>✓ Documento autêntico e atualizado</p>
+              <p style={{ color: "#22c55e", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                <IconCheck /> Documento autêntico e atualizado
+              </p>
             )}
             {resultado.motivo === "HASH_DESATUALIZADO" && (
-              <p style={{ color: "#f97316", fontWeight: 700 }}>
-                ⚠ Este documento está desatualizado — o RDO foi alterado depois que este PDF foi gerado
+              <p style={{ color: "#f97316", fontWeight: 700, display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <IconAlerta />
+                Este documento está desatualizado — o RDO foi alterado depois que este PDF foi gerado
               </p>
             )}
             {resultado.motivo === "PDF_NAO_GERADO" && (
-              <p style={{ color: "#f97316", fontWeight: 700 }}>⚠ Não há PDF gerado para este RDO no sistema</p>
+              <p style={{ color: "#f97316", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                <IconAlerta /> Não há PDF gerado para este RDO no sistema
+              </p>
             )}
 
             <p className="description">

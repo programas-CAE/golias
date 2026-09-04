@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Nav from "../components/Nav";
 import CroquiAtividade from "../components/CroquiAtividade";
@@ -9,6 +9,7 @@ interface Frente {
   id: string;
   codigo: string;
   nome: string;
+  contratoId: string;
   contrato: { numero: string };
 }
 
@@ -339,6 +340,9 @@ function formatarHoras(horas: number): string {
 
 // Superestrutura fica de fora — tem formulário próprio (ferrovia, sem
 // local/atividade), incompatível com esta tela de cadastro completo.
+const UNIDADES_ATIVIDADE = ["M", "M2", "M3", "UND", "HH", "M3KM"] as const;
+const UNIDADES_SEM_DIMENSAO = ["UND", "HH", "M3KM"] as const;
+
 const TIPOS_RDO = ["PREVENTIVA_CORRETIVA", "TERRAPLENAGEM", "MOTORISTA_OPERADOR"] as const;
 const TIPO_RDO_LABEL: Record<(typeof TIPOS_RDO)[number], string> = {
   PREVENTIVA_CORRETIVA: "Preventiva / Corretiva",
@@ -362,6 +366,12 @@ export default function RdoCompleto(): ReactElement {
   const [obras, setObras] = useState<Obra[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erroCarga, setErroCarga] = useState<string | null>(null);
+  // Linha (local + atividade) que pediu "+ Nova atividade" — null quando o
+  // modal de criação de atividade não está aberto.
+  const [criandoAtividadePara, setCriandoAtividadePara] = useState<{ localIndice: number; atividadeIndice: number } | null>(
+    null,
+  );
+  const [criandoMaterial, setCriandoMaterial] = useState(false);
 
   const [frenteId, setFrenteId] = useState("");
   const [equipeId, setEquipeId] = useState("");
@@ -487,21 +497,11 @@ export default function RdoCompleto(): ReactElement {
               : [novoLocal(listaAtividades)],
           );
           // RDO salvo antes da regra de "sem dimensão" pra Motorista/
-          // Operador pode ter atividade M/M2/M3 antiga — sem isso, reabrir
-          // pra editar mostrava a mesma inconsistência (select x croqui)
-          // que a troca manual de tipo já corrige em handleTipoChange.
-          if (rdo.tipo === "MOTORISTA_OPERADOR") {
-            const catalogoDoTipo = listaAtividades.filter((item) => !item.usaDimensoes);
-            const idsValidos = new Set(catalogoDoTipo.map((item) => item.id));
-            setLocais((atual) =>
-              atual.map((local) => ({
-                ...local,
-                atividades: local.atividades.map((atividade) =>
-                  idsValidos.has(atividade.atividadeCatalogoId) ? atividade : novaAtividade(catalogoDoTipo),
-                ),
-              })),
-            );
-          }
+          // Operador pode ter atividade M/M2/M3 antiga — não normaliza mais
+          // silenciosamente aqui (isso apagava o croqui/dimensões ao só
+          // reabrir o RDO pra olhar). O <select> mostra o rótulo certo
+          // mesmo assim (ver opcoesAtividade), e salvar sem corrigir é
+          // bloqueado com uma mensagem clara (ver handleSalvar).
           setMaoDeObra(
             Object.fromEntries(
               rdo.maoDeObra
@@ -585,6 +585,12 @@ export default function RdoCompleto(): ReactElement {
   // sentido pra ele) — mesmo filtro do formulário de campo (Campo.tsx).
   const atividadesCatalogoDoTipo =
     tipo === "MOTORISTA_OPERADOR" ? atividadesCatalogo.filter((item) => !item.usaDimensoes) : atividadesCatalogo;
+  // Com só 1 atividade no dia, Km/Horímetro por atividade seriam os mesmos
+  // números já pedidos na seção Equipamento (o dia inteiro é uma viagem só)
+  // — pedir de novo aqui é redundante. Só faz sentido separar por atividade
+  // quando o motorista realmente fez mais de uma no dia (viagens/OMs
+  // diferentes, cada uma com sua própria leitura).
+  const totalAtividadesMotorista = locais.reduce((soma, local) => soma + local.atividades.length, 0);
   const tempoTotal = useMemo(() => calcularTempoTotal(blocos), [blocos]);
   const horasApontadasDia = useMemo(() => calcularHorasApontadasDia(blocos, locais), [blocos, locais]);
 
@@ -596,29 +602,20 @@ export default function RdoCompleto(): ReactElement {
   }
 
   /**
-   * Trocar o tipo muda quais atividades do catálogo ficam disponíveis
-   * (Motorista/Operador só mostra as sem dimensão) — sem isso, uma
-   * atividade já escolhida antes da troca (ex.: "Limpeza de bueiros", M3)
-   * sumia da lista mas continuava selecionada por baixo dos panos: o
-   * <select> não achava mais a opção correspondente e mostrava a primeira
-   * da lista nova por engano, enquanto o croqui/M3 continuava vindo dos
-   * dados antigos (bug real visto em produção). Por isso, ao trocar de
-   * tipo, qualquer atividade que não exista mais na lista filtrada volta
-   * pro padrão (primeira atividade válida do tipo novo).
+   * Só troca a aba — NÃO mexe em `locais`. Antes isso também limpava
+   * qualquer atividade dimensional (M/M2/M3) pra "consertar" o rótulo do
+   * <select> quando a lista filtrada de Motorista/Operador não continha
+   * mais a atividade selecionada, mas isso destruía os dados: clicar em
+   * Motorista/Operador só pra espiar e voltar pra Preventiva/Corretiva
+   * apagava o croqui/dimensões da atividade que já estava preenchida (bug
+   * real visto em produção). O rótulo do <select> agora é resolvido sem
+   * mexer nos dados (ver `atividadesCatalogoDoTipo` mais abaixo, que sempre
+   * inclui a atividade já selecionada mesmo fora do filtro do tipo atual),
+   * e a combinação inválida (atividade dimensional + Motorista/Operador) é
+   * bloqueada só na hora de salvar (ver handleSalvar).
    */
   function handleTipoChange(novoTipo: (typeof TIPOS_RDO)[number]): void {
     setTipo(novoTipo);
-    const catalogoNovo =
-      novoTipo === "MOTORISTA_OPERADOR" ? atividadesCatalogo.filter((item) => !item.usaDimensoes) : atividadesCatalogo;
-    const idsValidos = new Set(catalogoNovo.map((item) => item.id));
-    setLocais((atual) =>
-      atual.map((local) => ({
-        ...local,
-        atividades: local.atividades.map((atividade) =>
-          idsValidos.has(atividade.atividadeCatalogoId) ? atividade : novaAtividade(catalogoNovo),
-        ),
-      })),
-    );
   }
 
   function atualizarBloco(indice: number, campo: keyof BlocoDraft, valor: string): void {
@@ -642,6 +639,22 @@ export default function RdoCompleto(): ReactElement {
           ...local,
           atividades: local.atividades.map((atividade, j) =>
             j === atividadeIndice ? { ...atividade, [campo]: valor } : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
+  /** Cria a atividade no catálogo (fora da Price List oficial) e já seleciona ela na linha que pediu. */
+  function selecionarAtividadeRecemCriada(localIndice: number, atividadeIndice: number, criada: AtividadeCatalogo): void {
+    setAtividadesCatalogo((atual) => [...atual, criada]);
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice ? { ...atividade, atividadeCatalogoId: criada.id, unidade: criada.unidade } : atividade,
           ),
         };
       }),
@@ -822,6 +835,12 @@ export default function RdoCompleto(): ReactElement {
     setMateriais((atual) => [...atual, { materialCatalogoId: "", quantidade: "" }]);
   }
 
+  /** Cadastra o material no catálogo do contrato (fora da Price List oficial) e já adiciona uma linha com ele selecionado. */
+  function adicionarMaterialRecemCriado(criado: MaterialCatalogo): void {
+    setMateriaisCatalogo((atual) => [...atual, criado]);
+    setMateriais((atual) => [...atual, { materialCatalogoId: criado.id, quantidade: "" }]);
+  }
+
   function atualizarMaterial(indice: number, campo: keyof MaterialDraft, valor: string): void {
     setMateriais((atual) => atual.map((material, i) => (i === indice ? { ...material, [campo]: valor } : material)));
   }
@@ -843,10 +862,51 @@ export default function RdoCompleto(): ReactElement {
     setEquipamentosQtd(equipamentoCatalogoId ? { [equipamentoCatalogoId]: "1" } : {});
   }
 
+  /** Cadastra um equipamento novo direto do autocomplete, sem precisar ir na tela Catálogos. */
+  async function criarEquipamento(nome: string): Promise<EquipamentoCatalogo> {
+    const criado = await api.post<EquipamentoCatalogo>("/equipamentos", { nome });
+    setEquipamentosCatalogo((atual) => [...atual, criado]);
+    return criado;
+  }
+
+  /**
+   * Esse catálogo é compartilhado por todas as frentes — desativar aqui
+   * some com o item da checklist pra todo mundo, não só desta frente (ver
+   * `GET /equipamentos`, que só lista `ativo: true` por padrão). Por isso
+   * confirma antes; RDOs já lançados com esse equipamento não são afetados.
+   */
+  async function removerEquipamentoDoCatalogo(item: EquipamentoCatalogo): Promise<void> {
+    const confirmado = window.confirm(
+      `Remover "${item.nome}" da lista de equipamentos? Isso afeta TODAS as frentes, não só esta — RDOs já lançados com ele não mudam.`,
+    );
+    if (!confirmado) return;
+    try {
+      await api.patch(`/equipamentos/${item.id}`, { ativo: false });
+      setEquipamentosCatalogo((atual) => atual.filter((equipamento) => equipamento.id !== item.id));
+    } catch (error) {
+      setErroSalvar(error instanceof ApiError ? error.message : "Não foi possível remover o equipamento.");
+    }
+  }
+
   async function handleSalvar(): Promise<void> {
     if (!frenteId || !equipeId) {
       setErroSalvar("Escolha a frente e a equipe antes de salvar.");
       return;
+    }
+    // Croqui/dimensões (M/M²/M³) não faz sentido pra Motorista/Operador —
+    // não bloqueamos mais isso durante a navegação entre abas (ver
+    // handleTipoChange, que agora só troca a aba sem mexer nos dados), só
+    // aqui, na hora de salvar de fato.
+    if (tipo === "MOTORISTA_OPERADOR") {
+      const temAtividadeDimensional = locais.some((local) =>
+        local.atividades.some((atividade) => ["M", "M2", "M3"].includes(atividade.unidade)),
+      );
+      if (temAtividadeDimensional) {
+        setErroSalvar(
+          "Uma atividade lançada usa dimensões (M/M²/M³), que não é válido pra RDO tipo Motorista/Operador. Troque a atividade antes de salvar.",
+        );
+        return;
+      }
     }
     setSalvando(true);
     setErroSalvar(null);
@@ -1239,6 +1299,17 @@ export default function RdoCompleto(): ReactElement {
                 const usaDimensoes = ["M", "M2", "M3"].includes(atividade.unidade);
                 const catalogoDaAtividade = atividadesCatalogo.find((item) => item.id === atividade.atividadeCatalogoId);
                 const idSelect = `atividade-${localIndice}-${atividadeIndice}`;
+                // A atividade já selecionada pode não estar mais na lista
+                // filtrada do tipo atual (ex.: dimensional, escolhida antes
+                // de trocar pra Motorista/Operador) — inclui ela mesmo
+                // assim pro <select> mostrar o rótulo certo em vez de cair
+                // por engano na primeira opção da lista filtrada (ver
+                // handleTipoChange).
+                const opcoesAtividade = atividadesCatalogoDoTipo.some((item) => item.id === atividade.atividadeCatalogoId)
+                  ? atividadesCatalogoDoTipo
+                  : catalogoDaAtividade
+                    ? [...atividadesCatalogoDoTipo, catalogoDaAtividade]
+                    : atividadesCatalogoDoTipo;
                 return (
                   <div className="repeatable-item" key={atividadeIndice}>
                   <div className="repeatable-item-header">
@@ -1274,12 +1345,20 @@ export default function RdoCompleto(): ReactElement {
                       value={atividade.atividadeCatalogoId}
                       onChange={(event) => selecionarAtividadeCatalogo(localIndice, atividadeIndice, event.target.value)}
                     >
-                      {atividadesCatalogoDoTipo.map((item) => (
+                      {opcoesAtividade.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.codigo} — {item.descricao}
                         </option>
                       ))}
                     </select>
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      style={{ marginTop: 4 }}
+                      onClick={() => setCriandoAtividadePara({ localIndice, atividadeIndice })}
+                    >
+                      + Nova atividade (fora da Price List)
+                    </button>
 
                     <div style={{ marginTop: 12 }}>
                       <label className="field-label">Ordem de manutenção</label>
@@ -1295,32 +1374,34 @@ export default function RdoCompleto(): ReactElement {
                       />
                     </div>
 
-                    <div className="grid-2" style={{ marginTop: 12 }}>
-                      <div>
-                        <label className="field-label">Km inicial</label>
-                        <input
-                          type="number"
-                          step="0.001"
-                          className="field-input"
-                          placeholder="Preenchido pela OM, se houver"
-                          value={atividade.kmInicial}
-                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
-                        />
+                    {(tipo !== "MOTORISTA_OPERADOR" || totalAtividadesMotorista > 1) && (
+                      <div className="grid-2" style={{ marginTop: 12 }}>
+                        <div>
+                          <label className="field-label">Km inicial</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="Preenchido pela OM, se houver"
+                            value={atividade.kmInicial}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Km final</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="Preenchido pela OM, se houver"
+                            value={atividade.kmFinal}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <label className="field-label">Km final</label>
-                        <input
-                          type="number"
-                          step="0.001"
-                          className="field-input"
-                          placeholder="Preenchido pela OM, se houver"
-                          value={atividade.kmFinal}
-                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
-                        />
-                      </div>
-                    </div>
+                    )}
 
-                    {tipo === "MOTORISTA_OPERADOR" && (
+                    {tipo === "MOTORISTA_OPERADOR" && totalAtividadesMotorista > 1 && (
                       <div className="grid-2" style={{ marginTop: 12 }}>
                         <div>
                           <label className="field-label">Horímetro inicial</label>
@@ -1345,6 +1426,11 @@ export default function RdoCompleto(): ReactElement {
                           />
                         </div>
                       </div>
+                    )}
+                    {tipo === "MOTORISTA_OPERADOR" && totalAtividadesMotorista <= 1 && (
+                      <p className="list-subtitle" style={{ marginTop: 8 }}>
+                        Km e horímetro desta viagem: preenchidos abaixo, na seção Equipamento.
+                      </p>
                     )}
 
                     {atividade.unidade === "M3" && (
@@ -1831,6 +1917,7 @@ export default function RdoCompleto(): ReactElement {
                 getLabel={(item) => item.nome}
                 placeholder="Buscar o equipamento…"
                 onChange={selecionarEquipamentoMotorista}
+                onCriar={criarEquipamento}
               />
               {motoristaEquipamentoId &&
                 (() => {
@@ -1943,6 +2030,14 @@ export default function RdoCompleto(): ReactElement {
                     >
                       {aberto ? "Ocultar produção/horímetro" : "+ Produção/horímetro"}
                     </button>
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      title="Remove este item da lista de equipamentos pra todas as frentes"
+                      onClick={() => void removerEquipamentoDoCatalogo(item)}
+                    >
+                      Remover
+                    </button>
                   </div>
                   {aberto && (
                     <div className="repeatable-item" style={{ marginTop: 4 }}>
@@ -2038,9 +2133,14 @@ export default function RdoCompleto(): ReactElement {
               </div>
             );
           })}
-          <button type="button" className="button button--secondary button--small" style={{ marginTop: 12 }} onClick={adicionarMaterial}>
-            + Adicionar material
-          </button>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            <button type="button" className="button button--secondary button--small" onClick={adicionarMaterial}>
+              + Adicionar material
+            </button>
+            <button type="button" className="button button--ghost button--small" onClick={() => setCriandoMaterial(true)}>
+              + Cadastrar material novo (fora da Price List)
+            </button>
+          </div>
         </section>
 
         <section className="form-section">
@@ -2076,6 +2176,218 @@ export default function RdoCompleto(): ReactElement {
             Cancelar
           </button>
         </div>
+      </div>
+
+      {criandoAtividadePara && (
+        <CriarAtividadeModal
+          somenteSemDimensao={tipo === "MOTORISTA_OPERADOR"}
+          onClose={() => setCriandoAtividadePara(null)}
+          onCriada={(criada) => {
+            selecionarAtividadeRecemCriada(criandoAtividadePara.localIndice, criandoAtividadePara.atividadeIndice, criada);
+            setCriandoAtividadePara(null);
+          }}
+        />
+      )}
+
+      {criandoMaterial && frenteSelecionada && (
+        <CriarMaterialModal
+          contratoId={frenteSelecionada.contratoId}
+          onClose={() => setCriandoMaterial(false)}
+          onCriado={(criado) => {
+            adicionarMaterialRecemCriado(criado);
+            setCriandoMaterial(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Atividade fora da Price List oficial do contrato — código/descrição livres, unidade do catálogo padrão (M/M2/M3/UND/HH/M3KM). */
+function CriarAtividadeModal({
+  somenteSemDimensao,
+  onClose,
+  onCriada,
+}: {
+  somenteSemDimensao: boolean;
+  onClose: () => void;
+  onCriada: (atividade: AtividadeCatalogo) => void;
+}): ReactElement {
+  const [codigo, setCodigo] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [unidade, setUnidade] = useState<AtividadeCatalogo["unidade"]>("UND");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const criada = await api.post<AtividadeCatalogo>("/atividades", { codigo, descricao, unidade, usaDimensoes: false });
+      onCriada(criada);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível criar a atividade.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">Nova atividade</h2>
+        <p className="list-subtitle">
+          Pra um serviço que não está na Price List do contrato — fica salvo no catálogo, disponível pra escolher de
+          novo depois.
+        </p>
+        <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="field-label" htmlFor="novaAtividadeCodigo">
+            Código
+          </label>
+          <input
+            id="novaAtividadeCodigo"
+            className="field-input"
+            value={codigo}
+            onChange={(event) => setCodigo(event.target.value)}
+            autoComplete="off"
+            autoFocus
+          />
+
+          <label className="field-label" htmlFor="novaAtividadeDescricao">
+            Descrição
+          </label>
+          <input
+            id="novaAtividadeDescricao"
+            className="field-input"
+            placeholder="Ex.: Transporte de material"
+            value={descricao}
+            onChange={(event) => setDescricao(event.target.value)}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="novaAtividadeUnidade">
+            Unidade
+          </label>
+          <select
+            id="novaAtividadeUnidade"
+            className="field-input"
+            value={unidade}
+            onChange={(event) => setUnidade(event.target.value as AtividadeCatalogo["unidade"])}
+          >
+            {(somenteSemDimensao ? UNIDADES_SEM_DIMENSAO : UNIDADES_ATIVIDADE).map((valor) => (
+              <option key={valor} value={valor}>
+                {valor}
+              </option>
+            ))}
+          </select>
+          {somenteSemDimensao && (
+            <p className="list-subtitle">
+              Sem unidade de "viagem" ainda — pra contar viagens/cargas, use UND (unidade genérica).
+            </p>
+          )}
+
+          {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+          <div className="form-actions">
+            <button type="submit" className="button" disabled={salvando}>
+              {salvando ? "Salvando…" : "Criar e usar"}
+            </button>
+            <button type="button" className="button button--secondary" onClick={onClose}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/** Material fora da Price List oficial do contrato — código/descrição/unidade livres, ligado ao contrato da frente escolhida no RDO. */
+function CriarMaterialModal({
+  contratoId,
+  onClose,
+  onCriado,
+}: {
+  contratoId: string;
+  onClose: () => void;
+  onCriado: (material: MaterialCatalogo) => void;
+}): ReactElement {
+  const [codigo, setCodigo] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [unidade, setUnidade] = useState("UND");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const criado = await api.post<MaterialCatalogo>("/materiais", { contratoId, codigo, descricao, unidade });
+      onCriado(criado);
+    } catch (error) {
+      setErro(error instanceof ApiError ? error.message : "Não foi possível criar o material.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+        <h2 className="modal-title">Novo material</h2>
+        <p className="list-subtitle">
+          Pra um material que não está na Price List do contrato — fica salvo no catálogo desse contrato, disponível
+          pra escolher de novo depois.
+        </p>
+        <form className="settings-form" onSubmit={(event) => void handleSubmit(event)}>
+          <label className="field-label" htmlFor="novoMaterialCodigo">
+            Código
+          </label>
+          <input
+            id="novoMaterialCodigo"
+            className="field-input"
+            value={codigo}
+            onChange={(event) => setCodigo(event.target.value)}
+            autoComplete="off"
+            autoFocus
+          />
+
+          <label className="field-label" htmlFor="novoMaterialDescricao">
+            Descrição
+          </label>
+          <input
+            id="novoMaterialDescricao"
+            className="field-input"
+            value={descricao}
+            onChange={(event) => setDescricao(event.target.value)}
+            autoComplete="off"
+          />
+
+          <label className="field-label" htmlFor="novoMaterialUnidade">
+            Unidade
+          </label>
+          <input
+            id="novoMaterialUnidade"
+            className="field-input"
+            placeholder="Ex.: UND, KG, M, L…"
+            value={unidade}
+            onChange={(event) => setUnidade(event.target.value)}
+            autoComplete="off"
+          />
+
+          {erro && <p className="feedback feedback--erro">{erro}</p>}
+
+          <div className="form-actions">
+            <button type="submit" className="button" disabled={salvando}>
+              {salvando ? "Salvando…" : "Criar e usar"}
+            </button>
+            <button type="button" className="button button--secondary" onClick={onClose}>
+              Cancelar
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

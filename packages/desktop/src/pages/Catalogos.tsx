@@ -131,7 +131,12 @@ function PainelAtividades(): ReactElement {
             </thead>
             <tbody>
               {atividades.map((atividade) => (
-                <tr key={atividade.id}>
+                <tr
+                  key={atividade.id}
+                  className="table-row--clicavel"
+                  onClick={() => setEditando(atividade)}
+                  title="Editar esta atividade"
+                >
                   <td>{atividade.codigo}</td>
                   <td>{atividade.descricao}</td>
                   <td>{atividade.unidade}</td>
@@ -142,7 +147,14 @@ function PainelAtividades(): ReactElement {
                     </span>
                   </td>
                   <td>
-                    <button type="button" className="button button--ghost button--small" onClick={() => setEditando(atividade)}>
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setEditando(atividade);
+                      }}
+                    >
                       Editar
                     </button>
                   </td>
@@ -426,7 +438,12 @@ function PainelEquipamentos(): ReactElement {
             </thead>
             <tbody>
               {equipamentos.map((equipamento) => (
-                <tr key={equipamento.id}>
+                <tr
+                  key={equipamento.id}
+                  className="table-row--clicavel"
+                  onClick={() => setEditando(equipamento)}
+                  title="Editar este equipamento"
+                >
                   <td>{equipamento.nome}</td>
                   <td>
                     <span className={`badge badge--${equipamento.ativo ? "ativo" : "inativo"}`}>
@@ -434,7 +451,14 @@ function PainelEquipamentos(): ReactElement {
                     </span>
                   </td>
                   <td>
-                    <button type="button" className="button button--ghost button--small" onClick={() => setEditando(equipamento)}>
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setEditando(equipamento);
+                      }}
+                    >
                       Editar
                     </button>
                   </td>
@@ -642,7 +666,12 @@ function PainelMateriais(): ReactElement {
             </thead>
             <tbody>
               {materiais.map((material) => (
-                <tr key={material.id}>
+                <tr
+                  key={material.id}
+                  className="table-row--clicavel"
+                  onClick={() => setEditando(material)}
+                  title="Editar este material"
+                >
                   <td>{material.codigo}</td>
                   <td>{material.descricao}</td>
                   <td>{material.unidade}</td>
@@ -653,7 +682,14 @@ function PainelMateriais(): ReactElement {
                     </span>
                   </td>
                   <td>
-                    <button type="button" className="button button--ghost button--small" onClick={() => setEditando(material)}>
+                    <button
+                      type="button"
+                      className="button button--ghost button--small"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setEditando(material);
+                      }}
+                    >
                       Editar
                     </button>
                   </td>

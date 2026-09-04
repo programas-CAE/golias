@@ -880,6 +880,13 @@ export default function Campo(): ReactElement {
     setMateriais((atual) => [...atual, { materialCatalogoId: "", quantidade: "" }]);
   }
 
+  /** Cadastra um equipamento novo direto do autocomplete, sem precisar pedir pro escritório. */
+  async function criarEquipamento(nome: string): Promise<EquipamentoRef> {
+    const criado = await api.post<EquipamentoRef>("/equipamentos", { nome });
+    setEquipamentosCatalogo((atual) => [...atual, criado]);
+    return criado;
+  }
+
   /** Motorista/Operador só dirige um equipamento por dia — substitui a seleção em vez de acumular. */
   function selecionarEquipamentoUnico(equipamentoCatalogoId: string): void {
     if (!equipamentoCatalogoId) return;
@@ -1135,6 +1142,11 @@ export default function Campo(): ReactElement {
   // croqui aparecer nesse tipo (ver memória rdo-motorista-operador-enxuto).
   const atividadesCatalogoDoTipo =
     rdo.tipo === "MOTORISTA_OPERADOR" ? atividadesCatalogo.filter((item) => !item.usaDimensoes) : atividadesCatalogo;
+  // Com só 1 atividade no dia, Km/Horímetro por atividade seriam os mesmos
+  // números já pedidos na seção Equipamento (o dia inteiro é uma viagem só)
+  // — pedir de novo aqui é redundante. Só separa por atividade quando o
+  // motorista fez mais de uma no dia (viagens/OMs diferentes).
+  const totalAtividadesMotorista = locais.reduce((soma, local) => soma + local.atividades.length, 0);
 
   return (
     <div className="campo-page">
@@ -1284,32 +1296,34 @@ export default function Campo(): ReactElement {
                     placeholder="Ordem de manutenção (opcional)"
                   />
 
-                  <div className="campo-grid-2">
-                    <div>
-                      <label className="field-label">Km inicial</label>
-                      <input
-                        type="number"
-                        step="0.001"
-                        className="field-input"
-                        placeholder={rdo.tipo === "MOTORISTA_OPERADOR" ? "Km inicial da rota" : "Da OM, se houver"}
-                        value={atividade.kmInicial}
-                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
-                      />
+                  {(rdo.tipo !== "MOTORISTA_OPERADOR" || totalAtividadesMotorista > 1) && (
+                    <div className="campo-grid-2">
+                      <div>
+                        <label className="field-label">Km inicial</label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder={rdo.tipo === "MOTORISTA_OPERADOR" ? "Km inicial da rota" : "Da OM, se houver"}
+                          value={atividade.kmInicial}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmInicial", event.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="field-label">Km final</label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder={rdo.tipo === "MOTORISTA_OPERADOR" ? "Km final da rota" : "Da OM, se houver"}
+                          value={atividade.kmFinal}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="field-label">Km final</label>
-                      <input
-                        type="number"
-                        step="0.001"
-                        className="field-input"
-                        placeholder={rdo.tipo === "MOTORISTA_OPERADOR" ? "Km final da rota" : "Da OM, se houver"}
-                        value={atividade.kmFinal}
-                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "kmFinal", event.target.value)}
-                      />
-                    </div>
-                  </div>
+                  )}
 
-                  {rdo.tipo === "MOTORISTA_OPERADOR" && (
+                  {rdo.tipo === "MOTORISTA_OPERADOR" && totalAtividadesMotorista > 1 && (
                     <div className="campo-grid-2">
                       <div>
                         <label className="field-label">Horímetro inicial</label>
@@ -1334,6 +1348,9 @@ export default function Campo(): ReactElement {
                         />
                       </div>
                     </div>
+                  )}
+                  {rdo.tipo === "MOTORISTA_OPERADOR" && totalAtividadesMotorista <= 1 && (
+                    <p className="campo-foto-dica">Km e horímetro desta viagem: preenchidos abaixo, na seção Equipamento.</p>
                   )}
 
                   {atividade.unidade === "M3" && (
@@ -1748,6 +1765,7 @@ export default function Campo(): ReactElement {
             getLabel={(item) => item.nome}
             placeholder={rdo.tipo === "MOTORISTA_OPERADOR" ? "Buscar o equipamento…" : "Buscar equipamento pra adicionar à lista…"}
             onChange={setNovoEquipamentoId}
+            onCriar={criarEquipamento}
           />
           <button
             type="button"

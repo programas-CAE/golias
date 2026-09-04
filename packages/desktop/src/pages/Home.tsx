@@ -67,6 +67,7 @@ interface Frente {
   id: string;
   nome: string;
   codigo: string;
+  contrato: { numero: string };
 }
 
 interface Equipe {
@@ -121,6 +122,7 @@ export default function Home(): ReactElement {
   // Uma localidade só tem sentido pras equipes dela — troca a frente e o
   // filtro de equipe some se a equipe escolhida não for mais compatível.
   const equipesDoFiltro = frenteFiltro ? equipes.filter((equipe) => equipe.distrito.frenteId === frenteFiltro) : equipes;
+  const frenteSelecionadaHome = frentes.find((frente) => frente.id === frenteFiltro) ?? null;
 
   useEffect(() => {
     if (equipeFiltro && !equipesDoFiltro.some((equipe) => equipe.id === equipeFiltro)) {
@@ -167,6 +169,11 @@ export default function Home(): ReactElement {
             </p>
           </div>
           <div className="dashboard-header-actions">
+            {frenteSelecionadaHome && (
+              <span className="list-subtitle" style={{ margin: 0 }}>
+                Contrato (Nº SAP): {frenteSelecionadaHome.contrato.numero}
+              </span>
+            )}
             <input type="month" className="field-input" value={mes} onChange={(event) => setMes(event.target.value)} />
           </div>
         </div>
