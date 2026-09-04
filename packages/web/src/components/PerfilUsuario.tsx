@@ -7,10 +7,23 @@ import { atualizarEmailSessao, lerSessao } from "../lib/session";
  * notificação de RDO) e trocando senha sabendo a atual. A outra forma de
  * trocar senha (esqueci minha senha, por link de e-mail) fica em
  * Login.tsx/EsqueciSenha.tsx, sem precisar estar logado.
+ *
+ * Controlado pelo pai (aberto/onAbrir/onFechar) em vez de gerenciar o
+ * próprio estado — o painel expandido é grande (dois formulários) e não
+ * cabe lado a lado com "Sair" na mesma linha do cabeçalho; o pai renderiza
+ * o botão de abrir ali, mas o painel em si como bloco de largura cheia
+ * abaixo do cabeçalho (mesmo padrão do card de RDO aberto).
  */
-export default function PerfilUsuario(): ReactElement {
+export default function PerfilUsuario({
+  aberto,
+  onAbrir,
+  onFechar,
+}: {
+  aberto: boolean;
+  onAbrir: () => void;
+  onFechar: () => void;
+}): ReactElement {
   const sessao = lerSessao();
-  const [aberto, setAberto] = useState(false);
 
   const [email, setEmail] = useState(sessao?.usuario.email ?? "");
   const [salvandoEmail, setSalvandoEmail] = useState(false);
@@ -64,7 +77,7 @@ export default function PerfilUsuario(): ReactElement {
 
   if (!aberto) {
     return (
-      <button type="button" className="button button--ghost button--small" onClick={() => setAberto(true)}>
+      <button type="button" className="button button--ghost button--small" onClick={onAbrir}>
         Meu perfil
       </button>
     );
@@ -74,7 +87,7 @@ export default function PerfilUsuario(): ReactElement {
     <section className="campo-secao">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h2>Meu perfil</h2>
-        <button type="button" className="button button--ghost button--small" onClick={() => setAberto(false)}>
+        <button type="button" className="button button--ghost button--small" onClick={onFechar}>
           Fechar
         </button>
       </div>

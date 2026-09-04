@@ -85,6 +85,7 @@ export default function FiscalDashboard(): ReactElement {
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [rdoAssinadoId, setRdoAssinadoId] = useState<string | null>(null);
   const assinaturaRef = useRef<AssinaturaCanvasHandle>(null);
+  const [perfilAberto, setPerfilAberto] = useState(false);
 
   async function carregarLista(): Promise<void> {
     try {
@@ -204,13 +205,21 @@ export default function FiscalDashboard(): ReactElement {
             </p>
           </div>
           <span style={{ display: "flex", gap: 8 }}>
-            <PerfilUsuario />
+            {!perfilAberto && <PerfilUsuario aberto={false} onAbrir={() => setPerfilAberto(true)} onFechar={() => setPerfilAberto(false)} />}
             <button type="button" className="button button--ghost button--small" onClick={sair}>
               Sair
             </button>
           </span>
         </div>
+      </div>
 
+      {perfilAberto && (
+        <div className="campo-card" style={{ maxWidth: 720, marginTop: 16 }}>
+          <PerfilUsuario aberto onAbrir={() => setPerfilAberto(true)} onFechar={() => setPerfilAberto(false)} />
+        </div>
+      )}
+
+      <div className="campo-card" style={{ maxWidth: 720, marginTop: 16 }}>
         <section className="campo-secao">
           <h2>Aguardando aprovação ({lista.pendentes.length})</h2>
           {lista.pendentes.length === 0 ? (

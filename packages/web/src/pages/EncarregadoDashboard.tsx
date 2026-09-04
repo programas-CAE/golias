@@ -115,6 +115,7 @@ export default function EncarregadoDashboard(): ReactElement {
   const [salvandoMembro, setSalvandoMembro] = useState(false);
 
   const [lancando, setLancando] = useState(false);
+  const [perfilAberto, setPerfilAberto] = useState(false);
 
   async function carregar(manterSelecao: boolean): Promise<void> {
     try {
@@ -310,7 +311,7 @@ export default function EncarregadoDashboard(): ReactElement {
             </p>
           </div>
           <span style={{ display: "flex", gap: 8 }}>
-            <PerfilUsuario />
+            {!perfilAberto && <PerfilUsuario aberto={false} onAbrir={() => setPerfilAberto(true)} onFechar={() => setPerfilAberto(false)} />}
             <button type="button" className="button button--ghost button--small" onClick={sair}>
               Sair
             </button>
@@ -378,6 +379,12 @@ export default function EncarregadoDashboard(): ReactElement {
           </>
         )}
       </div>
+
+      {perfilAberto && (
+        <div className="campo-card" style={{ maxWidth: 720, marginTop: 16 }}>
+          <PerfilUsuario aberto onAbrir={() => setPerfilAberto(true)} onFechar={() => setPerfilAberto(false)} />
+        </div>
+      )}
 
       {equipeSelecionada && (
         <div className="campo-card" style={{ maxWidth: 720, marginTop: 16 }}>

@@ -63,7 +63,7 @@ async function tentarRenovarSessao(): Promise<string | null> {
 async function request<T>(path: string, options: RequestInit = {}, tentandoDeNovo = false): Promise<T> {
   const sessao = lerSessao();
   const headersBase: HeadersInit =
-    options.body instanceof FormData ? {} : { "Content-Type": "application/json" };
+    options.body == null || options.body instanceof FormData ? {} : { "Content-Type": "application/json" };
   if (sessao) {
     (headersBase as Record<string, string>).Authorization = `Bearer ${sessao.accessToken}`;
   }

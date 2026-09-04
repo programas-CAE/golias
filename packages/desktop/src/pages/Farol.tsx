@@ -595,7 +595,7 @@ export default function Farol(): ReactElement {
                                 type="button"
                                 className="badge badge--atrasada"
                                 style={{ border: "none", cursor: "pointer" }}
-                                onClick={() => navigate(`/ordens-manutencao/${item.id}/relatorio-fotografico`)}
+                                onClick={() => navigate(`/ordens-manutencao/${item.id}/relatorios-fotograficos`)}
                               >
                                 Pendente
                               </button>

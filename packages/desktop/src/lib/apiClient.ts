@@ -46,7 +46,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(url, {
     ...options,
     headers:
-      options.body instanceof FormData
+      options.body == null || options.body instanceof FormData
         ? options.headers
         : { "Content-Type": "application/json", ...options.headers },
   });
