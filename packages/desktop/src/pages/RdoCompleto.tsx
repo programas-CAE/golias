@@ -91,6 +91,8 @@ interface AtividadeDraft {
   unidade: string;
   kmInicial: string;
   kmFinal: string;
+  horimetroInicial: string;
+  horimetroFinal: string;
   altura: string;
   largura: string;
   larguraFinal: string;
@@ -147,10 +149,26 @@ interface EquipamentoDetalhe {
   producaoUnidade: string;
   horimetroInicial: string;
   horimetroFinal: string;
+  kmInicial: string;
+  kmFinal: string;
+  rota: string;
+  combustivelLitros: string;
+  combustivelPosto: string;
 }
 
 function detalheVazio(): EquipamentoDetalhe {
-  return { producaoDescricao: "", producaoValor: "", producaoUnidade: "", horimetroInicial: "", horimetroFinal: "" };
+  return {
+    producaoDescricao: "",
+    producaoValor: "",
+    producaoUnidade: "",
+    horimetroInicial: "",
+    horimetroFinal: "",
+    kmInicial: "",
+    kmFinal: "",
+    rota: "",
+    combustivelLitros: "",
+    combustivelPosto: "",
+  };
 }
 
 /** Formato retornado por `GET /rdos/:id` — usado só quando a tela abre em modo de edição. */
@@ -186,6 +204,8 @@ interface RdoExistente {
       percentualConcluido: number | null;
       kmInicial: string | null;
       kmFinal: string | null;
+      horimetroInicial: string | null;
+      horimetroFinal: string | null;
       altura: string | null;
       largura: string | null;
       larguraFinal: string | null;
@@ -214,6 +234,11 @@ interface RdoExistente {
     producaoUnidade: string | null;
     horimetroInicial: string | null;
     horimetroFinal: string | null;
+    kmInicial: string | null;
+    kmFinal: string | null;
+    rota: string | null;
+    combustivelLitros: string | null;
+    combustivelPosto: string | null;
   }>;
   materiais: Array<{ materialCatalogoId: string; quantidade: string }>;
 }
@@ -232,6 +257,8 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     unidade: primeira?.unidade ?? "UND",
     kmInicial: "",
     kmFinal: "",
+    horimetroInicial: "",
+    horimetroFinal: "",
     altura: "",
     largura: "",
     larguraFinal: "",
@@ -357,6 +384,9 @@ export default function RdoCompleto(): ReactElement {
   const [equipamentosQtd, setEquipamentosQtd] = useState<Record<string, string>>({});
   const [equipamentosDetalhe, setEquipamentosDetalhe] = useState<Record<string, EquipamentoDetalhe>>({});
   const [equipamentosDetalheAberto, setEquipamentosDetalheAberto] = useState<Record<string, boolean>>({});
+  // Motorista/Operador dirige só um equipamento por dia — substitui a
+  // seleção em vez de acumular na checklist geral.
+  const [motoristaEquipamentoId, setMotoristaEquipamentoId] = useState("");
   const [materiais, setMateriais] = useState<MaterialDraft[]>([]);
   const [observacoes, setObservacoes] = useState("");
 
@@ -431,6 +461,8 @@ export default function RdoCompleto(): ReactElement {
                     unidade: atividade.unidade,
                     kmInicial: atividade.kmInicial ?? "",
                     kmFinal: atividade.kmFinal ?? "",
+                    horimetroInicial: atividade.horimetroInicial ?? "",
+                    horimetroFinal: atividade.horimetroFinal ?? "",
                     altura: atividade.altura ?? "",
                     largura: atividade.largura ?? "",
                     larguraFinal: atividade.larguraFinal ?? "",
@@ -491,6 +523,11 @@ export default function RdoCompleto(): ReactElement {
                   producaoUnidade: eq.producaoUnidade ?? "",
                   horimetroInicial: eq.horimetroInicial ?? "",
                   horimetroFinal: eq.horimetroFinal ?? "",
+                  kmInicial: eq.kmInicial ?? "",
+                  kmFinal: eq.kmFinal ?? "",
+                  rota: eq.rota ?? "",
+                  combustivelLitros: eq.combustivelLitros ?? "",
+                  combustivelPosto: eq.combustivelPosto ?? "",
                 },
               ]),
             ),
@@ -506,6 +543,7 @@ export default function RdoCompleto(): ReactElement {
             ),
           );
           setMateriais(rdo.materiais.map((m) => ({ materialCatalogoId: m.materialCatalogoId, quantidade: String(m.quantidade) })));
+          setMotoristaEquipamentoId(rdo.equipamentos[0]?.equipamentoCatalogoId ?? "");
           setUltimaDecisaoFiscal(rdo.ultimaDecisaoFiscal);
         } else {
           const primeiraFrente = listaFrentes[0]?.id ?? "";
@@ -527,6 +565,10 @@ export default function RdoCompleto(): ReactElement {
   const equipesDaFrente = equipes.filter((equipe) => equipe.distrito.frenteId === frenteId);
   const equipeSelecionada = equipes.find((equipe) => equipe.id === equipeId) ?? null;
   const ordensDaFrente = ordensManutencao.filter((ordem) => ordem.frenteId === frenteId);
+  // Motorista/Operador não usa atividade com dimensão (croqui não faz
+  // sentido pra ele) — mesmo filtro do formulário de campo (Campo.tsx).
+  const atividadesCatalogoDoTipo =
+    tipo === "MOTORISTA_OPERADOR" ? atividadesCatalogo.filter((item) => !item.usaDimensoes) : atividadesCatalogo;
   const tempoTotal = useMemo(() => calcularTempoTotal(blocos), [blocos]);
   const horasApontadasDia = useMemo(() => calcularHorasApontadasDia(blocos, locais), [blocos, locais]);
 
@@ -753,6 +795,12 @@ export default function RdoCompleto(): ReactElement {
     setEquipamentosDetalheAberto((atual) => ({ ...atual, [equipamentoCatalogoId]: !atual[equipamentoCatalogoId] }));
   }
 
+  /** Motorista/Operador: troca o equipamento selecionado em vez de acumular (só um por dia). */
+  function selecionarEquipamentoMotorista(equipamentoCatalogoId: string): void {
+    setMotoristaEquipamentoId(equipamentoCatalogoId);
+    setEquipamentosQtd(equipamentoCatalogoId ? { [equipamentoCatalogoId]: "1" } : {});
+  }
+
   async function handleSalvar(): Promise<void> {
     if (!frenteId || !equipeId) {
       setErroSalvar("Escolha a frente e a equipe antes de salvar.");
@@ -789,6 +837,8 @@ export default function RdoCompleto(): ReactElement {
             percentualConcluido: atividade.percentualConcluido === "" ? null : Number(atividade.percentualConcluido),
             kmInicial: atividade.kmInicial === "" ? null : Number(atividade.kmInicial),
             kmFinal: atividade.kmFinal === "" ? null : Number(atividade.kmFinal),
+            horimetroInicial: atividade.horimetroInicial === "" ? null : Number(atividade.horimetroInicial),
+            horimetroFinal: atividade.horimetroFinal === "" ? null : Number(atividade.horimetroFinal),
             unidade: atividade.unidade,
             altura: atividade.altura === "" ? null : Number(atividade.altura),
             largura: atividade.largura === "" ? null : Number(atividade.largura),
@@ -839,6 +889,11 @@ export default function RdoCompleto(): ReactElement {
             producaoUnidade: detalhe.producaoUnidade.trim() || null,
             horimetroInicial: detalhe.horimetroInicial !== "" ? Number(detalhe.horimetroInicial) : null,
             horimetroFinal: detalhe.horimetroFinal !== "" ? Number(detalhe.horimetroFinal) : null,
+            kmInicial: detalhe.kmInicial !== "" ? Number(detalhe.kmInicial) : null,
+            kmFinal: detalhe.kmFinal !== "" ? Number(detalhe.kmFinal) : null,
+            rota: detalhe.rota.trim() || null,
+            combustivelLitros: detalhe.combustivelLitros !== "" ? Number(detalhe.combustivelLitros) : null,
+            combustivelPosto: detalhe.combustivelPosto.trim() || null,
           };
         }),
       materiais: materiais
@@ -1177,7 +1232,7 @@ export default function RdoCompleto(): ReactElement {
                       value={atividade.atividadeCatalogoId}
                       onChange={(event) => selecionarAtividadeCatalogo(localIndice, atividadeIndice, event.target.value)}
                     >
-                      {atividadesCatalogo.map((item) => (
+                      {atividadesCatalogoDoTipo.map((item) => (
                         <option key={item.id} value={item.id}>
                           {item.codigo} — {item.descricao}
                         </option>
@@ -1222,6 +1277,33 @@ export default function RdoCompleto(): ReactElement {
                         />
                       </div>
                     </div>
+
+                    {tipo === "MOTORISTA_OPERADOR" && (
+                      <div className="grid-2" style={{ marginTop: 12 }}>
+                        <div>
+                          <label className="field-label">Horímetro inicial</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="field-input"
+                            placeholder="Ex.: 1234.50"
+                            value={atividade.horimetroInicial}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "horimetroInicial", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Horímetro final</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="field-input"
+                            placeholder="Ex.: 1240.00"
+                            value={atividade.horimetroFinal}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "horimetroFinal", event.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     {atividade.unidade === "M3" && (
                       <div className="grid-3" style={{ marginTop: 12 }}>
@@ -1405,6 +1487,7 @@ export default function RdoCompleto(): ReactElement {
                       </div>
                     )}
 
+                    {tipo !== "MOTORISTA_OPERADOR" && (
                     <div style={{ marginTop: 12 }}>
                       <label className="field-label">Mão de obra nesta atividade</label>
                       {atividade.maoDeObra.map((item, itemIndice) => (
@@ -1448,6 +1531,7 @@ export default function RdoCompleto(): ReactElement {
                         + Adicionar função
                       </button>
                     </div>
+                    )}
                   </div>
 
                   {usaDimensoes && (
@@ -1600,7 +1684,7 @@ export default function RdoCompleto(): ReactElement {
                 onClick={() =>
                   setLocais((atual) =>
                     atual.map((l, i) =>
-                      i === localIndice ? { ...l, atividades: [...l.atividades, novaAtividade(atividadesCatalogo)] } : l,
+                      i === localIndice ? { ...l, atividades: [...l.atividades, novaAtividade(atividadesCatalogoDoTipo)] } : l,
                     ),
                   )
                 }
@@ -1619,12 +1703,13 @@ export default function RdoCompleto(): ReactElement {
           <button
             type="button"
             className="button button--secondary button--small"
-            onClick={() => setLocais((atual) => [...atual, novoLocal(atividadesCatalogo)])}
+            onClick={() => setLocais((atual) => [...atual, novoLocal(atividadesCatalogoDoTipo)])}
           >
             + Adicionar local
           </button>
         </section>
 
+        {tipo !== "MOTORISTA_OPERADOR" && (
         <section className="form-section">
           <h2 className="form-section-title">Mão de obra</h2>
           {!equipeSelecionada || equipeSelecionada.membros.length === 0 ? (
@@ -1685,14 +1770,114 @@ export default function RdoCompleto(): ReactElement {
             + Adicionar função avulsa (mão de obra indireta)
           </button>
         </section>
+        )}
 
         <section className="form-section">
-          <h2 className="form-section-title">Equipamentos / outros custos indiretos</h2>
+          <h2 className="form-section-title">
+            {tipo === "MOTORISTA_OPERADOR" ? "Equipamento" : "Equipamentos / outros custos indiretos"}
+          </h2>
           <p className="form-section-subtitle">
-            Marque a quantidade de cada item usado no dia. Produção/horímetro é opcional — só abra pra equipamento
-            que aponta por produção (ex.: terraplenagem).
+            {tipo === "MOTORISTA_OPERADOR"
+              ? "Qual equipamento ele dirige ou opera nesse dia."
+              : "Marque a quantidade de cada item usado no dia. Produção/horímetro é opcional — só abra pra equipamento que aponta por produção (ex.: terraplenagem)."}
           </p>
-          {equipamentosCatalogo.length === 0 ? (
+          {tipo === "MOTORISTA_OPERADOR" ? (
+            <>
+              <Autocomplete
+                value={motoristaEquipamentoId}
+                items={equipamentosCatalogo}
+                getLabel={(item) => item.nome}
+                placeholder="Buscar o equipamento…"
+                onChange={selecionarEquipamentoMotorista}
+              />
+              {motoristaEquipamentoId &&
+                (() => {
+                  const detalhe = equipamentosDetalhe[motoristaEquipamentoId] ?? detalheVazio();
+                  return (
+                    <div className="repeatable-item" style={{ marginTop: 12 }}>
+                      <div className="grid-2">
+                        <div>
+                          <label className="field-label">Horímetro inicial</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            className="field-input"
+                            placeholder="Ex.: 1234.50"
+                            value={detalhe.horimetroInicial}
+                            onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "horimetroInicial", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Horímetro final</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            className="field-input"
+                            placeholder="Ex.: 1240.00"
+                            value={detalhe.horimetroFinal}
+                            onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "horimetroFinal", event.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid-2" style={{ marginTop: 8 }}>
+                        <div>
+                          <label className="field-label">Km inicial</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min={0}
+                            className="field-input"
+                            value={detalhe.kmInicial}
+                            onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "kmInicial", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Km final</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min={0}
+                            className="field-input"
+                            value={detalhe.kmFinal}
+                            onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "kmFinal", event.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <input
+                        className="field-input"
+                        style={{ marginTop: 8 }}
+                        placeholder="Rota (ex.: Marabá — Parauapebas)"
+                        value={detalhe.rota}
+                        onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "rota", event.target.value)}
+                      />
+                      <div className="grid-2" style={{ marginTop: 8 }}>
+                        <div>
+                          <label className="field-label">Combustível abastecido (litros)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min={0}
+                            className="field-input"
+                            value={detalhe.combustivelLitros}
+                            onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "combustivelLitros", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Posto</label>
+                          <input
+                            className="field-input"
+                            value={detalhe.combustivelPosto}
+                            onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "combustivelPosto", event.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+            </>
+          ) : equipamentosCatalogo.length === 0 ? (
             <p className="table-empty">Nenhum equipamento cadastrado no catálogo.</p>
           ) : (
             equipamentosCatalogo.map((item) => {
