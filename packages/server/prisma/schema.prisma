@@ -525,6 +525,12 @@ model RdoAtividade {
   percentualConcluido Int?
   kmInicial           Decimal?                @db.Decimal(10, 3)
   kmFinal             Decimal?                @db.Decimal(10, 3)
+  // Horímetro do equipamento no início/fim DESTA atividade — usado no RDO
+  // Motorista/Operador, onde a mesma máquina pode fazer mais de uma
+  // atividade no dia e cada uma precisa da própria leitura (diferente do
+  // horímetro do dia inteiro em RdoEquipamento.horimetroInicial/Final).
+  horimetroInicial    Decimal?                @db.Decimal(10, 2)
+  horimetroFinal      Decimal?                @db.Decimal(10, 2)
   altura              Decimal?                @db.Decimal(10, 3)
   largura             Decimal?                @db.Decimal(10, 3)
   larguraFinal        Decimal?                @db.Decimal(10, 3)

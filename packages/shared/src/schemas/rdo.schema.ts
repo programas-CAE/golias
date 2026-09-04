@@ -126,6 +126,11 @@ export const rdoAtividadeInputSchema = z
     percentualConcluido: z.number().int().min(0).max(100).nullable().optional(),
     kmInicial: z.number().nonnegative().nullable().optional(),
     kmFinal: z.number().nonnegative().nullable().optional(),
+    // Horímetro do equipamento no início/fim DESTA atividade — RDO
+    // Motorista/Operador, onde a mesma máquina pode fazer mais de uma
+    // atividade no dia e cada uma tem sua própria leitura.
+    horimetroInicial: z.number().nonnegative().nullable().optional(),
+    horimetroFinal: z.number().nonnegative().nullable().optional(),
     altura: z.number().positive().nullable().optional(),
     largura: z.number().positive().nullable().optional(),
     larguraFinal: z.number().positive().nullable().optional(),

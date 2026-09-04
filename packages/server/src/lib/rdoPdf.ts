@@ -33,6 +33,8 @@ export interface RdoPdfAtividade {
   quantidade: number;
   kmInicial: number | null;
   kmFinal: number | null;
+  horimetroInicial: number | null;
+  horimetroFinal: number | null;
   usaDimensoes: boolean;
   altura: number | null;
   largura: number | null;
@@ -313,6 +315,10 @@ function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
       const localTexto = `${local.descricao}${local.lado ? ` ${local.lado}` : ""}`;
       const km =
         atividade.kmInicial != null && atividade.kmFinal != null ? ` (Km ${atividade.kmInicial} ao ${atividade.kmFinal})` : "";
+      const horimetro =
+        atividade.horimetroInicial != null && atividade.horimetroFinal != null
+          ? ` (Horímetro ${formatarNumero(atividade.horimetroInicial)} a ${formatarNumero(atividade.horimetroFinal)} h)`
+          : "";
       const moTotal = atividade.maoDeObra.reduce((soma, item) => soma + item.quantidade, 0);
       const omCor =
         atividade.statusOm === "CONCLUIDA" ? COR_STATUS_CONCLUIDA : atividade.statusOm === "EM_ANDAMENTO" ? COR_STATUS_EM_ANDAMENTO : null;
@@ -337,7 +343,7 @@ function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
       linhas.push({
         inicial: atividade.horarioInicial ?? "",
         final: atividade.horarioFinal ?? "",
-        atividadeTexto: `${atividade.item} — ${atividade.descricao} — ${localTexto}${km}`,
+        atividadeTexto: `${atividade.item} — ${atividade.descricao} — ${localTexto}${km}${horimetro}`,
         qtd: formatarNumero(quantidadePonto1),
         unidade: atividade.unidade,
         omTexto,

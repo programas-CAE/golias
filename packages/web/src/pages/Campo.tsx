@@ -80,6 +80,8 @@ interface RdoAtividadeSalva {
   percentualConcluido: number | null;
   kmInicial: string | null;
   kmFinal: string | null;
+  horimetroInicial: string | null;
+  horimetroFinal: string | null;
   altura: string | null;
   largura: string | null;
   larguraFinal: string | null;
@@ -202,6 +204,8 @@ interface AtividadeDraft {
   unidade: string;
   kmInicial: string;
   kmFinal: string;
+  horimetroInicial: string;
+  horimetroFinal: string;
   altura: string;
   largura: string;
   larguraFinal: string;
@@ -296,6 +300,8 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     unidade: primeira?.unidade ?? "UND",
     kmInicial: "",
     kmFinal: "",
+    horimetroInicial: "",
+    horimetroFinal: "",
     altura: "",
     largura: "",
     larguraFinal: "",
@@ -461,6 +467,8 @@ export default function Campo(): ReactElement {
                   percentualConcluido: atividade.percentualConcluido != null ? String(atividade.percentualConcluido) : "",
                   kmInicial: atividade.kmInicial ?? "",
                   kmFinal: atividade.kmFinal ?? "",
+                  horimetroInicial: atividade.horimetroInicial ?? "",
+                  horimetroFinal: atividade.horimetroFinal ?? "",
                   unidade: atividade.unidade,
                   altura: atividade.altura ?? "",
                   largura: atividade.largura ?? "",
@@ -934,6 +942,8 @@ export default function Campo(): ReactElement {
             percentualConcluido: atividade.percentualConcluido === "" ? null : Number(atividade.percentualConcluido),
             kmInicial: atividade.kmInicial === "" ? null : Number(atividade.kmInicial),
             kmFinal: atividade.kmFinal === "" ? null : Number(atividade.kmFinal),
+            horimetroInicial: atividade.horimetroInicial === "" ? null : Number(atividade.horimetroInicial),
+            horimetroFinal: atividade.horimetroFinal === "" ? null : Number(atividade.horimetroFinal),
             unidade: atividade.unidade,
             altura: atividade.altura === "" ? null : Number(atividade.altura),
             largura: atividade.largura === "" ? null : Number(atividade.largura),
@@ -1210,16 +1220,14 @@ export default function Campo(): ReactElement {
                     ))}
                   </select>
 
-                  {rdo.tipo !== "MOTORISTA_OPERADOR" && (
-                    <Autocomplete
-                      value={atividade.ordemManutencaoId}
-                      items={ordensManutencao}
-                      getLabel={(om) => om.numero}
-                      getSublabel={(om) => om.detalhes}
-                      onChange={(ordemManutencaoId) => selecionarOrdemManutencao(localIndice, atividadeIndice, ordemManutencaoId)}
-                      placeholder="Ordem de manutenção (opcional)"
-                    />
-                  )}
+                  <Autocomplete
+                    value={atividade.ordemManutencaoId}
+                    items={ordensManutencao}
+                    getLabel={(om) => om.numero}
+                    getSublabel={(om) => om.detalhes}
+                    onChange={(ordemManutencaoId) => selecionarOrdemManutencao(localIndice, atividadeIndice, ordemManutencaoId)}
+                    placeholder="Ordem de manutenção (opcional)"
+                  />
 
                   <div className="campo-grid-2">
                     <div>
@@ -1245,6 +1253,33 @@ export default function Campo(): ReactElement {
                       />
                     </div>
                   </div>
+
+                  {rdo.tipo === "MOTORISTA_OPERADOR" && (
+                    <div className="campo-grid-2">
+                      <div>
+                        <label className="field-label">Horímetro inicial</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="field-input"
+                          placeholder="Ex.: 1234.50"
+                          value={atividade.horimetroInicial}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "horimetroInicial", event.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="field-label">Horímetro final</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="field-input"
+                          placeholder="Ex.: 1240.00"
+                          value={atividade.horimetroFinal}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "horimetroFinal", event.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {atividade.unidade === "M3" && (
                     <div className="campo-grid-3">
