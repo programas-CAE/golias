@@ -281,6 +281,34 @@ function novoLocal(atividadesCatalogo: AtividadeCatalogo[]): LocalDraft {
   };
 }
 
+/**
+ * A atividade ainda está exatamente como `novaAtividade` a criou — só o
+ * catálogo/unidade escolhido por padrão, nada digitado de verdade. Usado
+ * por handleTipoChange pra saber se é seguro trocar o catálogo padrão sem
+ * apagar trabalho real (ver comentário lá).
+ */
+function ehAtividadeIntocada(atividade: AtividadeDraft): boolean {
+  return (
+    atividade.ordemManutencaoId === "" &&
+    atividade.statusOm === "" &&
+    atividade.percentualConcluido === "" &&
+    atividade.kmInicial === "" &&
+    atividade.kmFinal === "" &&
+    atividade.horimetroInicial === "" &&
+    atividade.horimetroFinal === "" &&
+    atividade.altura === "" &&
+    atividade.largura === "" &&
+    atividade.larguraFinal === "" &&
+    atividade.comprimento === "" &&
+    atividade.quantidadeDireta === "" &&
+    atividade.horarioInicial === "" &&
+    atividade.horarioFinal === "" &&
+    atividade.horasTrabalhadas === "" &&
+    atividade.maoDeObra.length === 0 &&
+    atividade.pontosExtras.length === 0
+  );
+}
+
 function minutosDoHorario(horario: string): number {
   const [horaStr, minutoStr] = horario.split(":");
   return Number(horaStr) * 60 + Number(minutoStr);
@@ -602,20 +630,41 @@ export default function RdoCompleto(): ReactElement {
   }
 
   /**
-   * Só troca a aba — NÃO mexe em `locais`. Antes isso também limpava
-   * qualquer atividade dimensional (M/M2/M3) pra "consertar" o rótulo do
-   * <select> quando a lista filtrada de Motorista/Operador não continha
-   * mais a atividade selecionada, mas isso destruía os dados: clicar em
+   * Troca a aba e, SE o RDO ainda estiver no estado inicial intocado (1
+   * local vazio, 1 atividade sem nada digitado — o "chute" de catálogo que
+   * o formulário faz sozinho ao abrir), troca também essa atividade padrão
+   * pra uma válida do tipo novo. É o caso mais comum: abrir um RDO novo e
+   * escolher Motorista/Operador de cara — sem isso, o croqui da atividade
+   * dimensional que veio de brinde ficava preso ali (bug real visto em
+   * produção).
+   *
+   * Fora desse caso (já existe local/atividade com dado real digitado),
+   * NÃO mexe em `locais` — resetar destruía dados de verdade: clicar em
    * Motorista/Operador só pra espiar e voltar pra Preventiva/Corretiva
-   * apagava o croqui/dimensões da atividade que já estava preenchida (bug
-   * real visto em produção). O rótulo do <select> agora é resolvido sem
-   * mexer nos dados (ver `atividadesCatalogoDoTipo` mais abaixo, que sempre
+   * apagava o croqui/dimensões da atividade que já estava preenchida (outro
+   * bug real visto em produção). O rótulo do <select> é resolvido sem mexer
+   * nos dados (ver `atividadesCatalogoDoTipo` mais abaixo, que sempre
    * inclui a atividade já selecionada mesmo fora do filtro do tipo atual),
    * e a combinação inválida (atividade dimensional + Motorista/Operador) é
-   * bloqueada só na hora de salvar (ver handleSalvar).
+   * bloqueada na hora de salvar (ver handleSalvar).
    */
   function handleTipoChange(novoTipo: (typeof TIPOS_RDO)[number]): void {
     setTipo(novoTipo);
+    const catalogoNovo =
+      novoTipo === "MOTORISTA_OPERADOR" ? atividadesCatalogo.filter((item) => !item.usaDimensoes) : atividadesCatalogo;
+    const idsValidos = new Set(catalogoNovo.map((item) => item.id));
+    setLocais((atual) => {
+      const local = atual[0];
+      const atividade = local?.atividades[0];
+      const podeTrocarPadrao =
+        atual.length === 1 &&
+        local!.descricao.trim() === "" &&
+        local!.atividades.length === 1 &&
+        atividade != null &&
+        ehAtividadeIntocada(atividade) &&
+        !idsValidos.has(atividade.atividadeCatalogoId);
+      return podeTrocarPadrao ? [novoLocal(catalogoNovo)] : atual;
+    });
   }
 
   function atualizarBloco(indice: number, campo: keyof BlocoDraft, valor: string): void {
