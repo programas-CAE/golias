@@ -536,6 +536,14 @@ textarea.field-input {
   border-bottom: none;
 }
 
+.table tr.table-row--clicavel {
+  cursor: pointer;
+}
+
+.table tr.table-row--clicavel:hover td {
+  background: var(--surface-tint);
+}
+
 .table-empty {
   padding: 32px;
   text-align: center;

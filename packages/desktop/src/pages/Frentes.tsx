@@ -74,7 +74,12 @@ export default function Frentes(): ReactElement {
               </thead>
               <tbody>
                 {frentes.map((frente) => (
-                  <tr key={frente.id}>
+                  <tr
+                    key={frente.id}
+                    className="table-row--clicavel"
+                    onClick={() => navigate(`/frentes/${frente.id}/distritos`)}
+                    title="Ver distritos desta frente"
+                  >
                     <td>{frente.codigo}</td>
                     <td>{frente.nome}</td>
                     <td>{frente.contrato.numero}</td>
@@ -83,18 +88,14 @@ export default function Frentes(): ReactElement {
                         {frente.ativo ? "Ativa" : "Inativa"}
                       </span>
                     </td>
-                    <td style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <td style={{ display: "flex", justifyContent: "flex-end" }}>
                       <button
                         type="button"
                         className="button button--ghost button--small"
-                        onClick={() => navigate(`/frentes/${frente.id}/distritos`)}
-                      >
-                        Ver distritos
-                      </button>
-                      <button
-                        type="button"
-                        className="button button--ghost button--small"
-                        onClick={() => setEditando(frente)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setEditando(frente);
+                        }}
                       >
                         Editar
                       </button>
