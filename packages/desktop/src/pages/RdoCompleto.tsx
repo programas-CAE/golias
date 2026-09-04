@@ -486,6 +486,22 @@ export default function RdoCompleto(): ReactElement {
                 }))
               : [novoLocal(listaAtividades)],
           );
+          // RDO salvo antes da regra de "sem dimensão" pra Motorista/
+          // Operador pode ter atividade M/M2/M3 antiga — sem isso, reabrir
+          // pra editar mostrava a mesma inconsistência (select x croqui)
+          // que a troca manual de tipo já corrige em handleTipoChange.
+          if (rdo.tipo === "MOTORISTA_OPERADOR") {
+            const catalogoDoTipo = listaAtividades.filter((item) => !item.usaDimensoes);
+            const idsValidos = new Set(catalogoDoTipo.map((item) => item.id));
+            setLocais((atual) =>
+              atual.map((local) => ({
+                ...local,
+                atividades: local.atividades.map((atividade) =>
+                  idsValidos.has(atividade.atividadeCatalogoId) ? atividade : novaAtividade(catalogoDoTipo),
+                ),
+              })),
+            );
+          }
           setMaoDeObra(
             Object.fromEntries(
               rdo.maoDeObra
@@ -577,6 +593,32 @@ export default function RdoCompleto(): ReactElement {
     const primeiraEquipe = equipes.find((equipe) => equipe.distrito.frenteId === novaFrenteId);
     setEquipeId(primeiraEquipe?.id ?? "");
     setMaoDeObra({});
+  }
+
+  /**
+   * Trocar o tipo muda quais atividades do catálogo ficam disponíveis
+   * (Motorista/Operador só mostra as sem dimensão) — sem isso, uma
+   * atividade já escolhida antes da troca (ex.: "Limpeza de bueiros", M3)
+   * sumia da lista mas continuava selecionada por baixo dos panos: o
+   * <select> não achava mais a opção correspondente e mostrava a primeira
+   * da lista nova por engano, enquanto o croqui/M3 continuava vindo dos
+   * dados antigos (bug real visto em produção). Por isso, ao trocar de
+   * tipo, qualquer atividade que não exista mais na lista filtrada volta
+   * pro padrão (primeira atividade válida do tipo novo).
+   */
+  function handleTipoChange(novoTipo: (typeof TIPOS_RDO)[number]): void {
+    setTipo(novoTipo);
+    const catalogoNovo =
+      novoTipo === "MOTORISTA_OPERADOR" ? atividadesCatalogo.filter((item) => !item.usaDimensoes) : atividadesCatalogo;
+    const idsValidos = new Set(catalogoNovo.map((item) => item.id));
+    setLocais((atual) =>
+      atual.map((local) => ({
+        ...local,
+        atividades: local.atividades.map((atividade) =>
+          idsValidos.has(atividade.atividadeCatalogoId) ? atividade : novaAtividade(catalogoNovo),
+        ),
+      })),
+    );
   }
 
   function atualizarBloco(indice: number, campo: keyof BlocoDraft, valor: string): void {
@@ -1050,7 +1092,7 @@ export default function RdoCompleto(): ReactElement {
                   type="button"
                   className={opcao === tipo ? "button button--small" : "button button--secondary button--small"}
                   disabled={emEdicao}
-                  onClick={() => setTipo(opcao)}
+                  onClick={() => handleTipoChange(opcao)}
                 >
                   {TIPO_RDO_LABEL[opcao]}
                 </button>

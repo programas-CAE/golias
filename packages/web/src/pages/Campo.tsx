@@ -493,6 +493,23 @@ export default function Campo(): ReactElement {
               }))
             : [novoLocal(resposta.atividadesCatalogo)],
         );
+        // RDO salvo com atividade dimensional (M/M2/M3) antes de existir a
+        // regra "Motorista/Operador não usa croqui" — sem isso, reabrir um
+        // RDO desses mostrava o select numa atividade e o croqui/M3 vindo
+        // de outra (a antiga, que sumiu da lista filtrada mas continuava
+        // selecionada por baixo dos panos).
+        if (resposta.rdo.tipo === "MOTORISTA_OPERADOR") {
+          const catalogoDoTipo = resposta.atividadesCatalogo.filter((item) => !item.usaDimensoes);
+          const idsValidos = new Set(catalogoDoTipo.map((item) => item.id));
+          setLocais((atual) =>
+            atual.map((local) => ({
+              ...local,
+              atividades: local.atividades.map((atividade) =>
+                idsValidos.has(atividade.atividadeCatalogoId) ? atividade : novaAtividade(catalogoDoTipo),
+              ),
+            })),
+          );
+        }
         // RdoMaoDeObra não guarda o id do EquipeMembro, só funcaoId/
         // colaboradorId — reconstituímos o vínculo pra achar qual membro
         // (nomeado, por colaboradorId, ou só-função, por funcaoId) cada
