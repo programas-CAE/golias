@@ -481,7 +481,14 @@ function desenharTabelaUnificada(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yI
     y += alturaLinha;
   }
 
-  doc.y = y;
+  doc.y = y + 2;
+  doc
+    .font("Helvetica-Oblique")
+    .fontSize(6)
+    .fillColor("#666666")
+    .text("QTD: Quantidade · UN: Unidade · OM: Ordem de Manutenção · MO: Mão de obra na atividade", MARGEM, doc.y);
+  doc.fillColor("#000000");
+  doc.y += 8;
 }
 
 const JORNADA_REFERENCIA_HORAS = 10;
