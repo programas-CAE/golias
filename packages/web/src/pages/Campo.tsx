@@ -248,6 +248,29 @@ interface EquipamentoDetalhe {
   combustivelPosto: string;
 }
 
+function chaveMemoriaEquipamentos(equipeId: string): string {
+  return `golias:campo:equipe:${equipeId}:equipamentosAtivos`;
+}
+
+function lerEquipamentosMemoria(equipeId: string): string[] {
+  try {
+    const bruto = localStorage.getItem(chaveMemoriaEquipamentos(equipeId));
+    if (!bruto) return [];
+    const valores: unknown = JSON.parse(bruto);
+    return Array.isArray(valores) ? valores.filter((valor): valor is string => typeof valor === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function salvarEquipamentosMemoria(equipeId: string, ids: string[]): void {
+  try {
+    localStorage.setItem(chaveMemoriaEquipamentos(equipeId), JSON.stringify(ids));
+  } catch {
+    // localStorage indisponível — segue sem lembrar
+  }
+}
+
 function detalheVazio(): EquipamentoDetalhe {
   return {
     producaoDescricao: "",
@@ -373,12 +396,16 @@ export default function Campo(): ReactElement {
   // grade abaixo só edita membros da equipe, então preservamos esses à parte
   // para reenviá-los intactos, em vez de perdê-los no próximo salvamento.
   const [outrasMaoDeObra, setOutrasMaoDeObra] = useState<RdoMaoDeObraSalva[]>([]);
-  // Checklist fixa — todo item do catálogo aparece direto, só com a
-  // quantidade (padrão antigo, que o usuário pediu de volta); produção/
-  // horímetro fica escondido por item até clicar em "+ Produção/horímetro".
+  // Lista curada por equipe (não é mais o catálogo inteiro direto) — cada
+  // equipe adiciona só os equipamentos que costuma usar; produção/horímetro
+  // fica escondido por item até clicar em "+ Produção/horímetro". O
+  // conjunto de ids ativos fica lembrado por equipe (ver
+  // chaveMemoriaEquipamentos) e pré-carrega no próximo RDO dela.
+  const [equipamentosAtivos, setEquipamentosAtivos] = useState<string[]>([]);
   const [equipamentosQtd, setEquipamentosQtd] = useState<Record<string, string>>({});
   const [equipamentosDetalhe, setEquipamentosDetalhe] = useState<Record<string, EquipamentoDetalhe>>({});
   const [equipamentosDetalheAberto, setEquipamentosDetalheAberto] = useState<Record<string, boolean>>({});
+  const [novoEquipamentoId, setNovoEquipamentoId] = useState("");
 
   const [salvando, setSalvando] = useState(false);
   const [salvarStatus, setSalvarStatus] = useState<"idle" | "salvo" | "erro">("idle");
@@ -481,6 +508,14 @@ export default function Campo(): ReactElement {
         setEquipamentosQtd(
           Object.fromEntries(resposta.rdo.equipamentos.map((eq) => [eq.equipamentoCatalogoId, String(eq.quantidade)])),
         );
+        // A lista ativa parte do que já foi salvo neste RDO; se ainda não
+        // tem nada (RDO novo), usa o que ficou de memória da última vez
+        // que essa equipe lançou — só ids que ainda existem no catálogo.
+        const idsCatalogo = new Set(listaEquipamentos.map((item) => item.id));
+        const idsDoRdo = resposta.rdo.equipamentos.map((eq) => eq.equipamentoCatalogoId);
+        const idsIniciais =
+          idsDoRdo.length > 0 ? idsDoRdo : lerEquipamentosMemoria(resposta.rdo.equipe.id).filter((id) => idsCatalogo.has(id));
+        setEquipamentosAtivos(idsIniciais);
         setEquipamentosDetalhe(
           Object.fromEntries(
             resposta.rdo.equipamentos.map((eq) => [
@@ -781,6 +816,32 @@ export default function Campo(): ReactElement {
 
   function adicionarMaterial(): void {
     setMateriais((atual) => [...atual, { materialCatalogoId: "", quantidade: "" }]);
+  }
+
+  function adicionarEquipamentoAtivo(equipamentoCatalogoId: string): void {
+    if (!equipamentoCatalogoId || equipamentosAtivos.includes(equipamentoCatalogoId)) return;
+    setEquipamentosAtivos((atual) => {
+      const novo = [...atual, equipamentoCatalogoId];
+      if (dados?.rdo.equipe.id) salvarEquipamentosMemoria(dados.rdo.equipe.id, novo);
+      return novo;
+    });
+  }
+
+  /** Tira da lista curada da equipe — não mexe em fotos/OM já lançadas, só some com a linha e zera a quantidade. */
+  function removerEquipamentoAtivo(equipamentoCatalogoId: string): void {
+    setEquipamentosAtivos((atual) => {
+      const novo = atual.filter((id) => id !== equipamentoCatalogoId);
+      if (dados?.rdo.equipe.id) salvarEquipamentosMemoria(dados.rdo.equipe.id, novo);
+      return novo;
+    });
+    setEquipamentosQtd((atual) => {
+      const { [equipamentoCatalogoId]: _removido, ...resto } = atual;
+      return resto;
+    });
+    setEquipamentosDetalheAberto((atual) => {
+      const { [equipamentoCatalogoId]: _removido, ...resto } = atual;
+      return resto;
+    });
   }
 
   function atualizarDetalheEquipamento(equipamentoCatalogoId: string, campo: keyof EquipamentoDetalhe, valor: string): void {
@@ -1572,13 +1633,38 @@ export default function Campo(): ReactElement {
       <section className="campo-secao">
         <h2>Equipamentos / outros custos indiretos</h2>
         <p className="list-subtitle">
-          Marque a quantidade de cada item usado hoje. Produção/horímetro é opcional — só abra pra equipamento que
-          aponta por produção (ex.: terraplenagem).
+          Lista da sua equipe — adicione os equipamentos que usam no dia a dia (fica lembrado pra próxima vez) e
+          marque a quantidade de cada um hoje. Produção/horímetro é opcional — só abra pra equipamento que aponta por
+          produção (ex.: terraplenagem).
         </p>
-        {equipamentosCatalogo.length === 0 ? (
-          <p className="loading-text">Nenhum equipamento cadastrado no catálogo.</p>
+
+        <div className="campo-item" style={{ marginBottom: 12 }}>
+          <Autocomplete
+            value={novoEquipamentoId}
+            items={equipamentosCatalogo.filter((item) => !equipamentosAtivos.includes(item.id))}
+            getLabel={(item) => item.nome}
+            placeholder="Buscar equipamento pra adicionar à lista…"
+            onChange={setNovoEquipamentoId}
+          />
+          <button
+            type="button"
+            className="button button--secondary button--small"
+            disabled={!novoEquipamentoId}
+            onClick={() => {
+              adicionarEquipamentoAtivo(novoEquipamentoId);
+              setNovoEquipamentoId("");
+            }}
+          >
+            + Adicionar
+          </button>
+        </div>
+
+        {equipamentosAtivos.length === 0 ? (
+          <p className="loading-text">Nenhum equipamento na lista ainda — adicione acima.</p>
         ) : (
-          equipamentosCatalogo.map((item) => {
+          equipamentosCatalogo
+            .filter((item) => equipamentosAtivos.includes(item.id))
+            .map((item) => {
             const detalhe = equipamentosDetalhe[item.id] ?? detalheVazio();
             const aberto = equipamentosDetalheAberto[item.id] ?? false;
             return (
@@ -1598,6 +1684,14 @@ export default function Campo(): ReactElement {
                     onClick={() => alternarDetalheEquipamento(item.id)}
                   >
                     {aberto ? "Ocultar produção/horímetro" : "+ Produção/horímetro"}
+                  </button>
+                  <button
+                    type="button"
+                    className="button button--ghost button--small"
+                    onClick={() => removerEquipamentoAtivo(item.id)}
+                    title="Remover da lista"
+                  >
+                    Remover
                   </button>
                 </div>
                 {aberto && (
@@ -1750,22 +1844,23 @@ export default function Campo(): ReactElement {
         </button>
       </section>
 
-      {rdo.tipo !== "MOTORISTA_OPERADOR" && (
       <section className="campo-secao">
         <h2>Fotos</h2>
         <div className="campo-foto-upload">
-          <select
-            className="field-input"
-            value={omFotoSelecionada}
-            onChange={(event) => setOmFotoSelecionada(event.target.value)}
-          >
-            <option value="">Foto geral (sem OM específica)</option>
-            {omsUsadasNoRdo.map((om) => (
-              <option key={om.id} value={om.id}>
-                OM {om.numero}
-              </option>
-            ))}
-          </select>
+          {rdo.tipo !== "MOTORISTA_OPERADOR" && (
+            <select
+              className="field-input"
+              value={omFotoSelecionada}
+              onChange={(event) => setOmFotoSelecionada(event.target.value)}
+            >
+              <option value="">Foto geral (sem OM específica)</option>
+              {omsUsadasNoRdo.map((om) => (
+                <option key={om.id} value={om.id}>
+                  OM {om.numero}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             className="field-input"
             value={legendaFotoSelecionada}
@@ -1785,10 +1880,12 @@ export default function Campo(): ReactElement {
             onChange={(event) => void handleUploadFoto(event)}
           />
         </div>
-        <p className="campo-foto-dica">
-          Escolha a OM antes de tirar a foto — cada foto fica registrada na OM certa, pra aparecer organizada no
-          relatório fotográfico dela.
-        </p>
+        {rdo.tipo !== "MOTORISTA_OPERADOR" && (
+          <p className="campo-foto-dica">
+            Escolha a OM antes de tirar a foto — cada foto fica registrada na OM certa, pra aparecer organizada no
+            relatório fotográfico dela.
+          </p>
+        )}
 
         {anexosPorOm.map((grupo) => (
           <div key={grupo.omNumero ?? "geral"} className="campo-foto-grupo">
@@ -1817,7 +1914,6 @@ export default function Campo(): ReactElement {
           </ul>
         )}
       </section>
-      )}
 
       <section className="campo-secao">
         <h2>Observações</h2>
