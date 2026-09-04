@@ -4,6 +4,17 @@ import { API_URL, ApiError, api } from "../lib/apiClient";
 import { lerSessao, limparSessao } from "../lib/session";
 import AssinaturaCanvas, { type AssinaturaCanvasHandle } from "../components/AssinaturaCanvas";
 import PerfilUsuario from "../components/PerfilUsuario";
+import {
+  IconCalendario,
+  IconCamera,
+  IconDocumento,
+  IconEquipamento,
+  IconLocal,
+  IconMaterial,
+  IconNota,
+  IconPessoas,
+  IconRelogio,
+} from "../components/Icons";
 
 /**
  * Tela do fiscal logado — mesma função do antigo /portal-fiscal/:token
@@ -75,6 +86,7 @@ interface AnexoDetalhe {
 interface RdoDetalhe {
   id: string;
   data: string;
+  tipo: string;
   equipe: { nome: string };
   locais: LocalDetalhe[];
   maoDeObra: MaoDeObraDetalhe[];
@@ -82,6 +94,17 @@ interface RdoDetalhe {
   materiais: MaterialDetalhe[];
   anexos: AnexoDetalhe[];
   observacoesContratada: string | null;
+}
+
+const TIPO_LABEL: Record<string, string> = {
+  PREVENTIVA_CORRETIVA: "Preventiva / Corretiva",
+  TERRAPLENAGEM: "Terraplenagem",
+  SUPERESTRUTURA: "Superestrutura",
+  MOTORISTA_OPERADOR: "Motorista / Operador",
+};
+
+function formatarData(data: string): string {
+  return new Date(`${data.slice(0, 10)}T00:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 }
 
 /** Dias desde que o RDO entrou em "Aguardando aprovação" — null quando ainda não foi enviado ao fiscal. */
@@ -267,37 +290,33 @@ export default function FiscalDashboard(): ReactElement {
 
       <div className="campo-card" style={{ maxWidth: 720, marginTop: 16 }}>
         <section className="campo-secao">
-          <h2>Aguardando aprovação ({lista.pendentes.length})</h2>
+          <h2 className="secao-titulo-com-icone">
+            <IconRelogio /> Aguardando aprovação ({lista.pendentes.length})
+          </h2>
           {lista.pendentes.length === 0 ? (
             <p className="list-subtitle">Nenhum RDO pendente no momento.</p>
           ) : (
-            <ul className="causa-lista">
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {lista.pendentes.map((rdo) => {
                 const dias = diasPendente(rdo.enviadoParaFiscalEm);
                 return (
-                  <li key={rdo.id} style={{ padding: 0 }}>
-                    <button type="button" className="lista-clicavel-item" onClick={() => void abrirRdo(rdo.id)}>
-                      <span>
-                        {rdo.data.slice(0, 10)} — {rdo.equipe.nome}
+                  <button key={rdo.id} type="button" className="pendente-card" onClick={() => void abrirRdo(rdo.id)}>
+                    <span>
+                      <span className="pendente-card-equipe">{rdo.equipe.nome}</span>
+                      <span className="pendente-card-data">
+                        <IconCalendario size={12} /> {formatarData(rdo.data)}
                         {dias != null && (
-                          <span
-                            className="badge"
-                            style={{
-                              marginLeft: 8,
-                              background: dias >= 3 ? "#fee2e2" : "#f1f5f9",
-                              color: dias >= 3 ? "#b91c1c" : "#475569",
-                            }}
-                          >
+                          <span className={`dias-badge${dias >= 3 ? " dias-badge--atrasado" : ""}`}>
                             {dias === 0 ? "hoje" : dias === 1 ? "há 1 dia" : `há ${dias} dias`}
                           </span>
                         )}
                       </span>
-                      <StatusBadge status={rdo.status} />
-                    </button>
-                  </li>
+                    </span>
+                    <StatusBadge status={rdo.status} />
+                  </button>
                 );
               })}
-            </ul>
+            </div>
           )}
         </section>
 
@@ -318,12 +337,14 @@ export default function FiscalDashboard(): ReactElement {
 
         {lista.historico.length > 0 && (
           <section className="campo-secao">
-            <h2>Histórico recente</h2>
+            <h2 className="secao-titulo-com-icone">
+              <IconCalendario /> Histórico recente
+            </h2>
             <ul className="causa-lista">
               {lista.historico.map((rdo) => (
                 <li key={rdo.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                   <span>
-                    {rdo.data.slice(0, 10)} — {rdo.equipe.nome}
+                    {formatarData(rdo.data)} — {rdo.equipe.nome}
                   </span>
                   <StatusBadge status={rdo.status} />
                 </li>
@@ -341,72 +362,102 @@ export default function FiscalDashboard(): ReactElement {
 
       {rdoAberto && (
         <div className="campo-card" style={{ maxWidth: 720, marginTop: 16 }}>
-          <h2>
-            RDO {rdoAberto.data.slice(0, 10)} — {rdoAberto.equipe.nome}
-          </h2>
-
-          <a
-            className="button button--secondary"
-            style={{ display: "inline-flex", marginBottom: 12 }}
-            href={`${API_URL}/rdos/${rdoAberto.id}/pdf`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Ver PDF completo
-          </a>
-
-          {rdoAberto.locais.map((local) => (
-            <div key={local.id} style={{ marginBottom: 12 }}>
-              <p className="list-subtitle">{local.descricao}</p>
-              <ul className="causa-lista">
-                {local.atividades.map((atividade) => (
-                  <li key={atividade.id}>
-                    {atividade.atividadeCatalogo.codigo} — {atividade.atividadeCatalogo.descricao}:{" "}
-                    {Number(atividade.totalCalculado).toLocaleString("pt-BR")} {atividade.unidade}
-                  </li>
-                ))}
-              </ul>
+          <div className="rdo-hero">
+            <p className="rdo-hero-titulo">{formatarData(rdoAberto.data)}</p>
+            <p style={{ margin: "2px 0 0", fontSize: "0.85rem", color: "#3f5a4a" }}>
+              {rdoAberto.equipe.nome} · {TIPO_LABEL[rdoAberto.tipo] ?? rdoAberto.tipo}
+            </p>
+            <div className="rdo-hero-meta">
+              <a
+                className="button button--secondary button--small"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                href={`${API_URL}/rdos/${rdoAberto.id}/pdf`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <IconDocumento size={13} /> Ver PDF completo
+              </a>
             </div>
-          ))}
+          </div>
 
-          <p className="list-subtitle">
-            <strong>Mão de obra:</strong>{" "}
-            {rdoAberto.maoDeObra.map((item) => `${item.funcao.nome} (${item.quantidade})`).join(", ") || "—"}
-          </p>
+          {rdoAberto.locais.length > 0 && (
+            <div style={{ marginBottom: 16 }}>
+              <h3 className="secao-titulo-com-icone campo-subtitulo" style={{ margin: "0 0 8px", fontWeight: 700, color: "#15803d" }}>
+                <IconLocal /> Locais e atividades
+              </h3>
+              {rdoAberto.locais.map((local) => (
+                <div key={local.id} style={{ marginBottom: 10 }}>
+                  <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: "0.85rem", color: "#16281c" }}>{local.descricao}</p>
+                  <ul className="causa-lista">
+                    {local.atividades.map((atividade) => (
+                      <li key={atividade.id}>
+                        {atividade.atividadeCatalogo.codigo} — {atividade.atividadeCatalogo.descricao}:{" "}
+                        {Number(atividade.totalCalculado).toLocaleString("pt-BR")} {atividade.unidade}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="info-linha">
+            <IconPessoas />
+            <span>
+              <strong>Mão de obra:</strong>{" "}
+              {rdoAberto.maoDeObra.map((item) => `${item.funcao.nome} (${item.quantidade})`).join(", ") || "—"}
+            </span>
+          </div>
 
           {rdoAberto.equipamentos.length > 0 && (
-            <p className="list-subtitle">
-              <strong>Equipamentos:</strong>{" "}
-              {rdoAberto.equipamentos
-                .map((item) => {
-                  const detalhes = [
-                    item.producaoValor != null && `produção ${item.producaoValor}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`,
-                    item.horimetroInicial != null &&
-                      item.horimetroFinal != null &&
-                      `horímetro ${item.horimetroInicial}→${item.horimetroFinal}`,
-                    item.kmInicial != null && item.kmFinal != null && `km ${item.kmInicial}→${item.kmFinal}`,
-                    item.rota && `rota ${item.rota}`,
-                  ].filter(Boolean);
-                  return `${item.equipamentoCatalogo.nome} (${item.quantidade})${detalhes.length > 0 ? ` — ${detalhes.join(", ")}` : ""}`;
-                })
-                .join("; ")}
-            </p>
+            <div className="info-linha">
+              <IconEquipamento />
+              <span>
+                <strong>Equipamentos:</strong>{" "}
+                {rdoAberto.equipamentos
+                  .map((item) => {
+                    const detalhes = [
+                      item.producaoValor != null &&
+                        `produção ${item.producaoValor}${item.producaoUnidade ? ` ${item.producaoUnidade}` : ""}`,
+                      item.horimetroInicial != null &&
+                        item.horimetroFinal != null &&
+                        `horímetro ${item.horimetroInicial}→${item.horimetroFinal}`,
+                      item.kmInicial != null && item.kmFinal != null && `km ${item.kmInicial}→${item.kmFinal}`,
+                      item.rota && `rota ${item.rota}`,
+                    ].filter(Boolean);
+                    return `${item.equipamentoCatalogo.nome} (${item.quantidade})${detalhes.length > 0 ? ` — ${detalhes.join(", ")}` : ""}`;
+                  })
+                  .join("; ")}
+              </span>
+            </div>
           )}
 
           {rdoAberto.materiais.length > 0 && (
-            <p className="list-subtitle">
-              <strong>Materiais:</strong>{" "}
-              {rdoAberto.materiais
-                .map((item) => `${item.materialCatalogo.descricao} — ${item.quantidade} ${item.materialCatalogo.unidade}`)
-                .join(", ")}
-            </p>
+            <div className="info-linha">
+              <IconMaterial />
+              <span>
+                <strong>Materiais:</strong>{" "}
+                {rdoAberto.materiais
+                  .map((item) => `${item.materialCatalogo.descricao} — ${item.quantidade} ${item.materialCatalogo.unidade}`)
+                  .join(", ")}
+              </span>
+            </div>
+          )}
+
+          {rdoAberto.observacoesContratada && (
+            <div className="info-linha">
+              <IconNota />
+              <span>
+                <strong>Observações Engecom:</strong> {rdoAberto.observacoesContratada}
+              </span>
+            </div>
           )}
 
           {rdoAberto.anexos.filter((anexo) => anexo.tipo === "FOTO").length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <p className="list-subtitle" style={{ marginBottom: 6 }}>
-                <strong>Fotos ({rdoAberto.anexos.filter((anexo) => anexo.tipo === "FOTO").length})</strong>
-              </p>
+            <div style={{ marginTop: 16 }}>
+              <h3 className="secao-titulo-com-icone campo-subtitulo" style={{ margin: "0 0 8px", fontWeight: 700, color: "#15803d" }}>
+                <IconCamera /> Fotos ({rdoAberto.anexos.filter((anexo) => anexo.tipo === "FOTO").length})
+              </h3>
               <ul className="campo-foto-grade">
                 {rdoAberto.anexos
                   .filter((anexo) => anexo.tipo === "FOTO")
@@ -428,23 +479,19 @@ export default function FiscalDashboard(): ReactElement {
             </div>
           )}
 
-          {rdoAberto.observacoesContratada && (
-            <p className="list-subtitle">
-              <strong>Observações Engecom:</strong> {rdoAberto.observacoesContratada}
-            </p>
-          )}
-
           {acao === null && (
-            <div className="campo-acoes" style={{ marginTop: 16 }}>
+            <div className="campo-acoes" style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 8 }}>
               <button type="button" className="button" onClick={() => setAcao("assinar")}>
                 Assinar / Aprovar
               </button>
-              <button type="button" className="button button--secondary" onClick={() => setAcao("reprovar")}>
-                Reprovar
-              </button>
-              <button type="button" className="button button--secondary" onClick={() => setRdoAberto(null)}>
-                Fechar
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" className="button button--secondary" style={{ flex: 1 }} onClick={() => setAcao("reprovar")}>
+                  Reprovar
+                </button>
+                <button type="button" className="button button--secondary" style={{ flex: 1 }} onClick={() => setRdoAberto(null)}>
+                  Fechar
+                </button>
+              </div>
             </div>
           )}
 

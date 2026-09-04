@@ -389,6 +389,117 @@ body {
   padding: 0;
 }
 
+/* Cabeçalho de seção com ícone — portal do fiscal e do encarregado. */
+.secao-titulo-com-icone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.secao-titulo-com-icone svg {
+  color: #16a34a;
+  flex-shrink: 0;
+}
+
+/* "Hero" do RDO no portal do fiscal: cabeçalho com destaque de tipo/status/prazo. */
+.rdo-hero {
+  background: linear-gradient(135deg, #ecfdf3 0%, #ffffff 65%);
+  border: 1px solid #bfe3cc;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.rdo-hero-titulo {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #14532d;
+}
+
+.rdo-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* Lista de RDOs pendentes como cartões clicáveis, não linhas de texto. */
+.pendente-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #dbe8de;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(20, 40, 28, 0.05);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  transition:
+    box-shadow 0.15s,
+    transform 0.15s;
+}
+
+.pendente-card:hover {
+  box-shadow: 0 8px 20px rgba(20, 40, 28, 0.12);
+  transform: translateY(-1px);
+}
+
+.pendente-card-equipe {
+  font-weight: 700;
+  color: #16281c;
+}
+
+.pendente-card-data {
+  font-size: 0.78rem;
+  color: #5b7268;
+  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dias-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.dias-badge--atrasado {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.info-linha {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 0.85rem;
+  color: #2c3d33;
+  line-height: 1.5;
+}
+
+.info-linha svg {
+  color: #16a34a;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.info-linha strong {
+  color: #14532d;
+}
+
 .campo-textarea {
   min-height: 100px;
   resize: vertical;

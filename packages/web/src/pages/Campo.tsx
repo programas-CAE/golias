@@ -4,6 +4,19 @@ import { API_URL, ApiError, api } from "../lib/apiClient";
 import Autocomplete from "../components/Autocomplete";
 import AssinaturaCanvas, { type AssinaturaCanvasHandle } from "../components/AssinaturaCanvas";
 import CroquiAtividade from "../components/CroquiAtividade";
+import {
+  IconAlerta,
+  IconAssinatura,
+  IconCamera,
+  IconCheck,
+  IconEquipamento,
+  IconLocal,
+  IconMaterial,
+  IconNota,
+  IconPessoas,
+  IconRelogio,
+  IconSol,
+} from "../components/Icons";
 
 interface Ref {
   id: string;
@@ -1162,7 +1175,9 @@ export default function Campo(): ReactElement {
       </div>
 
       <section className="campo-secao">
-        <h2>Clima e horário</h2>
+        <h2 className="secao-titulo-com-icone">
+          <IconSol /> Clima e horário
+        </h2>
         <div className="campo-radios">
           {["SOL", "CHUVA", "NUBLADO"].map((valor) => (
             <label key={valor} className="campo-radio">
@@ -1206,7 +1221,9 @@ export default function Campo(): ReactElement {
       </section>
 
       <section className="campo-secao">
-        <h2>Linha do tempo do dia</h2>
+        <h2 className="secao-titulo-com-icone">
+          <IconRelogio /> Linha do tempo do dia
+        </h2>
         {blocos.map((bloco, indice) => (
           <div className="campo-item" key={indice}>
             <div className="campo-grid-2">
@@ -1248,7 +1265,9 @@ export default function Campo(): ReactElement {
       </section>
 
       <section className="campo-secao">
-        <h2>Locais trabalhados</h2>
+        <h2 className="secao-titulo-com-icone">
+          <IconLocal /> Locais trabalhados
+        </h2>
         {locais.map((local, localIndice) => (
           <div className="campo-item" key={localIndice}>
             <label className="field-label">Descrição / trecho</label>
@@ -1723,7 +1742,9 @@ export default function Campo(): ReactElement {
 
       {rdo.tipo !== "MOTORISTA_OPERADOR" && (
       <section className="campo-secao">
-        <h2>Mão de obra</h2>
+        <h2 className="secao-titulo-com-icone">
+          <IconPessoas /> Mão de obra
+        </h2>
         {rdo.equipe.membros.length === 0 ? (
           <p className="loading-text">Esta equipe ainda não tem membros cadastrados.</p>
         ) : (
@@ -1747,7 +1768,9 @@ export default function Campo(): ReactElement {
       )}
 
       <section className="campo-secao">
-        <h2>{rdo.tipo === "MOTORISTA_OPERADOR" ? "Equipamento" : "Equipamentos / outros custos indiretos"}</h2>
+        <h2 className="secao-titulo-com-icone">
+          <IconEquipamento /> {rdo.tipo === "MOTORISTA_OPERADOR" ? "Equipamento" : "Equipamentos / outros custos indiretos"}
+        </h2>
         <p className="list-subtitle">
           {rdo.tipo === "MOTORISTA_OPERADOR"
             ? "Qual equipamento você dirige ou opera hoje."
@@ -1942,7 +1965,9 @@ export default function Campo(): ReactElement {
       </section>
 
       <section className="campo-secao">
-        <h2>Materiais utilizados</h2>
+        <h2 className="secao-titulo-com-icone">
+          <IconMaterial /> Materiais utilizados
+        </h2>
         {materiais.map((material, indice) => (
           <div className="campo-item" key={indice}>
             <Autocomplete
@@ -1976,7 +2001,9 @@ export default function Campo(): ReactElement {
       </section>
 
       <section className="campo-secao">
-        <h2>Fotos</h2>
+        <h2 className="secao-titulo-com-icone">
+          <IconCamera /> Fotos
+        </h2>
         <div className="campo-foto-upload">
           {rdo.tipo !== "MOTORISTA_OPERADOR" && (
             <select
@@ -2069,7 +2096,9 @@ export default function Campo(): ReactElement {
       </section>
 
       <section className="campo-secao">
-        <h2>Observações</h2>
+        <h2 className="secao-titulo-com-icone">
+          <IconNota /> Observações
+        </h2>
         <textarea
           className="field-input campo-textarea"
           value={observacoes}
@@ -2079,7 +2108,9 @@ export default function Campo(): ReactElement {
       </section>
 
       <section className="campo-secao">
-        <h2>Fechamento do dia</h2>
+        <h2 className="secao-titulo-com-icone">
+          <IconCheck /> Fechamento do dia
+        </h2>
         <p className="campo-subtitulo">
           {formatarHoras(horasApontadasDia)} apontadas (linha do tempo + atividades) de {JORNADA_REFERENCIA_HORAS}h de
           referência ({horasApontadasDia >= JORNADA_REFERENCIA_HORAS ? "jornada completa" : "faltam apontar horas"}).
@@ -2088,7 +2119,9 @@ export default function Campo(): ReactElement {
 
       {pendenciasOm.length > 0 && (
         <section className="campo-secao">
-          <h2>OMs que ainda não fecharam</h2>
+          <h2 className="secao-titulo-com-icone">
+            <IconAlerta /> OMs que ainda não fecharam
+          </h2>
           <p className="campo-subtitulo">Confira antes de enviar — não impede o envio, é só um lembrete.</p>
           <ul className="campo-anexos-lista">
             {pendenciasOm.map((pendencia) => (
@@ -2116,7 +2149,9 @@ export default function Campo(): ReactElement {
 
       {mostrandoAssinatura && (
         <section className="campo-secao">
-          <h2>Assinatura</h2>
+          <h2 className="secao-titulo-com-icone">
+            <IconAssinatura /> Assinatura
+          </h2>
           <p className="list-subtitle" style={{ marginTop: -4, marginBottom: 12 }}>
             Ao assinar, o RDO é enviado para aprovação do fiscal e não pode mais ser editado até que ele
             responda.
