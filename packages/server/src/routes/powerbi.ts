@@ -43,12 +43,16 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
         totalCalculado: true,
         maoObraDireta: true,
         horasTrabalhadas: true,
+        ordemManutencao: { select: { numero: true } },
+        statusOm: true,
+        percentualConcluido: true,
         rdoLocal: {
           select: {
             rdo: {
               select: {
                 id: true,
                 data: true,
+                tipo: true,
                 frente: { select: { nome: true, contrato: { select: { numero: true } } } },
                 equipe: { select: { nome: true } },
                 obra: { select: { nome: true } },
@@ -82,6 +86,7 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
         Data: rdo.data.toISOString().slice(0, 10),
         Data_Inicio: rdo.data.toISOString().slice(0, 10),
         RDO: rdo.id,
+        Tipo_RDO: rdo.tipo,
         Contrato: rdo.frente.contrato.numero,
         Distrito: rdo.frente.nome,
         Equipe: rdo.equipe.nome,
@@ -98,6 +103,9 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
         PUS_Calculado: pusCalculado,
         Eficiencia_Calculada: eficienciaCalculada,
         Homens_Hora: homensHora,
+        OM_Numero: atividade.ordemManutencao?.numero ?? null,
+        Status_OM: atividade.statusOm,
+        Percentual_Concluido_OM: atividade.percentualConcluido,
       };
     });
 
@@ -166,6 +174,98 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
       Rota: item.rota,
       Combustivel_Litros: item.combustivelLitros != null ? Number(item.combustivelLitros) : null,
       Combustivel_Posto: item.combustivelPosto,
+    }));
+  });
+
+  /** Uma linha por material lançado num RDO aprovado (RdoMaterial) — não tinha exportação nenhuma antes. */
+  app.get("/powerbi/fato-rdo-material", async (request, reply) => {
+    if (!autenticarPowerBi(request, reply)) return;
+
+    const materiais = await prisma.rdoMaterial.findMany({
+      where: { rdo: { status: "APROVADO" } },
+      select: {
+        id: true,
+        quantidade: true,
+        materialCatalogo: { select: { codigo: true, descricao: true, unidade: true, precoUnitario: true } },
+        rdo: {
+          select: {
+            id: true,
+            data: true,
+            tipo: true,
+            frente: { select: { nome: true, contrato: { select: { numero: true } } } },
+            equipe: { select: { nome: true } },
+            obra: { select: { nome: true } },
+          },
+        },
+      },
+      orderBy: { id: "asc" },
+    });
+
+    return materiais.map((item) => {
+      const quantidade = Number(item.quantidade);
+      const precoUnitario = item.materialCatalogo.precoUnitario != null ? Number(item.materialCatalogo.precoUnitario) : null;
+      return {
+        Data: item.rdo.data.toISOString().slice(0, 10),
+        RDO: item.rdo.id,
+        Tipo_RDO: item.rdo.tipo,
+        Contrato: item.rdo.frente.contrato.numero,
+        Distrito: item.rdo.frente.nome,
+        Equipe: item.rdo.equipe.nome,
+        Obra: item.rdo.obra?.nome ?? null,
+        Material_Codigo: item.materialCatalogo.codigo,
+        Material_Descricao: item.materialCatalogo.descricao,
+        Unidade: item.materialCatalogo.unidade,
+        Quantidade: quantidade,
+        Preco_Unitario: precoUnitario,
+        Valor_Total: precoUnitario != null ? quantidade * precoUnitario : null,
+      };
+    });
+  });
+
+  /**
+   * Uma linha por função de efetivo lançada num RDO aprovado (RdoMaoDeObra)
+   * — o dia inteiro da equipe, não só a mão de obra direta que já sai
+   * agregada por atividade em Fato_RDO_Detalhe.
+   */
+  app.get("/powerbi/fato-rdo-mao-de-obra", async (request, reply) => {
+    if (!autenticarPowerBi(request, reply)) return;
+
+    const itens = await prisma.rdoMaoDeObra.findMany({
+      where: { rdo: { status: "APROVADO" } },
+      select: {
+        id: true,
+        quantidade: true,
+        horasImprodutivas: true,
+        causaImprodutividade: true,
+        funcao: { select: { nome: true } },
+        colaborador: { select: { nome: true } },
+        rdo: {
+          select: {
+            id: true,
+            data: true,
+            tipo: true,
+            frente: { select: { nome: true, contrato: { select: { numero: true } } } },
+            equipe: { select: { nome: true } },
+            obra: { select: { nome: true } },
+          },
+        },
+      },
+      orderBy: { id: "asc" },
+    });
+
+    return itens.map((item) => ({
+      Data: item.rdo.data.toISOString().slice(0, 10),
+      RDO: item.rdo.id,
+      Tipo_RDO: item.rdo.tipo,
+      Contrato: item.rdo.frente.contrato.numero,
+      Distrito: item.rdo.frente.nome,
+      Equipe: item.rdo.equipe.nome,
+      Obra: item.rdo.obra?.nome ?? null,
+      Funcao: item.funcao.nome,
+      Colaborador: item.colaborador?.nome ?? null,
+      Quantidade: item.quantidade,
+      Horas_Improdutivas: item.horasImprodutivas != null ? Number(item.horasImprodutivas) : null,
+      Causa_Improdutividade: item.causaImprodutividade,
     }));
   });
 

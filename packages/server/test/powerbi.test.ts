@@ -40,6 +40,9 @@ describe("GET /powerbi/fato-rdo-detalhe", () => {
   it("retorna uma linha por atividade de RDO aprovado, com PUS calculado", async () => {
     const { frente, equipe, encarregado, atividade } = await criarCenario();
     const obra = await prisma.obra.create({ data: { nome: "Duplicação Km 40-60" } });
+    const ordem = await prisma.ordemManutencao.create({
+      data: { numero: "202600000001", frenteId: frente.id, dataEmissao: new Date("2026-07-20") },
+    });
     const rdo = await prisma.rdo.create({
       data: {
         frenteId: frente.id,
@@ -48,6 +51,7 @@ describe("GET /powerbi/fato-rdo-detalhe", () => {
         data: new Date("2026-07-21"),
         status: "APROVADO",
         encarregadoId: encarregado.id,
+        tipo: "TERRAPLENAGEM",
       },
     });
     await prisma.rdoLocal.create({
@@ -59,6 +63,9 @@ describe("GET /powerbi/fato-rdo-detalhe", () => {
           create: [
             {
               atividadeCatalogoId: atividade.id,
+              ordemManutencaoId: ordem.id,
+              statusOm: "EM_ANDAMENTO",
+              percentualConcluido: 40,
               largura: 10,
               comprimento: 20,
               unidade: "M2",
@@ -82,6 +89,7 @@ describe("GET /powerbi/fato-rdo-detalhe", () => {
     expect(body).toHaveLength(1);
     expect(body[0]).toMatchObject({
       Data: "2026-07-21",
+      Tipo_RDO: "TERRAPLENAGEM",
       Contrato: "5900000000",
       Distrito: "Marabá",
       Equipe: "Preventiva",
@@ -95,6 +103,84 @@ describe("GET /powerbi/fato-rdo-detalhe", () => {
       Homens_Hora: 20,
       PUS_Calculado: 10,
       Eficiencia_Calculada: 20,
+      OM_Numero: "202600000001",
+      Status_OM: "EM_ANDAMENTO",
+      Percentual_Concluido_OM: 40,
+    });
+  });
+});
+
+describe("GET /powerbi/fato-rdo-material", () => {
+  it("retorna uma linha por material lançado num RDO aprovado, com valor calculado", async () => {
+    const { frente, equipe } = await criarCenario();
+    const contrato = await prisma.contrato.findFirstOrThrow({ where: { numero: "5900000000" } });
+    const material = await prisma.materialCatalogo.create({
+      data: { contratoId: contrato.id, codigo: "MAT-01", descricao: "Cimento", unidade: "SC", precoUnitario: 35.5 },
+    });
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21"), status: "APROVADO" },
+    });
+    await prisma.rdoMaterial.create({ data: { rdoId: rdo.id, materialCatalogoId: material.id, quantidade: 10 } });
+
+    // RDO em rascunho não deve entrar.
+    const rascunho = await prisma.rdo.create({ data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-22") } });
+    await prisma.rdoMaterial.create({ data: { rdoId: rascunho.id, materialCatalogoId: material.id, quantidade: 99 } });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: `/powerbi/fato-rdo-material?token=${TOKEN}` });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as Array<Record<string, unknown>>;
+    expect(body).toHaveLength(1);
+    expect(body[0]).toMatchObject({
+      Data: "2026-07-21",
+      Contrato: "5900000000",
+      Distrito: "Marabá",
+      Equipe: "Preventiva",
+      Material_Codigo: "MAT-01",
+      Material_Descricao: "Cimento",
+      Unidade: "SC",
+      Quantidade: 10,
+      Preco_Unitario: 35.5,
+      Valor_Total: 355,
+    });
+  });
+});
+
+describe("GET /powerbi/fato-rdo-mao-de-obra", () => {
+  it("retorna uma linha por função de efetivo lançada num RDO aprovado", async () => {
+    const { frente, equipe, encarregado } = await criarCenario();
+    const rdo = await prisma.rdo.create({
+      data: { frenteId: frente.id, equipeId: equipe.id, data: new Date("2026-07-21"), status: "APROVADO" },
+    });
+    const funcao = await prisma.funcaoCatalogo.findFirstOrThrow({ where: { nome: "Encarregado" } });
+    await prisma.rdoMaoDeObra.create({
+      data: {
+        rdoId: rdo.id,
+        funcaoId: funcao.id,
+        colaboradorId: encarregado.id,
+        quantidade: 2,
+        horasImprodutivas: 1.5,
+        causaImprodutividade: "Chuva",
+      },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({ method: "GET", url: `/powerbi/fato-rdo-mao-de-obra?token=${TOKEN}` });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as Array<Record<string, unknown>>;
+    expect(body).toHaveLength(1);
+    expect(body[0]).toMatchObject({
+      Data: "2026-07-21",
+      Contrato: "5900000000",
+      Distrito: "Marabá",
+      Equipe: "Preventiva",
+      Funcao: "Encarregado",
+      Colaborador: "João",
+      Quantidade: 2,
+      Horas_Improdutivas: 1.5,
+      Causa_Improdutividade: "Chuva",
     });
   });
 });
