@@ -49,6 +49,12 @@ const TIPO_RDO_LABEL: Record<string, string> = {
   SUPERESTRUTURA: "Superestrutura",
   MOTORISTA_OPERADOR: "Motorista / Operador",
 };
+const TIPO_RDO_DESCRICAO: Record<string, string> = {
+  PREVENTIVA_CORRETIVA: "Serviços de manutenção da via por local e atividade, com OM.",
+  TERRAPLENAGEM: "Movimentação de terra, acesso e taludes, com OM.",
+  SUPERESTRUTURA: "Trilho e dormente — por km da linha, sem OM.",
+  MOTORISTA_OPERADOR: "Só transporte ou operação de máquina — sem foto, sem croqui.",
+};
 const TIPOS_RDO = ["PREVENTIVA_CORRETIVA", "TERRAPLENAGEM", "SUPERESTRUTURA", "MOTORISTA_OPERADOR"] as const;
 
 function chaveMemoriaEquipe(): string {
@@ -375,7 +381,13 @@ export default function EncarregadoDashboard(): ReactElement {
 
       {equipeSelecionada && (
         <div className="campo-card" style={{ maxWidth: 720, marginTop: 16 }}>
-          <h2>Equipe de hoje — {equipeSelecionada.nome}</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+            <h2 style={{ margin: 0 }}>Equipe de hoje — {equipeSelecionada.nome}</h2>
+            <span className="badge badge--neutro">
+              {equipeSelecionada.membros.reduce((total, membro) => total + membro.quantidade, 0)} pessoa
+              {equipeSelecionada.membros.reduce((total, membro) => total + membro.quantidade, 0) === 1 ? "" : "s"}
+            </span>
+          </div>
 
           {equipeSelecionada.membros.length === 0 ? (
             <p className="list-subtitle">Nenhum membro lançado ainda.</p>
@@ -479,6 +491,7 @@ export default function EncarregadoDashboard(): ReactElement {
               </button>
             ))}
           </div>
+          <p className="list-subtitle">{TIPO_RDO_DESCRICAO[tipoRdo]}</p>
 
           <div className="campo-acoes" style={{ marginTop: 20 }}>
             <button type="button" className="button" disabled={lancando} onClick={() => void lancarProducao()}>

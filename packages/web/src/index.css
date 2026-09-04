@@ -165,6 +165,60 @@ body {
   margin-bottom: 16px;
 }
 
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge--pendente {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge--aprovado {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badge--reprovado {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.badge--neutro {
+  background: #eef2f5;
+  color: #47586a;
+}
+
+.lista-clicavel-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 4px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: #16281c;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.lista-clicavel-item:hover {
+  background: #f2f8f3;
+}
+
 .campo-radio {
   display: flex;
   align-items: center;

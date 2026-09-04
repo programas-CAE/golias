@@ -60,6 +60,15 @@ const STATUS_LABEL: Record<string, string> = {
   REPROVADO: "Reprovado",
 };
 
+const STATUS_BADGE_CLASSE: Record<string, string> = {
+  APROVADO: "badge--aprovado",
+  REPROVADO: "badge--reprovado",
+};
+
+function StatusBadge({ status }: { status: string }): ReactElement {
+  return <span className={`badge ${STATUS_BADGE_CLASSE[status] ?? "badge--pendente"}`}>{STATUS_LABEL[status] ?? status}</span>;
+}
+
 export default function FiscalDashboard(): ReactElement {
   const navigate = useNavigate();
   const sessao = lerSessao();
@@ -209,17 +218,12 @@ export default function FiscalDashboard(): ReactElement {
           ) : (
             <ul className="causa-lista">
               {lista.pendentes.map((rdo) => (
-                <li key={rdo.id}>
-                  <button
-                    type="button"
-                    className="button button--secondary"
-                    style={{ width: "100%", justifyContent: "space-between", display: "flex" }}
-                    onClick={() => void abrirRdo(rdo.id)}
-                  >
+                <li key={rdo.id} style={{ padding: 0 }}>
+                  <button type="button" className="lista-clicavel-item" onClick={() => void abrirRdo(rdo.id)}>
                     <span>
                       {rdo.data.slice(0, 10)} — {rdo.equipe.nome}
                     </span>
-                    <span>{STATUS_LABEL[rdo.status] ?? rdo.status}</span>
+                    <StatusBadge status={rdo.status} />
                   </button>
                 </li>
               ))}
@@ -247,8 +251,11 @@ export default function FiscalDashboard(): ReactElement {
             <h2>Histórico recente</h2>
             <ul className="causa-lista">
               {lista.historico.map((rdo) => (
-                <li key={rdo.id}>
-                  {rdo.data.slice(0, 10)} — {rdo.equipe.nome} — {STATUS_LABEL[rdo.status] ?? rdo.status}
+                <li key={rdo.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                  <span>
+                    {rdo.data.slice(0, 10)} — {rdo.equipe.nome}
+                  </span>
+                  <StatusBadge status={rdo.status} />
                 </li>
               ))}
             </ul>
