@@ -139,6 +139,8 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
         rota: true,
         combustivelLitros: true,
         combustivelPosto: true,
+        status: true,
+        statusObservacao: true,
         rdo: {
           select: {
             id: true,
@@ -174,6 +176,8 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
       Rota: item.rota,
       Combustivel_Litros: item.combustivelLitros != null ? Number(item.combustivelLitros) : null,
       Combustivel_Posto: item.combustivelPosto,
+      Status: item.status,
+      Status_Observacao: item.statusObservacao,
     }));
   });
 
