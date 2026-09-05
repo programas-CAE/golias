@@ -437,6 +437,8 @@ export const rdoCampoSelect = {
       rota: true,
       combustivelLitros: true,
       combustivelPosto: true,
+      status: true,
+      statusObservacao: true,
     },
   },
   materiais: {
@@ -616,6 +618,8 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
         rota: item.rota,
         combustivelLitros: item.combustivelLitros != null ? Number(item.combustivelLitros) : null,
         combustivelPosto: item.combustivelPosto,
+        status: item.status,
+        statusObservacao: item.statusObservacao,
       })),
     materiais: rdo.materiais
       .filter((item) => Number(item.quantidade) > 0)

@@ -79,7 +79,15 @@ export interface RdoPdfEquipamentoItem {
   rota: string | null;
   combustivelLitros: number | null;
   combustivelPosto: string | null;
+  status: string;
+  statusObservacao: string | null;
 }
+
+const STATUS_EQUIPAMENTO_LABEL: Record<string, string> = {
+  AGUARDANDO: "Aguardando",
+  EM_MANUTENCAO: "Em manutenção",
+  DESLOCANDO: "Deslocando",
+};
 
 export interface RdoPdfMaterialItem {
   nome: string;
@@ -657,6 +665,13 @@ function desenharRecursos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
     if (item.rota) producao += ` — rota: ${item.rota}`;
     if (item.combustivelLitros != null) {
       producao += ` — combustível: ${formatarNumero(item.combustivelLitros)} L${item.combustivelPosto ? ` (${item.combustivelPosto})` : ""}`;
+    }
+    // Terraplenagem: máquina parada por um motivo (aguardando, manutenção,
+    // deslocando) é tão informação quanto produção — sem isso, ficava só
+    // em observações soltas (bug real de legibilidade visto em produção).
+    if (item.status !== "EM_PRODUCAO") {
+      const rotuloStatus = STATUS_EQUIPAMENTO_LABEL[item.status] ?? item.status;
+      producao += ` — ${rotuloStatus}${item.statusObservacao ? `: ${item.statusObservacao}` : ""}`;
     }
     return { nome: `${item.nome}${producao}`, quantidade: String(item.quantidade), unidade: "UN" };
   });

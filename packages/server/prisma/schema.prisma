@@ -644,6 +644,26 @@ model RdoEquipamento {
   rota                  String?
   combustivelLitros     Decimal?            @db.Decimal(10, 2)
   combustivelPosto      String?
+  // Terraplenagem só aponta "produção" quando a máquina está de fato
+  // produzindo — boa parte do dia real é máquina esperando abastecimento/
+  // prancha, em manutenção corretiva ou se deslocando entre frentes (isso
+  // não é "produção zero", é uma situação diferente que precisa aparecer
+  // no RDO). Sem isso, esse tipo de informação só cabia como texto solto
+  // em observacoesContratada, difícil de ler/filtrar depois (caso real
+  // visto ao lançar RDOs de terraplenagem — equipamento "aguardando
+  // prancha" ou "em manutenção corretiva" virava parágrafo, não dado).
+  status                StatusEquipamentoDia @default(EM_PRODUCAO)
+  // Complemento curto do status (ex.: "aguardando prancha", "troca de
+  // lâmina e canto", "indo para o Km 69") — só é exibido/preenchido
+  // quando status != EM_PRODUCAO.
+  statusObservacao      String?
+}
+
+enum StatusEquipamentoDia {
+  EM_PRODUCAO
+  AGUARDANDO
+  EM_MANUTENCAO
+  DESLOCANDO
 }
 
 // Catálogo oficial de materiais/serviços com preço unitário (Price List do

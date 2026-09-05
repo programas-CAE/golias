@@ -14,6 +14,16 @@ export const UNIDADE_MEDIDA_VALUES = ["M", "M2", "M3", "UND", "HH", "M3KM"] as c
 export const unidadeMedidaSchema = z.enum(UNIDADE_MEDIDA_VALUES);
 export type UnidadeMedidaSchema = z.infer<typeof unidadeMedidaSchema>;
 
+/**
+ * Situação do equipamento NESTE dia — Terraplenagem não aponta "produção"
+ * o tempo todo: boa parte do dia real é máquina esperando abastecimento/
+ * prancha, em manutenção corretiva ou se deslocando entre frentes. Sem
+ * isso, essa informação só cabia como texto solto em observações.
+ */
+export const STATUS_EQUIPAMENTO_DIA_VALUES = ["EM_PRODUCAO", "AGUARDANDO", "EM_MANUTENCAO", "DESLOCANDO"] as const;
+export const statusEquipamentoDiaSchema = z.enum(STATUS_EQUIPAMENTO_DIA_VALUES);
+export type StatusEquipamentoDia = z.infer<typeof statusEquipamentoDiaSchema>;
+
 /** Horário no formato HH:mm (24h). */
 const horarioSchema = z
   .string()
@@ -211,6 +221,8 @@ export const rdoEquipamentoInputSchema = z.object({
   rota: z.string().trim().max(160).nullable().optional(),
   combustivelLitros: z.number().nonnegative().nullable().optional(),
   combustivelPosto: z.string().trim().max(120).nullable().optional(),
+  status: statusEquipamentoDiaSchema.default("EM_PRODUCAO"),
+  statusObservacao: z.string().trim().max(300).nullable().optional(),
 });
 
 export type RdoEquipamentoInput = z.infer<typeof rdoEquipamentoInputSchema>;

@@ -144,6 +144,8 @@ interface RdoEquipamentoSalvo {
   rota: string | null;
   combustivelLitros: string | null;
   combustivelPosto: string | null;
+  status: string;
+  statusObservacao: string | null;
 }
 
 interface MaterialCatalogoRef {
@@ -268,7 +270,16 @@ interface EquipamentoDetalhe {
   rota: string;
   combustivelLitros: string;
   combustivelPosto: string;
+  status: string;
+  statusObservacao: string;
 }
+
+const STATUS_EQUIPAMENTO_OPCOES = [
+  { valor: "EM_PRODUCAO", rotulo: "Em produção" },
+  { valor: "AGUARDANDO", rotulo: "Aguardando (abastecimento, prancha, liberação...)" },
+  { valor: "EM_MANUTENCAO", rotulo: "Em manutenção" },
+  { valor: "DESLOCANDO", rotulo: "Deslocando entre frentes" },
+];
 
 function chaveMemoriaEquipamentos(equipeId: string): string {
   return `golias:campo:equipe:${equipeId}:equipamentosAtivos`;
@@ -305,6 +316,8 @@ function detalheVazio(): EquipamentoDetalhe {
     rota: "",
     combustivelLitros: "",
     combustivelPosto: "",
+    status: "EM_PRODUCAO",
+    statusObservacao: "",
   };
 }
 
@@ -575,6 +588,8 @@ export default function Campo(): ReactElement {
                 rota: eq.rota ?? "",
                 combustivelLitros: eq.combustivelLitros ?? "",
                 combustivelPosto: eq.combustivelPosto ?? "",
+                status: eq.status,
+                statusObservacao: eq.statusObservacao ?? "",
               },
             ]),
           ),
@@ -1068,6 +1083,8 @@ export default function Campo(): ReactElement {
             rota: detalhe.rota.trim() || null,
             combustivelLitros: detalhe.combustivelLitros !== "" ? Number(detalhe.combustivelLitros) : null,
             combustivelPosto: detalhe.combustivelPosto.trim() || null,
+            status: detalhe.status,
+            statusObservacao: detalhe.statusObservacao.trim() || null,
           };
         }),
       materiais: materiais
@@ -1906,6 +1923,29 @@ export default function Campo(): ReactElement {
                           onChange={(event) => atualizarDetalheEquipamento(item.id, "horimetroFinal", event.target.value)}
                         />
                       </div>
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <label className="field-label">Situação da máquina nesse dia</label>
+                      <select
+                        className="field-input"
+                        value={detalhe.status}
+                        onChange={(event) => atualizarDetalheEquipamento(item.id, "status", event.target.value)}
+                      >
+                        {STATUS_EQUIPAMENTO_OPCOES.map((opcao) => (
+                          <option key={opcao.valor} value={opcao.valor}>
+                            {opcao.rotulo}
+                          </option>
+                        ))}
+                      </select>
+                      {detalhe.status !== "EM_PRODUCAO" && (
+                        <input
+                          className="field-input"
+                          style={{ marginTop: 8 }}
+                          placeholder="Detalhe (ex.: aguardando prancha, troca de lâmina, indo para o Km 69)"
+                          value={detalhe.statusObservacao}
+                          onChange={(event) => atualizarDetalheEquipamento(item.id, "statusObservacao", event.target.value)}
+                        />
+                      )}
                     </div>
                     <p className="list-subtitle">
                       Motorista/operador: km rodado, rota e combustível abastecido, quando fizer sentido.
