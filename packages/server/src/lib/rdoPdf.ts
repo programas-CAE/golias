@@ -96,6 +96,7 @@ export interface RdoPdfMaterialItem {
  */
 export interface RdoConteudo {
   numeroSap: string | null;
+  tipo: string;
   encarregadoNome: string | null;
   equipeNome: string;
   frenteNome: string;
@@ -232,6 +233,37 @@ function desenharIdentificacao(doc: PDFKit.PDFDocument, dados: RdoPdfDados): voi
 
   doc.moveTo(MARGEM, y).lineTo(LARGURA_PAGINA - MARGEM, y).lineWidth(0.75).stroke();
   doc.y = y + 6;
+
+  // Motorista/Operador só tem 1 equipamento por dia (ver
+  // selecionarEquipamentoMotorista no formulário) — vale mais mostrar
+  // logo no topo (equipamento, horímetro, nº de viagens/quantidade) do
+  // que só lá embaixo, junto dos recursos gerais do dia.
+  if (dados.tipo === "MOTORISTA_OPERADOR" && dados.equipamentos.length > 0) {
+    const equipamento = dados.equipamentos[0]!;
+    const totalViagens = dados.locais.reduce(
+      (soma, local) => soma + local.atividades.reduce((subtotal, atividade) => subtotal + atividade.quantidade, 0),
+      0,
+    );
+    const partes = [
+      `EQUIPAMENTO: ${equipamento.nome}`,
+      equipamento.horimetroInicial != null && equipamento.horimetroFinal != null
+        ? `HORÍMETRO: ${formatarNumero(equipamento.horimetroInicial)} a ${formatarNumero(equipamento.horimetroFinal)} h`
+        : null,
+      equipamento.kmInicial != null && equipamento.kmFinal != null
+        ? `KM: ${formatarNumero(equipamento.kmInicial)} a ${formatarNumero(equipamento.kmFinal)}`
+        : null,
+      totalViagens > 0 ? `QUANTIDADE (VIAGENS/CARGAS): ${formatarNumero(totalViagens)}` : null,
+    ].filter((parte): parte is string => parte != null);
+
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(8)
+      .fillColor("#000000")
+      .text(partes.join("   ·   "), MARGEM, doc.y, { width: LARGURA_UTIL });
+    doc.y += 6;
+    doc.moveTo(MARGEM, doc.y).lineTo(LARGURA_PAGINA - MARGEM, doc.y).lineWidth(0.75).stroke();
+    doc.y += 6;
+  }
 }
 
 const COR_STATUS_CONCLUIDA = "#15803d";
@@ -662,6 +694,11 @@ function desenharBlocoAssinatura(
   largura: number,
   rotulo: string,
   assinatura: RdoPdfAssinatura | null | undefined,
+  // Nome de quem deve assinar aqui, mesmo antes de assinar de fato — só
+  // existe pro encarregado (já sabido ao criar o RDO); o fiscal só vira um
+  // nome concreto quando realmente assina (qualquer fiscal cadastrado na
+  // frente pode aprovar, não tem um "esperado" antes disso).
+  nomeEsperado?: string | null,
 ): void {
   if (assinatura) {
     // Imagem desenhada no canvas, encaixada logo acima da linha — largura
@@ -676,6 +713,9 @@ function desenharBlocoAssinatura(
       .font("Helvetica")
       .fontSize(7)
       .text(`Assinado por ${assinatura.nome} em ${formatarData(assinatura.data)}`, x, doc.y + 1, { width: largura });
+  } else if (nomeEsperado) {
+    doc.font("Helvetica-Oblique").fontSize(7).fillColor("#5b7268").text(nomeEsperado, x, doc.y + 1, { width: largura });
+    doc.fillColor("#000000");
   }
 }
 
@@ -961,7 +1001,15 @@ async function desenharRodape(doc: PDFKit.PDFDocument, dados: RdoPdfDados): Prom
 
   const yAssinaturas = y0 + 40;
   const colLargura = LARGURA_UTIL / 2 - 20;
-  desenharBlocoAssinatura(doc, MARGEM, yAssinaturas, colLargura, "Responsável ENGECOM (Encarregado)", dados.assinaturaEncarregado);
+  desenharBlocoAssinatura(
+    doc,
+    MARGEM,
+    yAssinaturas,
+    colLargura,
+    "Responsável ENGECOM (Encarregado)",
+    dados.assinaturaEncarregado,
+    dados.encarregadoNome,
+  );
 
   const xVale = MARGEM + colLargura + 40;
   desenharBlocoAssinatura(doc, xVale, yAssinaturas, colLargura, "Responsável VALE (Fiscal)", dados.assinaturaFiscal);

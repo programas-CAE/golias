@@ -1272,7 +1272,12 @@ export default function RdoCompleto(): ReactElement {
           </div>
         </section>
 
-        <section className="form-section">
+        {/* flex + order (não reordenação física do JSX) — Motorista/Operador
+            precisa escolher o Equipamento ANTES de lançar a Atividade (é o
+            veículo que faz a viagem), ordem invertida em relação aos outros
+            tipos, onde a atividade vem primeiro. */}
+        <div style={{ display: "flex", flexDirection: "column" }}>
+        <section className="form-section" style={{ order: 10 }}>
           <div className="list-header">
             <h2 className="form-section-title">Linha do tempo do dia</h2>
             <span className="section-total">Tempo total: {tempoTotal}</span>
@@ -1319,7 +1324,7 @@ export default function RdoCompleto(): ReactElement {
           </button>
         </section>
 
-        <section className="form-section">
+        <section className="form-section" style={{ order: tipo === "MOTORISTA_OPERADOR" ? 30 : 20 }}>
           <h2 className="form-section-title">Atividades realizadas</h2>
           {locais.map((local, localIndice) => (
             <div className="repeatable-item" key={localIndice}>
@@ -1574,7 +1579,7 @@ export default function RdoCompleto(): ReactElement {
 
                     {!usaDimensoes && (
                       <div style={{ marginTop: 12 }}>
-                        <label className="field-label">Quantidade</label>
+                        <label className="field-label">Quantidade{atividade.unidade ? ` (${atividade.unidade})` : ""}</label>
                         <input
                           type="number"
                           step="0.001"
@@ -1887,7 +1892,7 @@ export default function RdoCompleto(): ReactElement {
         </section>
 
         {tipo !== "MOTORISTA_OPERADOR" && (
-        <section className="form-section">
+        <section className="form-section" style={{ order: 30 }}>
           <h2 className="form-section-title">Mão de obra</h2>
           {!equipeSelecionada || equipeSelecionada.membros.length === 0 ? (
             <p className="table-empty">Esta equipe ainda não tem membros cadastrados.</p>
@@ -1949,7 +1954,7 @@ export default function RdoCompleto(): ReactElement {
         </section>
         )}
 
-        <section className="form-section">
+        <section className="form-section" style={{ order: tipo === "MOTORISTA_OPERADOR" ? 20 : 40 }}>
           <h2 className="form-section-title">
             {tipo === "MOTORISTA_OPERADOR" ? "Equipamento" : "Equipamentos / outros custos indiretos"}
           </h2>
@@ -2150,7 +2155,7 @@ export default function RdoCompleto(): ReactElement {
           )}
         </section>
 
-        <section className="form-section">
+        <section className="form-section" style={{ order: 50 }}>
           <h2 className="form-section-title">Materiais</h2>
           <p className="form-section-subtitle">Catálogo oficial do contrato (Price List)</p>
           {materiais.map((material, indice) => {
@@ -2191,6 +2196,7 @@ export default function RdoCompleto(): ReactElement {
             </button>
           </div>
         </section>
+        </div>
 
         <section className="form-section">
           <h2 className="form-section-title">Observações da contratada</h2>

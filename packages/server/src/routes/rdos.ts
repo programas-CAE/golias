@@ -555,6 +555,7 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
 
   return {
     numeroSap: rdo.frente.contrato.numero,
+    tipo: rdo.tipo,
     encarregadoNome: encarregado?.nome ?? null,
     equipeNome: rdo.equipe.nome,
     frenteNome: rdo.frente.nome,

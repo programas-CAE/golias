@@ -1220,7 +1220,12 @@ export default function Campo(): ReactElement {
         </div>
       </section>
 
-      <section className="campo-secao">
+      {/* flex + order (não reordenação física do JSX) — Motorista/Operador
+          precisa escolher o Equipamento ANTES de lançar a Atividade (é o
+          veículo que faz a viagem), ordem invertida em relação aos outros
+          tipos, onde a atividade vem primeiro. */}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+      <section className="campo-secao" style={{ order: 10 }}>
         <h2 className="secao-titulo-com-icone">
           <IconRelogio /> Linha do tempo do dia
         </h2>
@@ -1264,7 +1269,7 @@ export default function Campo(): ReactElement {
         </button>
       </section>
 
-      <section className="campo-secao">
+      <section className="campo-secao" style={{ order: rdo.tipo === "MOTORISTA_OPERADOR" ? 30 : 20 }}>
         <h2 className="secao-titulo-com-icone">
           <IconLocal /> Locais trabalhados
         </h2>
@@ -1741,7 +1746,7 @@ export default function Campo(): ReactElement {
       </section>
 
       {rdo.tipo !== "MOTORISTA_OPERADOR" && (
-      <section className="campo-secao">
+      <section className="campo-secao" style={{ order: 30 }}>
         <h2 className="secao-titulo-com-icone">
           <IconPessoas /> Mão de obra
         </h2>
@@ -1767,7 +1772,7 @@ export default function Campo(): ReactElement {
       </section>
       )}
 
-      <section className="campo-secao">
+      <section className="campo-secao" style={{ order: rdo.tipo === "MOTORISTA_OPERADOR" ? 20 : 40 }}>
         <h2 className="secao-titulo-com-icone">
           <IconEquipamento /> {rdo.tipo === "MOTORISTA_OPERADOR" ? "Equipamento" : "Equipamentos / outros custos indiretos"}
         </h2>
@@ -1964,7 +1969,7 @@ export default function Campo(): ReactElement {
         )}
       </section>
 
-      <section className="campo-secao">
+      <section className="campo-secao" style={{ order: 50 }}>
         <h2 className="secao-titulo-com-icone">
           <IconMaterial /> Materiais utilizados
         </h2>
@@ -1999,6 +2004,7 @@ export default function Campo(): ReactElement {
           + Adicionar material
         </button>
       </section>
+      </div>
 
       <section className="campo-secao">
         <h2 className="secao-titulo-com-icone">
