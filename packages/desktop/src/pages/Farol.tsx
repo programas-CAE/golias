@@ -498,10 +498,13 @@ export default function Farol(): ReactElement {
                                 }
                               >
                                 <span className="farol-status-linha">
-                                  <span className={`farol-dot ${celula ? OM_STATUS_DOT_CLASSE[celula.status] : "farol-dot--vazio"}`} />
-                                  {celula && celula.quantidade > 1 && (
-                                    <span className="farol-lista-contagem">{celula.quantidade}</span>
-                                  )}
+                                  <span
+                                    className={`farol-dot ${celula ? OM_STATUS_DOT_CLASSE[celula.status] : "farol-dot--vazio"}${
+                                      celula && celula.quantidade > 1 ? " farol-dot--com-contagem" : ""
+                                    }`}
+                                  >
+                                    {celula && celula.quantidade > 1 ? celula.quantidade : null}
+                                  </span>
                                 </span>
                               </td>
                             );

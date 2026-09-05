@@ -794,6 +794,19 @@ textarea.field-input {
   gap: 8px;
 }
 
+/* Quando a célula tem mais de 1 OM no dia, o número entra dentro da própria
+   bolinha (em vez de uma pílula solta do lado) — mais compacto e deixa
+   claro que é uma contagem daquele status, não um dado à parte. */
+.farol-dot--com-contagem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .farol-dot--vazio {
   width: 8px;
   height: 8px;
