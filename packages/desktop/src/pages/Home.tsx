@@ -119,13 +119,17 @@ export default function Home(): ReactElement {
       });
   }, []);
 
-  // Uma localidade só tem sentido pras equipes dela — troca a frente e o
-  // filtro de equipe some se a equipe escolhida não for mais compatível.
+  // Equipe filtra por CATEGORIA (nome — "PREVENTIVA"/"CORRETIVA"/
+  // "TERRAPLENAGEM"), não por um time específico de uma frente: cada
+  // frente tem sua própria equipe de cada categoria (linha própria na
+  // tabela, mesmo nome), e faz mais sentido ver a categoria inteira junta
+  // — quem quiser só uma frente usa o filtro de Localidade junto.
   const equipesDoFiltro = frenteFiltro ? equipes.filter((equipe) => equipe.distrito.frenteId === frenteFiltro) : equipes;
+  const categoriasDoFiltro = [...new Set(equipesDoFiltro.map((equipe) => equipe.nome))].sort();
   const frenteSelecionadaHome = frentes.find((frente) => frente.id === frenteFiltro) ?? null;
 
   useEffect(() => {
-    if (equipeFiltro && !equipesDoFiltro.some((equipe) => equipe.id === equipeFiltro)) {
+    if (equipeFiltro && !categoriasDoFiltro.includes(equipeFiltro)) {
       setEquipeFiltro("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,7 +143,7 @@ export default function Home(): ReactElement {
       try {
         const params = new URLSearchParams({ mes });
         if (frenteFiltro) params.set("frenteId", frenteFiltro);
-        if (equipeFiltro) params.set("equipeId", equipeFiltro);
+        if (equipeFiltro) params.set("equipeNome", equipeFiltro);
         if (atividadeFiltro) params.set("atividadeCatalogoId", atividadeFiltro);
         const resposta = await api.get<Indicadores>(`/indicadores?${params.toString()}`);
         if (!cancelado) setDados(resposta);
@@ -195,9 +199,9 @@ export default function Home(): ReactElement {
               <label className="field-label">Equipe</label>
               <select className="field-input" value={equipeFiltro} onChange={(event) => setEquipeFiltro(event.target.value)}>
                 <option value="">Todas as equipes</option>
-                {equipesDoFiltro.map((equipe) => (
-                  <option key={equipe.id} value={equipe.id}>
-                    {equipe.nome} ({equipe.distrito.nome})
+                {categoriasDoFiltro.map((categoria) => (
+                  <option key={categoria} value={categoria}>
+                    {categoria}
                   </option>
                 ))}
               </select>

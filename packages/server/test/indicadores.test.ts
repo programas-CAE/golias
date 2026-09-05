@@ -90,7 +90,10 @@ describe("GET /indicadores", () => {
     await criarRdoCompleto(app, { frenteId: frenteA.id, equipeId: equipeA.id, data: "2026-09-01", atividadeCatalogoId: atividade1.id });
     await criarRdoCompleto(app, { frenteId: frenteA.id, equipeId: equipeB.id, data: "2026-09-01", atividadeCatalogoId: atividade1.id });
 
-    const response = await app.inject({ method: "GET", url: `/indicadores?mes=2026-09&equipeId=${equipeA.id}` });
+    const response = await app.inject({
+      method: "GET",
+      url: `/indicadores?mes=2026-09&equipeNome=${encodeURIComponent(equipeA.nome)}`,
+    });
     expect(response.statusCode).toBe(200);
     const body = response.json() as { rdosEmitidos: number };
     expect(body.rdosEmitidos).toBe(1);
@@ -121,7 +124,7 @@ describe("GET /indicadores", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: `/indicadores?mes=2026-09&frenteId=${frenteA.id}&equipeId=${equipeA.id}&atividadeCatalogoId=${atividade1.id}`,
+      url: `/indicadores?mes=2026-09&frenteId=${frenteA.id}&equipeNome=${encodeURIComponent(equipeA.nome)}&atividadeCatalogoId=${atividade1.id}`,
     });
     expect(response.statusCode).toBe(200);
     const body = response.json() as { rdosEmitidos: number };

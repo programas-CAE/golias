@@ -273,20 +273,25 @@ function filtrarPorAtividade(rdos: RdoIndicador[], atividadeCatalogoId: string |
 }
 
 export function registerIndicadoresRoutes(app: FastifyInstance): void {
-  app.get<{ Querystring: { mes?: string; frenteId?: string; equipeId?: string; atividadeCatalogoId?: string } }>(
+  app.get<{ Querystring: { mes?: string; frenteId?: string; equipeNome?: string; atividadeCatalogoId?: string } }>(
     "/indicadores",
     async (request) => {
       const { periodo, inicio, fim } = intervaloDoMes(request.query.mes);
       const ano = inicio.getUTCFullYear();
       const mesNum = inicio.getUTCMonth() + 1;
       const { inicio: inicioAnterior, fim: fimAnterior } = intervaloDoMes(periodoAnterior(periodo));
-      const { frenteId, equipeId, atividadeCatalogoId } = request.query;
+      const { frenteId, equipeNome, atividadeCatalogoId } = request.query;
       // Filtro comum de Localidade (frente) e Equipe — aplicado direto no
-      // banco, restringe quais RDOs entram em tudo que segue. O filtro de
-      // Atividade já não dá pra fazer no banco (precisa olhar dentro de
+      // banco, restringe quais RDOs entram em tudo que segue. Equipe filtra
+      // pela CATEGORIA (nome — "PREVENTIVA"/"CORRETIVA"/"TERRAPLENAGEM"),
+      // não por um time específico de uma frente: cada frente tem sua
+      // própria equipe de cada categoria (linhas diferentes na tabela,
+      // mesmo nome), e faz mais sentido comparar/ver a categoria inteira
+      // junto — a frente já tem o filtro de Localidade pra isso. O filtro
+      // de Atividade já não dá pra fazer no banco (precisa olhar dentro de
       // locais/atividades RDO a RDO), então é aplicado depois, em memória
       // (`filtrarPorAtividade`).
-      const whereFiltros = { ...(frenteId ? { frenteId } : {}), ...(equipeId ? { equipeId } : {}) };
+      const whereFiltros = { ...(frenteId ? { frenteId } : {}), ...(equipeNome ? { equipe: { nome: equipeNome } } : {}) };
 
       const [rdosBrutos, rdosMesAnteriorBrutos, ordensManutencao, frentes, periodosMedicao, atividadesCatalogo] =
         await Promise.all([
