@@ -43,6 +43,47 @@ function resolverHorasTrabalhadas(
   return horasTrabalhadasManual ?? null;
 }
 
+interface BlocoHorarioParaCalculo {
+  horarioInicial: string;
+  horarioFinal: string;
+  descricao: string;
+  categoria: string;
+}
+
+/**
+ * Soma as horas dos blocos da linha do tempo por categoria — substitui os
+ * campos que antes eram digitados à mão (Rdo.horasIndisponiveis/
+ * horasImprodutivas/motivoHorasImprodutivas). Blocos ATIVIDADE e ALMOCO não
+ * entram na conta (ver CategoriaBlocoHorario em schema.prisma).
+ */
+function calcularHorasBlocos(blocos: BlocoHorarioParaCalculo[]): {
+  horasIndisponiveis: number | null;
+  horasImprodutivas: number | null;
+  motivoHorasImprodutivas: string | null;
+} {
+  let horasIndisponiveis = 0;
+  let horasImprodutivas = 0;
+  const motivos: string[] = [];
+
+  for (const bloco of blocos) {
+    const minutos = minutosDoHorario(bloco.horarioFinal) - minutosDoHorario(bloco.horarioInicial);
+    const horas = minutos > 0 ? minutos / 60 : 0;
+    if (bloco.categoria === "INDISPONIVEL") {
+      horasIndisponiveis += horas;
+      motivos.push(bloco.descricao);
+    } else if (bloco.categoria === "IMPRODUTIVA") {
+      horasImprodutivas += horas;
+      motivos.push(bloco.descricao);
+    }
+  }
+
+  return {
+    horasIndisponiveis: horasIndisponiveis > 0 ? Math.round(horasIndisponiveis * 100) / 100 : null,
+    horasImprodutivas: horasImprodutivas > 0 ? Math.round(horasImprodutivas * 100) / 100 : null,
+    motivoHorasImprodutivas: motivos.length > 0 ? motivos.join("; ") : null,
+  };
+}
+
 interface AtividadeMaoDeObraInput {
   funcaoId: string;
   quantidade: number;
@@ -143,9 +184,7 @@ async function substituirConteudoRdo(
       encarregadoId: data.encarregadoId,
       totalDesvios: data.totalDesvios,
       observacoesContratada: data.observacoesContratada,
-      horasIndisponiveis: data.horasIndisponiveis,
-      horasImprodutivas: data.horasImprodutivas,
-      motivoHorasImprodutivas: data.motivoHorasImprodutivas,
+      ...calcularHorasBlocos(data.blocosHorario),
       blocosHorario: { create: data.blocosHorario },
       maoDeObra: { create: data.maoDeObra },
       equipamentos: { create: data.equipamentos },
@@ -364,7 +403,7 @@ export const rdoCampoSelect = {
   linkCampoExpiraEm: true,
   blocosHorario: {
     orderBy: { ordem: "asc" },
-    select: { id: true, horarioInicial: true, horarioFinal: true, descricao: true, ordem: true },
+    select: { id: true, horarioInicial: true, horarioFinal: true, descricao: true, categoria: true, ordem: true },
   },
   locais: {
     orderBy: { ordem: "asc" },
@@ -879,6 +918,7 @@ export function registerRdosRoutes(app: FastifyInstance): void {
               encarregadoId: data.encarregadoId,
               totalDesvios: data.totalDesvios,
               observacoesContratada: data.observacoesContratada,
+              ...calcularHorasBlocos(data.blocosHorario),
               linkCampoToken: generateToken(),
               linkCampoExpiraEm,
               blocosHorario: { create: data.blocosHorario },

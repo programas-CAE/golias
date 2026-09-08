@@ -501,13 +501,21 @@ model RdoSuperestruturaServico {
 // preenchido linha a linha no RDO em papel — independente de quais blocos
 // tiveram produção medida (ver RdoLocal/RdoAtividade para isso).
 model RdoBlocoHorario {
-  id             String @id @default(cuid())
+  id             String                @id @default(cuid())
   rdoId          String
-  rdo            Rdo    @relation(fields: [rdoId], references: [id])
+  rdo            Rdo                   @relation(fields: [rdoId], references: [id])
   horarioInicial String
   horarioFinal   String
-  descricao      String @db.Text
-  ordem          Int    @default(0)
+  descricao      String                @db.Text
+  categoria      CategoriaBlocoHorario @default(ATIVIDADE)
+  ordem          Int                   @default(0)
+}
+
+enum CategoriaBlocoHorario {
+  ATIVIDADE
+  IMPRODUTIVA
+  INDISPONIVEL
+  ALMOCO
 }
 
 model RdoLocal {

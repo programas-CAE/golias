@@ -30,6 +30,24 @@ const horarioSchema = z
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário inválido, use o formato HH:mm");
 
 /**
+ * Categoria de um bloco da linha do tempo — usada pra calcular sozinho o
+ * total de horas produtivas/improdutivas/indisponíveis do dia (ver
+ * Rdo.horasIndisponiveis/horasImprodutivas em schema.prisma, que passam a
+ * ser somados a partir daqui em vez de digitados à mão):
+ *  - ATIVIDADE: trabalho de fato (default) — inclui blocos genéricos tipo
+ *    "Atividade" e qualquer bloco de produção.
+ *  - IMPRODUTIVA: necessário mas não produtivo (DSS/CRM, deslocamento,
+ *    desmobilização...).
+ *  - INDISPONIVEL: parado por causa externa (chuva, aguardando liberação,
+ *    equipamento em manutenção bloqueando o serviço...).
+ *  - ALMOCO: pausa — fica de fora de todas as contas (já é descontado da
+ *    própria jornada de referência, ver jornadaReferenciaHoras).
+ */
+export const CATEGORIA_BLOCO_HORARIO_VALUES = ["ATIVIDADE", "IMPRODUTIVA", "INDISPONIVEL", "ALMOCO"] as const;
+export const categoriaBlocoHorarioSchema = z.enum(CATEGORIA_BLOCO_HORARIO_VALUES);
+export type CategoriaBlocoHorario = z.infer<typeof categoriaBlocoHorarioSchema>;
+
+/**
  * Um bloco da linha do tempo do dia (ex.: "07:00–08:50 Deslocamento para o
  * Km 767+520"), como preenchido linha a linha no RDO em papel — inclui
  * blocos sem produção medida (deslocamento, montagem de área de vivência,
@@ -39,6 +57,7 @@ export const rdoBlocoHorarioInputSchema = z.object({
   horarioInicial: horarioSchema,
   horarioFinal: horarioSchema,
   descricao: z.string().min(1, "Descrição do bloco é obrigatória").max(2000),
+  categoria: categoriaBlocoHorarioSchema.default("ATIVIDADE"),
   ordem: z.number().int().nonnegative().default(0),
 });
 
@@ -297,9 +316,9 @@ export const rdoCreateInputSchema = z
     encarregadoId: z.string().cuid().nullable().optional(),
     totalDesvios: z.number().int().nonnegative().nullable().optional(),
     observacoesContratada: z.string().max(4000).nullable().optional(),
-    horasIndisponiveis: z.number().nonnegative().nullable().optional(),
-    horasImprodutivas: z.number().nonnegative().nullable().optional(),
-    motivoHorasImprodutivas: z.string().max(500).nullable().optional(),
+    // horasIndisponiveis/horasImprodutivas/motivoHorasImprodutivas não são
+    // mais entrada — o servidor calcula a partir da categoria de cada bloco
+    // em blocosHorario (ver substituirConteudoRdo em rdos.ts).
     // Sem mínimo aqui: um RDO SUPERESTRUTURA não usa "locais" (ver
     // superRefine abaixo) — os outros dois tipos continuam exigindo pelo
     // menos 1, só que a checagem agora mora no superRefine, junto com o
@@ -376,9 +395,6 @@ export const rdoCampoUpdateInputSchema = z.object({
   encarregadoId: z.string().cuid().nullable().optional(),
   totalDesvios: z.number().int().nonnegative().nullable().optional(),
   observacoesContratada: z.string().max(4000).nullable().optional(),
-  horasIndisponiveis: z.number().nonnegative().nullable().optional(),
-  horasImprodutivas: z.number().nonnegative().nullable().optional(),
-  motivoHorasImprodutivas: z.string().max(500).nullable().optional(),
   locais: z.array(rdoLocalInputSchema).default([]),
   maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),
   equipamentos: z.array(rdoEquipamentoInputSchema).default([]),

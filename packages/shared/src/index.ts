@@ -16,3 +16,4 @@ export * from "./schemas/rdo.schema.js";
 export * from "./schemas/relatorioFotografico.schema.js";
 export * from "./schemas/usuario.schema.js";
 export * from "./utils/calcularTotalAtividade.js";
+export * from "./utils/jornada.js";

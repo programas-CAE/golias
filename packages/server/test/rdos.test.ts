@@ -158,6 +158,38 @@ describe("POST /rdos/completo", () => {
     expect(body.materiais[0]?.materialCatalogo.descricao).toBe("Cimento");
   });
 
+  it("já calcula horas improdutivas/indisponíveis na criação, a partir da categoria dos blocos", async () => {
+    const { frente, equipe, atividade } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        blocosHorario: [
+          { horarioInicial: "09:00", horarioFinal: "10:30", descricao: "DSS e CRM", categoria: "IMPRODUTIVA", ordem: 0 },
+          { horarioInicial: "13:00", horarioFinal: "14:00", descricao: "Aguardando liberação de acesso", categoria: "INDISPONIVEL", ordem: 1 },
+        ],
+        locais: [
+          {
+            descricao: "Km 767+520 ao 770+480",
+            ordem: 0,
+            atividades: [{ atividadeCatalogoId: atividade.id, largura: 12, comprimento: 264, unidade: "M2" }],
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as { horasImprodutivas: string; horasIndisponiveis: string; motivoHorasImprodutivas: string };
+    expect(Number(body.horasImprodutivas)).toBe(1.5);
+    expect(Number(body.horasIndisponiveis)).toBe(1);
+    expect(body.motivoHorasImprodutivas).toBe("DSS e CRM; Aguardando liberação de acesso");
+  });
+
   it("salva a produção por equipamento (equipes de terraplenagem apontam por máquina, não por atividade)", async () => {
     const { frente, equipe, atividade, equipamento } = await criarCenario();
 
@@ -741,6 +773,77 @@ describe("PATCH /rdos/campo/:token", () => {
     expect(salva?.maoObraDireta).toBe(4);
     expect(body.maoDeObra).toHaveLength(1);
     expect(body.equipamentos).toHaveLength(1);
+  });
+
+  it("soma horas improdutivas/indisponíveis a partir da categoria dos blocos, ignorando atividade e almoço", async () => {
+    const { frente, equipe } = await criarCenario();
+    await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: new Date("2026-07-21"),
+        linkCampoToken: "token-horas-categoria",
+        linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+      },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/rdos/campo/token-horas-categoria",
+      payload: {
+        blocosHorario: [
+          { horarioInicial: "07:00", horarioFinal: "09:00", descricao: "Deslocamento para o Km 807+", categoria: "IMPRODUTIVA", ordem: 0 },
+          { horarioInicial: "09:00", horarioFinal: "10:00", descricao: "Chuva forte", categoria: "INDISPONIVEL", ordem: 1 },
+          { horarioInicial: "10:00", horarioFinal: "12:00", descricao: "Atividade", categoria: "ATIVIDADE", ordem: 2 },
+          { horarioInicial: "12:00", horarioFinal: "13:00", descricao: "Almoço", categoria: "ALMOCO", ordem: 3 },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as {
+      horasImprodutivas: string;
+      horasIndisponiveis: string;
+      motivoHorasImprodutivas: string;
+    };
+    expect(Number(body.horasImprodutivas)).toBe(2);
+    expect(Number(body.horasIndisponiveis)).toBe(1);
+    expect(body.motivoHorasImprodutivas).toContain("Deslocamento para o Km 807+");
+    expect(body.motivoHorasImprodutivas).toContain("Chuva forte");
+    expect(body.motivoHorasImprodutivas).not.toContain("Almoço");
+  });
+
+  it("bloco sem categoria informada assume ATIVIDADE por padrão e não entra na soma", async () => {
+    const { frente, equipe } = await criarCenario();
+    await prisma.rdo.create({
+      data: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: new Date("2026-07-21"),
+        linkCampoToken: "token-categoria-default",
+        linkCampoExpiraEm: new Date(Date.now() + 86_400_000),
+      },
+    });
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/rdos/campo/token-categoria-default",
+      payload: {
+        blocosHorario: [{ horarioInicial: "07:00", horarioFinal: "09:00", descricao: "Deslocamento", ordem: 0 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json() as {
+      blocosHorario: Array<{ categoria: string }>;
+      horasImprodutivas: string | null;
+      horasIndisponiveis: string | null;
+    };
+    expect(body.blocosHorario[0]?.categoria).toBe("ATIVIDADE");
+    expect(body.horasImprodutivas).toBeNull();
+    expect(body.horasIndisponiveis).toBeNull();
   });
 
   it("substitui os locais salvos anteriormente (não acumula)", async () => {

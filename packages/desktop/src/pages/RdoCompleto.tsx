@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { jornadaReferenciaHorasDeString } from "@golias/shared";
 import Nav from "../components/Nav";
 import CroquiAtividade from "../components/CroquiAtividade";
 import Autocomplete from "../components/Autocomplete";
@@ -119,6 +120,7 @@ interface BlocoDraft {
   horarioInicial: string;
   horarioFinal: string;
   descricao: string;
+  categoria: string;
 }
 
 interface OutraMaoDeObraDraft {
@@ -169,6 +171,13 @@ const STATUS_EQUIPAMENTO_OPCOES = [
   { valor: "DESLOCANDO", rotulo: "Deslocando entre frentes" },
 ];
 
+const CATEGORIA_BLOCO_OPCOES = [
+  { valor: "ATIVIDADE", rotulo: "Atividade" },
+  { valor: "IMPRODUTIVA", rotulo: "Improdutiva (DSS, deslocamento, desmobilização...)" },
+  { valor: "INDISPONIVEL", rotulo: "Indisponível (chuva, aguardando liberação...)" },
+  { valor: "ALMOCO", rotulo: "Almoço" },
+] as const;
+
 function detalheVazio(): EquipamentoDetalhe {
   return {
     producaoDescricao: "",
@@ -208,9 +217,6 @@ interface RdoExistente {
   horaExtraInicio: string | null;
   horaExtraFim: string | null;
   observacoesContratada: string | null;
-  horasIndisponiveis: number | null;
-  horasImprodutivas: number | null;
-  motivoHorasImprodutivas: string | null;
   blocosHorario: BlocoDraft[];
   locais: Array<{
     descricao: string;
@@ -264,8 +270,6 @@ interface RdoExistente {
 }
 
 const CLIMA_OPCOES = ["SOL", "CHUVA", "NUBLADO"];
-/** Jornada de referência pra o fechamento do dia (07:00 às 17:00) — não bloqueia o salvamento, só avisa. */
-const JORNADA_REFERENCIA_HORAS = 10;
 
 function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft {
   const primeira = atividadesCatalogo[0];
@@ -378,6 +382,24 @@ function calcularHorasApontadasDia(blocos: BlocoDraft[], locais: LocalDraft[]): 
   return minutos / 60;
 }
 
+/** Mesma soma por categoria que o servidor faz ao salvar (ver calcularHorasBlocos em rdos.ts) — só pra pré-visualizar antes de salvar. */
+function calcularHorasPorCategoria(blocos: BlocoDraft[]): { improdutivas: number; indisponiveis: number; motivos: string[] } {
+  let improdutivas = 0;
+  let indisponiveis = 0;
+  const motivos: string[] = [];
+  for (const bloco of blocos) {
+    const horas = duracaoEmHoras(bloco.horarioInicial, bloco.horarioFinal) ?? 0;
+    if (bloco.categoria === "IMPRODUTIVA") {
+      improdutivas += horas;
+      if (bloco.descricao) motivos.push(bloco.descricao);
+    } else if (bloco.categoria === "INDISPONIVEL") {
+      indisponiveis += horas;
+      if (bloco.descricao) motivos.push(bloco.descricao);
+    }
+  }
+  return { improdutivas, indisponiveis, motivos };
+}
+
 function formatarHoras(horas: number): string {
   const totalMinutos = Math.round(horas * 60);
   const h = Math.floor(totalMinutos / 60);
@@ -430,11 +452,10 @@ export default function RdoCompleto(): ReactElement {
   const [totalDesvios, setTotalDesvios] = useState("");
   const [horaExtraInicio, setHoraExtraInicio] = useState("");
   const [horaExtraFim, setHoraExtraFim] = useState("");
-  const [horasIndisponiveis, setHorasIndisponiveis] = useState("");
-  const [horasImprodutivas, setHorasImprodutivas] = useState("");
-  const [motivoHorasImprodutivas, setMotivoHorasImprodutivas] = useState("");
 
-  const [blocos, setBlocos] = useState<BlocoDraft[]>([{ horarioInicial: "", horarioFinal: "", descricao: "" }]);
+  const [blocos, setBlocos] = useState<BlocoDraft[]>([
+    { horarioInicial: "", horarioFinal: "", descricao: "", categoria: "ATIVIDADE" },
+  ]);
   const [locais, setLocais] = useState<LocalDraft[]>([]);
   const [maoDeObra, setMaoDeObra] = useState<Record<string, string>>({});
   const [outrasMaoDeObra, setOutrasMaoDeObra] = useState<OutraMaoDeObraDraft[]>([]);
@@ -503,13 +524,10 @@ export default function RdoCompleto(): ReactElement {
           setHoraExtraInicio(rdo.horaExtraInicio ?? "");
           setHoraExtraFim(rdo.horaExtraFim ?? "");
           setObservacoes(rdo.observacoesContratada ?? "");
-          setHorasIndisponiveis(rdo.horasIndisponiveis != null ? String(rdo.horasIndisponiveis) : "");
-          setHorasImprodutivas(rdo.horasImprodutivas != null ? String(rdo.horasImprodutivas) : "");
-          setMotivoHorasImprodutivas(rdo.motivoHorasImprodutivas ?? "");
           setBlocos(
             rdo.blocosHorario.length > 0
               ? rdo.blocosHorario.map((b) => ({ ...b }))
-              : [{ horarioInicial: "", horarioFinal: "", descricao: "" }],
+              : [{ horarioInicial: "", horarioFinal: "", descricao: "", categoria: "ATIVIDADE" }],
           );
           setLocais(
             rdo.locais.length > 0
@@ -652,6 +670,8 @@ export default function RdoCompleto(): ReactElement {
   const totalAtividadesMotorista = locais.reduce((soma, local) => soma + local.atividades.length, 0);
   const tempoTotal = useMemo(() => calcularTempoTotal(blocos), [blocos]);
   const horasApontadasDia = useMemo(() => calcularHorasApontadasDia(blocos, locais), [blocos, locais]);
+  const horasPorCategoria = useMemo(() => calcularHorasPorCategoria(blocos), [blocos]);
+  const jornadaReferencia = useMemo(() => jornadaReferenciaHorasDeString(data), [data]);
 
   function handleFrenteChange(novaFrenteId: string): void {
     setFrenteId(novaFrenteId);
@@ -1003,9 +1023,6 @@ export default function RdoCompleto(): ReactElement {
       horaExtraInicio: horaExtraInicio === "" ? null : horaExtraInicio,
       horaExtraFim: horaExtraFim === "" ? null : horaExtraFim,
       observacoesContratada: observacoes === "" ? null : observacoes,
-      horasIndisponiveis: horasIndisponiveis === "" ? null : Number(horasIndisponiveis),
-      horasImprodutivas: horasImprodutivas === "" ? null : Number(horasImprodutivas),
-      motivoHorasImprodutivas: motivoHorasImprodutivas === "" ? null : motivoHorasImprodutivas,
       blocosHorario: blocos
         .filter((b) => b.horarioInicial && b.horarioFinal && b.descricao)
         .map((b, ordem) => ({ ...b, ordem })),
@@ -1341,6 +1358,18 @@ export default function RdoCompleto(): ReactElement {
                 onChange={(event) => atualizarBloco(indice, "descricao", event.target.value)}
                 style={{ marginTop: 8 }}
               />
+              <select
+                className="field-input"
+                value={bloco.categoria}
+                onChange={(event) => atualizarBloco(indice, "categoria", event.target.value)}
+                style={{ marginTop: 8 }}
+              >
+                {CATEGORIA_BLOCO_OPCOES.map((opcao) => (
+                  <option key={opcao.valor} value={opcao.valor}>
+                    {opcao.rotulo}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 className="button button--ghost button--small"
@@ -1354,7 +1383,9 @@ export default function RdoCompleto(): ReactElement {
           <button
             type="button"
             className="button button--secondary button--small"
-            onClick={() => setBlocos((atual) => [...atual, { horarioInicial: "", horarioFinal: "", descricao: "" }])}
+            onClick={() =>
+              setBlocos((atual) => [...atual, { horarioInicial: "", horarioFinal: "", descricao: "", categoria: "ATIVIDADE" }])
+            }
           >
             + Adicionar bloco de horário
           </button>
@@ -2258,48 +2289,6 @@ export default function RdoCompleto(): ReactElement {
         </div>
 
         <section className="form-section">
-          <h2 className="form-section-title">Horas indisponíveis / improdutivas</h2>
-          <div className="grid-2">
-            <div>
-              <label className="field-label">Horas indisponíveis</label>
-              <input
-                type="number"
-                min={0}
-                step="0.5"
-                className="field-input"
-                value={horasIndisponiveis}
-                onChange={(event) => setHorasIndisponiveis(event.target.value)}
-                placeholder="Ex.: chuva, sem acesso"
-              />
-            </div>
-            <div>
-              <label className="field-label">Horas improdutivas</label>
-              <input
-                type="number"
-                min={0}
-                step="0.5"
-                className="field-input"
-                value={horasImprodutivas}
-                onChange={(event) => setHorasImprodutivas(event.target.value)}
-                placeholder="Ex.: falta de material"
-              />
-            </div>
-          </div>
-          {(horasIndisponiveis !== "" || horasImprodutivas !== "") && (
-            <div>
-              <label className="field-label">Motivo</label>
-              <textarea
-                className="field-input"
-                rows={2}
-                value={motivoHorasImprodutivas}
-                onChange={(event) => setMotivoHorasImprodutivas(event.target.value)}
-                placeholder="Motivo das horas indisponíveis/improdutivas"
-              />
-            </div>
-          )}
-        </section>
-
-        <section className="form-section">
           <h2 className="form-section-title">Observações da contratada</h2>
           <textarea
             className="field-input"
@@ -2313,9 +2302,14 @@ export default function RdoCompleto(): ReactElement {
         <section className="form-section">
           <h2 className="form-section-title">Fechamento do dia</h2>
           <p className="list-subtitle">
-            {formatarHoras(horasApontadasDia)} apontadas (linha do tempo + atividades) de {JORNADA_REFERENCIA_HORAS}h de
-            referência ({horasApontadasDia >= JORNADA_REFERENCIA_HORAS ? "jornada completa" : "faltam apontar horas"}).
+            {formatarHoras(horasApontadasDia)} apontadas (linha do tempo + atividades) de {jornadaReferencia}h de
+            referência ({horasApontadasDia >= jornadaReferencia ? "jornada completa" : "faltam apontar horas"}).
+            {horasPorCategoria.improdutivas > 0 && ` · ${formatarHoras(horasPorCategoria.improdutivas)} improdutivas`}
+            {horasPorCategoria.indisponiveis > 0 && ` · ${formatarHoras(horasPorCategoria.indisponiveis)} indisponíveis`}
           </p>
+          {horasPorCategoria.motivos.length > 0 && (
+            <p className="list-subtitle">Motivos: {horasPorCategoria.motivos.join("; ")}</p>
+          )}
         </section>
 
         {erroSalvar && <p className="feedback feedback--erro">{erroSalvar}</p>}

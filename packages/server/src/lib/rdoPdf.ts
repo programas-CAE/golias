@@ -1,4 +1,4 @@
-import { calcularTotalAtividade } from "@golias/shared";
+import { calcularTotalAtividade, jornadaReferenciaHoras } from "@golias/shared";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import PDFDocument from "pdfkit";
@@ -553,13 +553,12 @@ function desenharTabelaUnificada(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yI
   doc.y += 8;
 }
 
-const JORNADA_REFERENCIA_HORAS = 10;
-
 /**
  * Soma a "Linha do tempo" com o horário de cada atividade — mesmo cálculo
  * de `calcularHorasApontadasDia` no formulário (RdoCompleto.tsx/Campo.tsx)
- * — pra mostrar no PDF se a jornada de referência (10h) foi toda apontada
- * em algum bloco/atividade, ou se sobrou hora sem descrição.
+ * — pra mostrar no PDF se a jornada de referência do dia (varia por dia da
+ * semana, ver jornadaReferenciaHoras) foi toda apontada em algum bloco/
+ * atividade, ou se sobrou hora sem descrição.
  */
 function calcularHorasTrabalhadas(dados: RdoPdfDados): number {
   let minutos = 0;
@@ -587,8 +586,14 @@ function formatarHoras(horas: number): string {
 
 function desenharResumoHoras(doc: PDFKit.PDFDocument, dados: RdoPdfDados, y: number): void {
   const horasTrabalhadas = calcularHorasTrabalhadas(dados);
-  const status = horasTrabalhadas >= JORNADA_REFERENCIA_HORAS ? "jornada completa" : "faltam apontar horas";
-  const texto = `${formatarHoras(horasTrabalhadas)} apontadas (linha do tempo + atividades) de ${JORNADA_REFERENCIA_HORAS}h de referência (${status}).`;
+  const referencia = jornadaReferenciaHoras(dados.data);
+  const status = horasTrabalhadas >= referencia ? "jornada completa" : "faltam apontar horas";
+  const partesExtra = [
+    dados.horasImprodutivas != null ? `${formatarHoras(dados.horasImprodutivas)} improdutivas` : null,
+    dados.horasIndisponiveis != null ? `${formatarHoras(dados.horasIndisponiveis)} indisponíveis` : null,
+  ].filter((parte): parte is string => parte != null);
+  const sufixo = partesExtra.length > 0 ? ` · ${partesExtra.join(" · ")}` : "";
+  const texto = `${formatarHoras(horasTrabalhadas)} apontadas (linha do tempo + atividades) de ${referencia}h de referência (${status})${sufixo}.`;
   doc.font("Helvetica-Bold").fontSize(7.5).fillColor("#000000");
   const altura = doc.heightOfString(texto, { width: LARGURA_UTIL });
   doc.text(texto, MARGEM, y + 4, { width: LARGURA_UTIL });
