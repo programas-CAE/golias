@@ -1392,29 +1392,33 @@ export default function RdoCompleto(): ReactElement {
         </section>
 
         <section className="form-section" style={{ order: tipo === "MOTORISTA_OPERADOR" ? 30 : 20 }}>
-          <h2 className="form-section-title">Atividades realizadas</h2>
+          <h2 className="form-section-title">{tipo === "MOTORISTA_OPERADOR" ? "Serviço do dia" : "Atividades realizadas"}</h2>
           {locais.map((local, localIndice) => (
             <div className="repeatable-item" key={localIndice}>
-              <label className="field-label">Descrição / trecho</label>
+              <label className="field-label">{tipo === "MOTORISTA_OPERADOR" ? "Descrição do serviço" : "Descrição / trecho"}</label>
               <input
                 className="field-input"
-                placeholder="Ex.: Km 767+520 ao 770+480"
+                placeholder={
+                  tipo === "MOTORISTA_OPERADOR" ? "Ex.: Transporte de material Marabá — Parauapebas" : "Ex.: Km 767+520 ao 770+480"
+                }
                 value={local.descricao}
                 onChange={(event) => atualizarLocal(localIndice, "descricao", event.target.value)}
               />
 
-              <div style={{ marginTop: 8, maxWidth: 200 }}>
-                <label className="field-label">Lado</label>
-                <input
-                  className="field-input"
-                  placeholder="LE / LD"
-                  value={local.lado}
-                  onChange={(event) => atualizarLocal(localIndice, "lado", event.target.value)}
-                />
-              </div>
+              {tipo !== "MOTORISTA_OPERADOR" && (
+                <div style={{ marginTop: 8, maxWidth: 200 }}>
+                  <label className="field-label">Lado</label>
+                  <input
+                    className="field-input"
+                    placeholder="LE / LD"
+                    value={local.lado}
+                    onChange={(event) => atualizarLocal(localIndice, "lado", event.target.value)}
+                  />
+                </div>
+              )}
 
               <h3 className="field-label" style={{ marginTop: 16 }}>
-                Atividades neste local
+                {tipo === "MOTORISTA_OPERADOR" ? "Atividade" : "Atividades neste local"}
               </h3>
               {local.atividades.map((atividade, atividadeIndice) => {
                 const usaDimensoes = ["M", "M2", "M3"].includes(atividade.unidade);
@@ -1550,7 +1554,7 @@ export default function RdoCompleto(): ReactElement {
                     )}
                     {tipo === "MOTORISTA_OPERADOR" && totalAtividadesMotorista <= 1 && (
                       <p className="list-subtitle" style={{ marginTop: 8 }}>
-                        Km e horímetro desta viagem: preenchidos abaixo, na seção Equipamento.
+                        Km e horímetro desta viagem: preenchidos acima, na seção Equipamento.
                       </p>
                     )}
 
@@ -2070,6 +2074,29 @@ export default function RdoCompleto(): ReactElement {
                             onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "horimetroFinal", event.target.value)}
                           />
                         </div>
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <label className="field-label">Situação da máquina nesse dia</label>
+                        <select
+                          className="field-input"
+                          value={detalhe.status}
+                          onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "status", event.target.value)}
+                        >
+                          {STATUS_EQUIPAMENTO_OPCOES.map((opcao) => (
+                            <option key={opcao.valor} value={opcao.valor}>
+                              {opcao.rotulo}
+                            </option>
+                          ))}
+                        </select>
+                        {detalhe.status !== "EM_PRODUCAO" && (
+                          <input
+                            className="field-input"
+                            style={{ marginTop: 8 }}
+                            placeholder="Detalhe (ex.: aguardando prancha, troca de lâmina, indo para o Km 69)"
+                            value={detalhe.statusObservacao}
+                            onChange={(event) => atualizarDetalheEquipamento(motoristaEquipamentoId, "statusObservacao", event.target.value)}
+                          />
+                        )}
                       </div>
                       <div className="grid-2" style={{ marginTop: 8 }}>
                         <div>

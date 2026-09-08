@@ -197,7 +197,7 @@ function garantirEspaco(doc: PDFKit.PDFDocument, alturaNecessaria: number): bool
 }
 
 /** AAAAMMDD+sequência (formato interno de busca) → DDMMAAAA+sequência (formato pedido pro PDF). */
-function reformatarCodigoRdo(codigoRastreio: string): string {
+export function reformatarCodigoRdo(codigoRastreio: string): string {
   const match = /^(\d{4})(\d{2})(\d{2})(\d+)$/.exec(codigoRastreio);
   if (!match) return codigoRastreio;
   const [, ano, mes, dia, sequencia] = match;

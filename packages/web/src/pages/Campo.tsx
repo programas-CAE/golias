@@ -284,6 +284,13 @@ const STATUS_EQUIPAMENTO_OPCOES = [
   { valor: "DESLOCANDO", rotulo: "Deslocando entre frentes" },
 ];
 
+const TIPO_RDO_LABEL: Record<string, string> = {
+  PREVENTIVA_CORRETIVA: "Preventiva / Corretiva",
+  TERRAPLENAGEM: "Terraplenagem",
+  SUPERESTRUTURA: "Superestrutura",
+  MOTORISTA_OPERADOR: "Motorista / Operador",
+};
+
 const CATEGORIA_BLOCO_OPCOES = [
   { valor: "ATIVIDADE", rotulo: "Atividade" },
   { valor: "IMPRODUTIVA", rotulo: "Improdutiva (DSS, deslocamento, desmobilização...)" },
@@ -1219,6 +1226,7 @@ export default function Campo(): ReactElement {
         <p>
           Equipe {rdo.equipe.nome} · {rdo.data.slice(0, 10)}
         </p>
+        <p className="campo-badge-tipo">{TIPO_RDO_LABEL[rdo.tipo] ?? rdo.tipo}</p>
       </div>
 
       <section className="campo-secao">
@@ -1331,29 +1339,33 @@ export default function Campo(): ReactElement {
 
       <section className="campo-secao" style={{ order: rdo.tipo === "MOTORISTA_OPERADOR" ? 30 : 20 }}>
         <h2 className="secao-titulo-com-icone">
-          <IconLocal /> Locais trabalhados
+          <IconLocal /> {rdo.tipo === "MOTORISTA_OPERADOR" ? "Serviço do dia" : "Locais trabalhados"}
         </h2>
         {locais.map((local, localIndice) => (
           <div className="campo-item" key={localIndice}>
-            <label className="field-label">Descrição / trecho</label>
+            <label className="field-label">{rdo.tipo === "MOTORISTA_OPERADOR" ? "Descrição do serviço" : "Descrição / trecho"}</label>
             <input
               className="field-input"
-              placeholder="Ex.: Km 767+520 ao 770+480"
+              placeholder={
+                rdo.tipo === "MOTORISTA_OPERADOR" ? "Ex.: Transporte de material Marabá — Parauapebas" : "Ex.: Km 767+520 ao 770+480"
+              }
               value={local.descricao}
               onChange={(event) => atualizarLocal(localIndice, "descricao", event.target.value)}
             />
 
-            <div>
-              <label className="field-label">Lado</label>
-              <input
-                className="field-input"
-                placeholder="LE / LD"
-                value={local.lado}
-                onChange={(event) => atualizarLocal(localIndice, "lado", event.target.value)}
-              />
-            </div>
+            {rdo.tipo !== "MOTORISTA_OPERADOR" && (
+              <div>
+                <label className="field-label">Lado</label>
+                <input
+                  className="field-input"
+                  placeholder="LE / LD"
+                  value={local.lado}
+                  onChange={(event) => atualizarLocal(localIndice, "lado", event.target.value)}
+                />
+              </div>
+            )}
 
-            <h3 className="campo-subtitulo">Atividades neste local</h3>
+            <h3 className="campo-subtitulo">{rdo.tipo === "MOTORISTA_OPERADOR" ? "Atividade" : "Atividades neste local"}</h3>
             {local.atividades.map((atividade, atividadeIndice) => {
               const usaDimensoes = ["M", "M2", "M3"].includes(atividade.unidade);
               const catalogoDaAtividade = dados?.atividadesCatalogo.find((item) => item.id === atividade.atividadeCatalogoId);
@@ -1434,7 +1446,7 @@ export default function Campo(): ReactElement {
                     </div>
                   )}
                   {rdo.tipo === "MOTORISTA_OPERADOR" && totalAtividadesMotorista <= 1 && (
-                    <p className="campo-foto-dica">Km e horímetro desta viagem: preenchidos abaixo, na seção Equipamento.</p>
+                    <p className="campo-foto-dica">Km e horímetro desta viagem: preenchidos acima, na seção Equipamento.</p>
                   )}
 
                   {atividade.unidade === "M3" && (
@@ -1915,32 +1927,36 @@ export default function Campo(): ReactElement {
                 </div>
                 {aberto && (
                   <div className="campo-item-detalhe">
-                    <div className="campo-grid-3">
-                      <input
-                        className="field-input"
-                        placeholder="Produção (ex.: Manutenção de acesso)"
-                        value={detalhe.producaoDescricao}
-                        onChange={(event) => atualizarDetalheEquipamento(item.id, "producaoDescricao", event.target.value)}
-                      />
-                      <input
-                        type="number"
-                        step="0.001"
-                        className="field-input"
-                        placeholder="Valor"
-                        value={detalhe.producaoValor}
-                        onChange={(event) => atualizarDetalheEquipamento(item.id, "producaoValor", event.target.value)}
-                      />
-                      <input
-                        className="field-input"
-                        placeholder="Unidade (ex.: m, cargas, litros)"
-                        value={detalhe.producaoUnidade}
-                        onChange={(event) => atualizarDetalheEquipamento(item.id, "producaoUnidade", event.target.value)}
-                      />
-                    </div>
-                    <p className="list-subtitle">
-                      Ou, se a máquina é apontada por horímetro (ex.: retroescavadeira, pá carregadeira): informe o
-                      horímetro inicial e final de hoje.
-                    </p>
+                    {rdo.tipo !== "MOTORISTA_OPERADOR" && (
+                      <>
+                        <div className="campo-grid-3">
+                          <input
+                            className="field-input"
+                            placeholder="Produção (ex.: Manutenção de acesso)"
+                            value={detalhe.producaoDescricao}
+                            onChange={(event) => atualizarDetalheEquipamento(item.id, "producaoDescricao", event.target.value)}
+                          />
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="Valor"
+                            value={detalhe.producaoValor}
+                            onChange={(event) => atualizarDetalheEquipamento(item.id, "producaoValor", event.target.value)}
+                          />
+                          <input
+                            className="field-input"
+                            placeholder="Unidade (ex.: m, cargas, litros)"
+                            value={detalhe.producaoUnidade}
+                            onChange={(event) => atualizarDetalheEquipamento(item.id, "producaoUnidade", event.target.value)}
+                          />
+                        </div>
+                        <p className="list-subtitle">
+                          Ou, se a máquina é apontada por horímetro (ex.: retroescavadeira, pá carregadeira): informe o
+                          horímetro inicial e final de hoje.
+                        </p>
+                      </>
+                    )}
                     <div className="campo-grid-2">
                       <div>
                         <label className="field-label">Horímetro inicial</label>

@@ -12,7 +12,7 @@ import { ANEXO_MIME_EXTENSAO, ANEXO_TIPOS, assinaturaValida, salvarArquivoAnexo 
 import { comCodigoRastreio } from "../lib/codigoRastreio.js";
 import { enviarEmail } from "../lib/email.js";
 import { prisma } from "../lib/prisma.js";
-import { calcularHashConteudo, gerarPdfRdo, type RdoConteudo, type RdoPdfGrupoFotos } from "../lib/rdoPdf.js";
+import { calcularHashConteudo, gerarPdfRdo, reformatarCodigoRdo, type RdoConteudo, type RdoPdfGrupoFotos } from "../lib/rdoPdf.js";
 import { gerarPdfRdoSuperestrutura } from "../lib/rdoSuperestruturaPdf.js";
 import { generateToken } from "../lib/tokens.js";
 import { parseBody } from "../lib/validate.js";
@@ -1485,12 +1485,15 @@ export function registerRdosRoutes(app: FastifyInstance): void {
   app.get<{ Params: { id: string } }>("/rdos/:id/pdf", async (request, reply) => {
     const rdo = await prisma.rdo.findUnique({
       where: { id: request.params.id },
-      select: { pdfPath: true },
+      select: { pdfPath: true, codigoRastreio: true },
     });
     if (!rdo?.pdfPath) return reply.status(404).send({ error: "PDF ainda não foi gerado para este RDO" });
 
     const buffer = await readFile(rdo.pdfPath);
-    return reply.header("Content-Type", "application/pdf").send(buffer);
+    return reply
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `inline; filename="RDO-${reformatarCodigoRdo(rdo.codigoRastreio)}.pdf"`)
+      .send(buffer);
   });
 
   /**

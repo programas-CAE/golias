@@ -135,6 +135,18 @@ body {
   font-size: 0.9rem;
 }
 
+.campo-badge-tipo {
+  display: inline-block;
+  margin-top: 8px !important;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .campo-secao {
   background: #ffffff;
   border: 1px solid #dbe8de;
