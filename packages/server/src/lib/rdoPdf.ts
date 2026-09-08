@@ -208,8 +208,8 @@ function desenharCabecalho(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   doc.image(LOGO_ENGECOM, MARGEM, MARGEM - 4, { width: 85 });
   doc
     .fontSize(16)
-    .text("RELATÓRIO DIÁRIO DE OBRA", MARGEM, MARGEM, { width: LARGURA_UTIL, align: "center", lineBreak: false });
-  const alturaTitulo = doc.heightOfString("RELATÓRIO DIÁRIO DE OBRA");
+    .text("RDO — RELATÓRIO DIÁRIO DE OBRA", MARGEM, MARGEM, { width: LARGURA_UTIL, align: "center", lineBreak: false });
+  const alturaTitulo = doc.heightOfString("RDO — RELATÓRIO DIÁRIO DE OBRA");
   doc
     .fontSize(9)
     .text(`Nº SAP: ${dados.numeroSap ?? "—"}`, MARGEM, MARGEM, { width: LARGURA_UTIL, align: "right", lineBreak: false });

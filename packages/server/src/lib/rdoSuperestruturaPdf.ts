@@ -108,7 +108,7 @@ function desenharCabecalho(doc: PDFKit.PDFDocument, dados: RdoSuperestruturaPdfD
   // Título em duas linhas (em vez de uma linha só com "—" no meio) — o
   // texto completo numa linha só, centralizado, colidia com o "Nº SAP" no
   // canto direito quando o nome do tipo era mais longo (Superestrutura).
-  doc.fontSize(14).text("RELATÓRIO DIÁRIO DE OBRA", MARGEM, MARGEM + 14, { width: LARGURA_UTIL, align: "center" });
+  doc.fontSize(14).text("RDO — RELATÓRIO DIÁRIO DE OBRA", MARGEM, MARGEM + 14, { width: LARGURA_UTIL, align: "center" });
   doc.fontSize(11).text("SUPERESTRUTURA", MARGEM, doc.y, { width: LARGURA_UTIL, align: "center" });
 
   const y0 = doc.y + 10;
