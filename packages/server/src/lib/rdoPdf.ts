@@ -1,9 +1,12 @@
 import { calcularTotalAtividade } from "@golias/shared";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
 
 const DIAS_SEMANA = ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SAB"] as const;
+
+const LOGO_ENGECOM = readFileSync(new URL("../assets/rdo/logo-engecom.png", import.meta.url));
 
 export interface RdoPdfBlocoHorario {
   horarioInicial: string;
@@ -104,6 +107,7 @@ export interface RdoPdfMaterialItem {
  */
 export interface RdoConteudo {
   numeroSap: string | null;
+  codigoRastreio: string;
   tipo: string;
   encarregadoNome: string | null;
   equipeNome: string;
@@ -112,6 +116,10 @@ export interface RdoConteudo {
   clima: "SOL" | "CHUVA" | "NUBLADO" | null;
   horaExtraInicio: string | null;
   horaExtraFim: string | null;
+  // Menor kmInicial e maior kmFinal entre todas as atividades do dia que
+  // informaram km — visão geral do trecho coberto, exibida no cabeçalho.
+  kmInicialGeral: number | null;
+  kmFinalGeral: number | null;
   blocosHorario: RdoPdfBlocoHorario[];
   locais: RdoPdfLocal[];
   maoDeObra: RdoPdfMaoDeObraItem[];
@@ -153,6 +161,10 @@ export interface RdoPdfDados extends RdoConteudo {
   urlVerificacao: string;
   assinaturaEncarregado?: RdoPdfAssinatura | null;
   assinaturaFiscal?: RdoPdfAssinatura | null;
+  // Nome do fiscal já sabido desde que o escritório mandou o RDO pra
+  // aprovação (AprovacaoFiscal.fiscalNome) — mostrado em itálico enquanto
+  // ele ainda não assinou de fato, mesma ideia do nomeEsperado do encarregado.
+  nomeEsperadoFiscal?: string | null;
   gruposFotos?: RdoPdfGrupoFotos[];
 }
 
@@ -184,8 +196,16 @@ function garantirEspaco(doc: PDFKit.PDFDocument, alturaNecessaria: number): bool
   return false;
 }
 
+/** AAAAMMDD+sequência (formato interno de busca) → DDMMAAAA+sequência (formato pedido pro PDF). */
+function reformatarCodigoRdo(codigoRastreio: string): string {
+  const match = /^(\d{4})(\d{2})(\d{2})(\d+)$/.exec(codigoRastreio);
+  if (!match) return codigoRastreio;
+  const [, ano, mes, dia, sequencia] = match;
+  return `${dia}${mes}${ano}${sequencia}`;
+}
+
 function desenharCabecalho(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
-  doc.font("Helvetica-Bold").fontSize(9).text("ENGECOM", MARGEM, MARGEM, { lineBreak: false });
+  doc.image(LOGO_ENGECOM, MARGEM, MARGEM - 4, { width: 85 });
   doc
     .fontSize(16)
     .text("RELATÓRIO DIÁRIO DE OBRA", MARGEM, MARGEM, { width: LARGURA_UTIL, align: "center", lineBreak: false });
@@ -193,6 +213,13 @@ function desenharCabecalho(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   doc
     .fontSize(9)
     .text(`Nº SAP: ${dados.numeroSap ?? "—"}`, MARGEM, MARGEM, { width: LARGURA_UTIL, align: "right", lineBreak: false });
+  doc
+    .fontSize(9)
+    .text(`RDO Nº: ${reformatarCodigoRdo(dados.codigoRastreio)}`, MARGEM, MARGEM + 12, {
+      width: LARGURA_UTIL,
+      align: "right",
+      lineBreak: false,
+    });
 
   const y0 = MARGEM + alturaTitulo + 8;
   doc.moveTo(MARGEM, y0).lineTo(LARGURA_PAGINA - MARGEM, y0).lineWidth(0.75).strokeColor("#000000").stroke();
@@ -229,17 +256,14 @@ function desenharLinhaCampos(doc: PDFKit.PDFDocument, y: number, campos: Array<[
 
 function desenharIdentificacao(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   const diaSemana = DIAS_SEMANA[dados.data.getUTCDay()];
-  const tempoLabel = dados.clima === "SOL" ? "SOL" : dados.clima === "CHUVA" ? "CHUVA" : dados.clima === "NUBLADO" ? "NUBLADO" : "—";
-  const horaExtra =
-    dados.horaExtraInicio && dados.horaExtraFim ? `${dados.horaExtraInicio} às ${dados.horaExtraFim}` : "—";
 
   const y = desenharLinhaCampos(doc, doc.y, [
     ["DATA", `${formatarData(dados.data)} (${diaSemana})`],
-    ["DISTRITO", dados.frenteNome],
-    ["EQUIPE", dados.equipeNome],
-    ["ENCARREGADO", dados.encarregadoNome ?? "—"],
-    ["TEMPO", tempoLabel],
-    ["HORA EXTRA", horaExtra],
+    ["DISTRITO", dados.frenteNome.toUpperCase()],
+    ["EQUIPE", dados.equipeNome.toUpperCase()],
+    ["ENCARREGADO", (dados.encarregadoNome ?? "—").toUpperCase()],
+    ["KM INICIAL", dados.kmInicialGeral != null ? formatarNumero(dados.kmInicialGeral) : "—"],
+    ["KM FINAL", dados.kmFinalGeral != null ? formatarNumero(dados.kmFinalGeral) : "—"],
   ]);
 
   doc.moveTo(MARGEM, y).lineTo(LARGURA_PAGINA - MARGEM, y).lineWidth(0.75).stroke();
@@ -370,9 +394,9 @@ function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
       const chaveBase = atividade.horarioInicial ? minutosDoHorario(atividade.horarioInicial) : Number.POSITIVE_INFINITY;
 
       // Ponto 1 (a própria atividade) — atividade.quantidade já vem somada
-      // com os pontosExtras (o total que a tabela de indicadores usa), por
-      // isso recalcula só a parte do Ponto 1 aqui, senão a linha dele
-      // mostraria o total combinado, não só o que ele mediu.
+      // com os pontosExtras (o total que a linha "QTD" mostra); o memorial
+      // do Ponto 1 recalcula só a parte dele, senão a fórmula mostraria o
+      // total combinado em vez do que ele mediu.
       const quantidadePonto1 = calcularTotalAtividade(atividade.unidade as Parameters<typeof calcularTotalAtividade>[0], atividade);
       const memorial1 = montarMemorialCalculo({
         unidade: atividade.unidade,
@@ -383,35 +407,30 @@ function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
         quantidade: quantidadePonto1,
       });
 
+      // Uma linha só por atividade, mesmo com pontos extras — o memorial de
+      // cada ponto (Ponto 1, Ponto 2...) vai todo pra observação dessa
+      // linha, e o QTD mostra o total já somado (atividade.quantidade).
+      let observacoesTexto = memorial1 ?? "";
+      if (atividade.pontosExtras.length > 0) {
+        const partes = memorial1 ? [`Ponto 1 - ${memorial1}`] : [];
+        atividade.pontosExtras.forEach((ponto, indice) => {
+          const memorial = montarMemorialCalculo({ unidade: atividade.unidade, ...ponto });
+          if (memorial) partes.push(`Ponto ${indice + 2} - ${memorial}`);
+        });
+        observacoesTexto = partes.join("\n");
+      }
+
       linhas.push({
         inicial: atividade.horarioInicial ?? "",
         final: atividade.horarioFinal ?? "",
         atividadeTexto: `${atividade.item} — ${atividade.descricao} — ${localTexto}${km}${horimetro}`,
-        qtd: formatarNumero(quantidadePonto1),
+        qtd: formatarNumero(atividade.quantidade),
         unidade: atividade.unidade,
         omTexto,
         omCor,
         mo: moTotal > 0 ? String(moTotal) : "",
-        observacoes: memorial1 ?? "",
+        observacoes: observacoesTexto,
         chaveOrdenacao: chaveBase,
-      });
-
-      atividade.pontosExtras.forEach((ponto, indice) => {
-        const memorial = montarMemorialCalculo({ unidade: atividade.unidade, ...ponto });
-        linhas.push({
-          inicial: "",
-          final: "",
-          atividadeTexto: `${atividade.item} — ${atividade.descricao} — Ponto ${indice + 2}`,
-          qtd: formatarNumero(ponto.quantidade),
-          unidade: atividade.unidade,
-          omTexto: null,
-          omCor: null,
-          mo: "",
-          observacoes: memorial ?? "",
-          // +0.001 por ponto extra pra ficar logo depois do Ponto 1 na
-          // ordenação, sem disputar posição com outra atividade do mesmo horário.
-          chaveOrdenacao: chaveBase + (indice + 1) * 0.001,
-        });
       });
     }
   }
@@ -1042,7 +1061,15 @@ async function desenharRodape(doc: PDFKit.PDFDocument, dados: RdoPdfDados): Prom
   );
 
   const xVale = MARGEM + colLargura + 40;
-  desenharBlocoAssinatura(doc, xVale, yAssinaturas, colLargura, "Responsável VALE (Fiscal)", dados.assinaturaFiscal);
+  desenharBlocoAssinatura(
+    doc,
+    xVale,
+    yAssinaturas,
+    colLargura,
+    "Responsável VALE (Fiscal)",
+    dados.assinaturaFiscal,
+    dados.nomeEsperadoFiscal,
+  );
 
   const qrDataUrl = await QRCode.toBuffer(dados.urlVerificacao, { margin: 0, width: 90 });
   const algumaAssinatura = dados.assinaturaEncarregado != null || dados.assinaturaFiscal != null;

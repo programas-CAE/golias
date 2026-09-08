@@ -561,8 +561,17 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
     ? await prisma.colaborador.findUnique({ where: { id: rdo.encarregadoId }, select: { nome: true } })
     : null;
 
+  const kmsAtividades = rdo.locais.flatMap((local) => local.atividades.flatMap((a) => [a.kmInicial, a.kmFinal]));
+  const kmsEquipamentos = rdo.equipamentos.flatMap((e) => [e.kmInicial, e.kmFinal]);
+  const todosOsKm = [...kmsAtividades, ...kmsEquipamentos]
+    .filter((km): km is Prisma.Decimal => km != null)
+    .map((km) => Number(km));
+  const kmInicialGeral = todosOsKm.length > 0 ? Math.min(...todosOsKm) : null;
+  const kmFinalGeral = todosOsKm.length > 0 ? Math.max(...todosOsKm) : null;
+
   return {
     numeroSap: rdo.frente.contrato.numero,
+    codigoRastreio: rdo.codigoRastreio,
     tipo: rdo.tipo,
     encarregadoNome: encarregado?.nome ?? null,
     equipeNome: rdo.equipe.nome,
@@ -571,6 +580,8 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
     clima: rdo.clima,
     horaExtraInicio: rdo.horaExtraInicio,
     horaExtraFim: rdo.horaExtraFim,
+    kmInicialGeral,
+    kmFinalGeral,
     blocosHorario: rdo.blocosHorario,
     locais: rdo.locais.map((local) => ({
       descricao: local.descricao,
@@ -703,9 +714,9 @@ export async function gerarEArmazenarPdf(rdoId: string): Promise<{ id: string; p
       select: { assinaturaEncarregadoPath: true, encarregadoId: true, enviadoParaFiscalEm: true },
     }),
     prisma.aprovacaoFiscal.findFirst({
-      where: { rdoId, status: { in: ["APROVADO", "REPROVADO"] } },
+      where: { rdoId },
       orderBy: { criadoEm: "desc" },
-      select: { assinaturaImagemPath: true, assinanteNome: true, assinadoEm: true, status: true },
+      select: { assinaturaImagemPath: true, assinanteNome: true, assinadoEm: true, status: true, fiscalNome: true },
     }),
   ]);
 
@@ -756,7 +767,14 @@ export async function gerarEArmazenarPdf(rdoId: string): Promise<{ id: string; p
           assinaturaEncarregado,
           assinaturaFiscal,
         })
-      : await gerarPdfRdo({ ...conteudo, urlVerificacao, assinaturaEncarregado, assinaturaFiscal, gruposFotos });
+      : await gerarPdfRdo({
+          ...conteudo,
+          urlVerificacao,
+          assinaturaEncarregado,
+          assinaturaFiscal,
+          nomeEsperadoFiscal: aprovacaoFiscal?.fiscalNome ?? null,
+          gruposFotos,
+        });
 
   const uploadsRoot = process.env.UPLOADS_ROOT ?? "./uploads";
   const rdoDir = path.join(uploadsRoot, "rdos", rdo.id);
