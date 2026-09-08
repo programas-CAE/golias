@@ -119,6 +119,9 @@ export interface RdoConteudo {
   materiais: RdoPdfMaterialItem[];
   observacoesContratada: string | null;
   observacoesCliente: string | null;
+  horasIndisponiveis: number | null;
+  horasImprodutivas: number | null;
+  motivoHorasImprodutivas: string | null;
 }
 
 export interface RdoPdfAssinatura {
@@ -690,6 +693,18 @@ function desenharRecursos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
 }
 
 function desenharObservacoes(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
+  if (dados.horasIndisponiveis != null || dados.horasImprodutivas != null) {
+    garantirEspaco(doc, 40);
+    const yHoras = doc.y + 10;
+    doc.moveTo(MARGEM, yHoras).lineTo(LARGURA_PAGINA - MARGEM, yHoras).lineWidth(0.75).stroke();
+    const yFimHoras = desenharLinhaCampos(doc, yHoras + 6, [
+      ["HORAS INDISPONÍVEIS", dados.horasIndisponiveis != null ? `${dados.horasIndisponiveis}h` : "—"],
+      ["HORAS IMPRODUTIVAS", dados.horasImprodutivas != null ? `${dados.horasImprodutivas}h` : "—"],
+      ["MOTIVO", dados.motivoHorasImprodutivas ?? "—"],
+    ]);
+    doc.y = yFimHoras;
+  }
+
   garantirEspaco(doc, 70);
   const y0 = doc.y + 10;
   doc.moveTo(MARGEM, y0).lineTo(LARGURA_PAGINA - MARGEM, y0).lineWidth(0.75).stroke();

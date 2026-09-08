@@ -76,16 +76,16 @@ enum PeriodoMedicaoStatus {
 }
 
 model AtividadeCatalogo {
-  id            String         @id @default(cuid())
-  codigo        String
-  descricao     String
-  unidade       UnidadeMedida
-  metaPus       Decimal?       @db.Decimal(10, 4)
-  usaDimensoes  Boolean        @default(false)
-  ativo         Boolean        @default(true)
-  ordem         Int            @default(0)
-  rdoAtividades RdoAtividade[]
-  anexos        RdoAnexo[]
+  id             String                     @id @default(cuid())
+  codigo         String
+  descricao      String
+  unidade        UnidadeMedida
+  metaPus        Decimal?                   @db.Decimal(10, 4)
+  usaDimensoes   Boolean                    @default(false)
+  ativo          Boolean                    @default(true)
+  ordem          Int                        @default(0)
+  rdoAtividades  RdoAtividade[]
+  anexos         RdoAnexo[]
   fotosRelatorio RelatorioFotograficoFoto[]
 }
 
@@ -204,17 +204,17 @@ model EquipeMembro {
 }
 
 model OrdemManutencao {
-  id                   String                @id @default(cuid())
-  numero               String                @unique
-  frenteId             String
-  frente               Frente                @relation(fields: [frenteId], references: [id])
-  dataEmissao          DateTime
-  kmInicial            Decimal?              @db.Decimal(10, 3)
-  kmFinal              Decimal?              @db.Decimal(10, 3)
-  lado                 String?
-  detalhes             String?
-  atividades            RdoAtividade[]
-  anexos                RdoAnexo[]
+  id                     String                 @id @default(cuid())
+  numero                 String                 @unique
+  frenteId               String
+  frente                 Frente                 @relation(fields: [frenteId], references: [id])
+  dataEmissao            DateTime
+  kmInicial              Decimal?               @db.Decimal(10, 3)
+  kmFinal                Decimal?               @db.Decimal(10, 3)
+  lado                   String?
+  detalhes               String?
+  atividades             RdoAtividade[]
+  anexos                 RdoAnexo[]
   relatoriosFotograficos RelatorioFotografico[]
 }
 
@@ -284,22 +284,22 @@ model RelatorioFotograficoFoto {
 // dois campos são opcionais e únicos (Postgres permite vários NULL sob um
 // unique index, mesmo padrão já usado em EquipeMembro).
 model Usuario {
-  id             String               @id @default(cuid())
-  nome           String
-  email          String?              @unique
-  matriculaLogin String?              @unique
-  senhaHash      String
-  role           UsuarioRole          @default(ESCRITORIO)
-  ativo          Boolean              @default(true)
+  id                String                  @id @default(cuid())
+  nome              String
+  email             String?                 @unique
+  matriculaLogin    String?                 @unique
+  senhaHash         String
+  role              UsuarioRole             @default(ESCRITORIO)
+  ativo             Boolean                 @default(true)
   // Localidade do fiscal/encarregado — várias pessoas (várias linhas de
   // Usuario) podem repetir a mesma frente, cobrindo "mais de um fiscal por
   // localidade". Null pra ADMIN/ESCRITORIO (não são escopados por frente).
-  frenteId       String?
-  frente         Frente?              @relation(fields: [frenteId], references: [id])
+  frenteId          String?
+  frente            Frente?                 @relation(fields: [frenteId], references: [id])
   // Só preenchido pra role ENCARREGADO — liga o login ao Colaborador já
   // cadastrado (nome, matrícula, função continuam vindo de lá).
-  colaboradorId  String?              @unique
-  colaborador    Colaborador?         @relation(fields: [colaboradorId], references: [id])
+  colaboradorId     String?                 @unique
+  colaborador       Colaborador?            @relation(fields: [colaboradorId], references: [id])
   refreshTokens     SessaoRefreshToken[]
   redefinicoesSenha RedefinicaoSenhaToken[]
 }
@@ -329,42 +329,49 @@ model RedefinicaoSenhaToken {
 }
 
 model Rdo {
-  id                    String      @id @default(cuid())
-  frenteId              String
-  frente                Frente      @relation(fields: [frenteId], references: [id])
-  equipeId              String
-  equipe                Equipe      @relation(fields: [equipeId], references: [id])
+  id                      String      @id @default(cuid())
+  frenteId                String
+  frente                  Frente      @relation(fields: [frenteId], references: [id])
+  equipeId                String
+  equipe                  Equipe      @relation(fields: [equipeId], references: [id])
   // Projeto/empreendimento que esse RDO pertence, pra acompanhar cronograma
   // e materiais consolidados por obra (ver model Obra) — o encarregado
   // escolhe ao lançar o RDO do dia. Opcional porque nem todo RDO precisa
   // estar amarrado a uma obra específica (e RDOs lançados antes desse
   // recurso existir não têm).
-  obraId                String?
-  obra                  Obra?       @relation(fields: [obraId], references: [id])
-  data                  DateTime    @db.Date
+  obraId                  String?
+  obra                    Obra?       @relation(fields: [obraId], references: [id])
+  data                    DateTime    @db.Date
   // Preventiva/Corretiva e Terraplenagem usam a mesma forma hoje (locais/
   // atividades OU produção por equipamento — ver RdoLocal/RdoEquipamento);
   // Superestrutura é um formulário totalmente diferente (ferrovia, sem OM,
   // ver RdoSuperestrutura). Escolhido pelo encarregado ao abrir o RDO do
   // dia.
-  tipo                  RdoTipo     @default(PREVENTIVA_CORRETIVA)
+  tipo                    RdoTipo     @default(PREVENTIVA_CORRETIVA)
   // Código de busca rápida (AAAAMMDD + sequência do dia, ex.: "20260830001")
   // — pelo dia em que o RDO foi lançado no sistema, não pelo dia do campo
   // (`data`), pra bater com o que a pessoa tem na cabeça quando cadastra.
   // Sem default de negócio (código real vem sempre de `comCodigoRastreio`,
   // no server) — o default aqui é só uma rede de segurança pra fixture de
   // teste/seed que cria um Rdo direto sem passar por essa função.
-  codigoRastreio        String      @unique @default(dbgenerated("gen_random_uuid()::text"))
+  codigoRastreio          String      @unique @default(dbgenerated("gen_random_uuid()::text"))
   // Intervalo de hora extra do dia (formato HH:mm), quando houver — distinto
   // dos horários de cada bloco de atividade (ver RdoBlocoHorario).
-  horaExtraInicio       String?
-  horaExtraFim          String?
-  clima                 TempoClima?
-  encarregadoId         String?
-  totalDesvios          Int?
-  observacoesContratada String?     @db.Text
-  observacoesCliente    String?     @db.Text
-  status                RdoStatus   @default(RASCUNHO)
+  horaExtraInicio         String?
+  horaExtraFim            String?
+  clima                   TempoClima?
+  encarregadoId           String?
+  totalDesvios            Int?
+  observacoesContratada   String?     @db.Text
+  observacoesCliente      String?     @db.Text
+  // Resumo geral do dia — quanto tempo a equipe ficou parada por causas
+  // externas (indisponível: chuva, falta de acesso, aguardando liberação)
+  // ou trabalhando sem produzir (improdutiva: falta de material, retrabalho
+  // etc.). Um total simples do RDO inteiro, não por atividade/função.
+  horasIndisponiveis      Decimal?    @db.Decimal(5, 2)
+  horasImprodutivas       Decimal?    @db.Decimal(5, 2)
+  motivoHorasImprodutivas String?     @db.Text
+  status                  RdoStatus   @default(RASCUNHO)
 
   linkCampoToken    String?   @unique
   linkCampoExpiraEm DateTime?
@@ -389,15 +396,15 @@ model Rdo {
   criadoEm     DateTime @default(now())
   atualizadoEm DateTime @updatedAt
 
-  blocosHorario  RdoBlocoHorario[]
-  locais         RdoLocal[]
-  maoDeObra      RdoMaoDeObra[]
-  equipamentos   RdoEquipamento[]
-  materiais      RdoMaterial[]
-  anexos         RdoAnexo[]
-  aprovacoes     AprovacaoFiscal[]
-  historico      RdoHistorico[]
-  superestrutura RdoSuperestrutura?
+  blocosHorario          RdoBlocoHorario[]
+  locais                 RdoLocal[]
+  maoDeObra              RdoMaoDeObra[]
+  equipamentos           RdoEquipamento[]
+  materiais              RdoMaterial[]
+  anexos                 RdoAnexo[]
+  aprovacoes             AprovacaoFiscal[]
+  historico              RdoHistorico[]
+  superestrutura         RdoSuperestrutura?
   relatoriosFotograficos RelatorioFotografico[]
 
   @@index([frenteId, data])
@@ -617,32 +624,32 @@ model RdoMaoDeObra {
 }
 
 model RdoEquipamento {
-  id                    String              @id @default(cuid())
+  id                    String               @id @default(cuid())
   rdoId                 String
-  rdo                   Rdo                 @relation(fields: [rdoId], references: [id])
+  rdo                   Rdo                  @relation(fields: [rdoId], references: [id])
   equipamentoCatalogoId String
-  equipamentoCatalogo   EquipamentoCatalogo @relation(fields: [equipamentoCatalogoId], references: [id])
-  quantidade            Int                 @default(1)
+  equipamentoCatalogo   EquipamentoCatalogo  @relation(fields: [equipamentoCatalogoId], references: [id])
+  quantidade            Int                  @default(1)
   // Produção do equipamento no dia (equipes de terraplenagem apontam por
   // máquina, ex.: "MNE 104 — Manutenção de Acesso: 800m") — vazios quando o
   // equipamento é só um item de checklist comum, sem produção associada.
   producaoDescricao     String?
-  producaoValor         Decimal?            @db.Decimal(12, 3)
+  producaoValor         Decimal?             @db.Decimal(12, 3)
   producaoUnidade       String?
   // Horímetro do equipamento (leitura inicial/final do dia) — outra forma
   // de apontar produção de terraplenagem, pra máquinas cujo trabalho se
   // mede em horas de operação (não em carradas/metros). Preenchido junto
   // com producaoValor/producaoUnidade não faz sentido — são alternativas,
   // não campos que se somam; a tela decide qual mostrar por equipamento.
-  horimetroInicial      Decimal?            @db.Decimal(10, 2)
-  horimetroFinal        Decimal?            @db.Decimal(10, 2)
+  horimetroInicial      Decimal?             @db.Decimal(10, 2)
+  horimetroFinal        Decimal?             @db.Decimal(10, 2)
   // Motorista/operador (RdoTipo.MOTORISTA_OPERADOR) — km rodado/rota e
   // combustível abastecido no dia, outra forma de apontar o uso do
   // equipamento/veículo (ver rdoEquipamentoInputSchema em packages/shared).
-  kmInicial             Decimal?            @db.Decimal(10, 1)
-  kmFinal               Decimal?            @db.Decimal(10, 1)
+  kmInicial             Decimal?             @db.Decimal(10, 1)
+  kmFinal               Decimal?             @db.Decimal(10, 1)
   rota                  String?
-  combustivelLitros     Decimal?            @db.Decimal(10, 2)
+  combustivelLitros     Decimal?             @db.Decimal(10, 2)
   combustivelPosto      String?
   // Terraplenagem só aponta "produção" quando a máquina está de fato
   // produzindo — boa parte do dia real é máquina esperando abastecimento/
@@ -695,23 +702,23 @@ model RdoMaterial {
 }
 
 model RdoAnexo {
-  id                String                     @id @default(cuid())
-  rdoId             String
-  rdo               Rdo                        @relation(fields: [rdoId], references: [id])
-  tipo              TipoAnexo
-  caminhoArquivo    String
-  nomeOriginal      String
-  mimeType          String
-  tamanhoBytes      Int
-  descricao         String?
-  valor             Decimal?                   @db.Decimal(12, 2)
+  id                  String                     @id @default(cuid())
+  rdoId               String
+  rdo                 Rdo                        @relation(fields: [rdoId], references: [id])
+  tipo                TipoAnexo
+  caminhoArquivo      String
+  nomeOriginal        String
+  mimeType            String
+  tamanhoBytes        Int
+  descricao           String?
+  valor               Decimal?                   @db.Decimal(12, 2)
   // Foto tirada para uma OM específica (o encarregado escolhe a OM ao
   // enviar a foto no lançamento de campo) — null pra fotos gerais do dia,
   // notas fiscais e documentos, que não são de uma OM em particular.
   // Usado pra agrupar as fotos por OM no PDF do RDO, na tela do escritório
   // e como fonte pro Relatório Fotográfico da OM (RelatorioFotografico).
-  ordemManutencaoId String?
-  ordemManutencao   OrdemManutencao?           @relation(fields: [ordemManutencaoId], references: [id])
+  ordemManutencaoId   String?
+  ordemManutencao     OrdemManutencao?           @relation(fields: [ordemManutencaoId], references: [id])
   // Qual atividade (do catálogo) essa foto documenta, dentro da OM acima —
   // uma OM pode cobrir mais de uma atividade no mesmo dia (ex.: "Roçagem"
   // e "Limpeza de bueiros" na mesma OM), e o Relatório Fotográfico precisa
@@ -720,8 +727,8 @@ model RdoAnexo {
   // especificar qual atividade continua indo pro grupo "sem atividade").
   atividadeCatalogoId String?
   atividadeCatalogo   AtividadeCatalogo?         @relation(fields: [atividadeCatalogoId], references: [id])
-  criadoEm          DateTime                   @default(now())
-  fotosDeRelatorio  RelatorioFotograficoFoto[]
+  criadoEm            DateTime                   @default(now())
+  fotosDeRelatorio    RelatorioFotograficoFoto[]
 }
 
 model AprovacaoFiscal {

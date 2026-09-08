@@ -297,6 +297,9 @@ export const rdoCreateInputSchema = z
     encarregadoId: z.string().cuid().nullable().optional(),
     totalDesvios: z.number().int().nonnegative().nullable().optional(),
     observacoesContratada: z.string().max(4000).nullable().optional(),
+    horasIndisponiveis: z.number().nonnegative().nullable().optional(),
+    horasImprodutivas: z.number().nonnegative().nullable().optional(),
+    motivoHorasImprodutivas: z.string().max(500).nullable().optional(),
     // Sem mínimo aqui: um RDO SUPERESTRUTURA não usa "locais" (ver
     // superRefine abaixo) — os outros dois tipos continuam exigindo pelo
     // menos 1, só que a checagem agora mora no superRefine, junto com o
@@ -373,6 +376,9 @@ export const rdoCampoUpdateInputSchema = z.object({
   encarregadoId: z.string().cuid().nullable().optional(),
   totalDesvios: z.number().int().nonnegative().nullable().optional(),
   observacoesContratada: z.string().max(4000).nullable().optional(),
+  horasIndisponiveis: z.number().nonnegative().nullable().optional(),
+  horasImprodutivas: z.number().nonnegative().nullable().optional(),
+  motivoHorasImprodutivas: z.string().max(500).nullable().optional(),
   locais: z.array(rdoLocalInputSchema).default([]),
   maoDeObra: z.array(rdoMaoDeObraInputSchema).default([]),
   equipamentos: z.array(rdoEquipamentoInputSchema).default([]),

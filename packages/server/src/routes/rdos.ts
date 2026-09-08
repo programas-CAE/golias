@@ -143,6 +143,9 @@ async function substituirConteudoRdo(
       encarregadoId: data.encarregadoId,
       totalDesvios: data.totalDesvios,
       observacoesContratada: data.observacoesContratada,
+      horasIndisponiveis: data.horasIndisponiveis,
+      horasImprodutivas: data.horasImprodutivas,
+      motivoHorasImprodutivas: data.motivoHorasImprodutivas,
       blocosHorario: { create: data.blocosHorario },
       maoDeObra: { create: data.maoDeObra },
       equipamentos: { create: data.equipamentos },
@@ -354,6 +357,9 @@ export const rdoCampoSelect = {
   totalDesvios: true,
   observacoesContratada: true,
   observacoesCliente: true,
+  horasIndisponiveis: true,
+  horasImprodutivas: true,
+  motivoHorasImprodutivas: true,
   linkCampoToken: true,
   linkCampoExpiraEm: true,
   blocosHorario: {
@@ -630,6 +636,9 @@ async function montarConteudoRdo(rdo: RdoParaPdf): Promise<RdoConteudo> {
       })),
     observacoesContratada: rdo.observacoesContratada,
     observacoesCliente: rdo.observacoesCliente,
+    horasIndisponiveis: rdo.horasIndisponiveis != null ? Number(rdo.horasIndisponiveis) : null,
+    horasImprodutivas: rdo.horasImprodutivas != null ? Number(rdo.horasImprodutivas) : null,
+    motivoHorasImprodutivas: rdo.motivoHorasImprodutivas,
   };
 }
 

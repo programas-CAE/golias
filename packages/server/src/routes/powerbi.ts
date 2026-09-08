@@ -57,6 +57,9 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
                 equipe: { select: { nome: true } },
                 obra: { select: { nome: true } },
                 encarregadoId: true,
+                horasIndisponiveis: true,
+                horasImprodutivas: true,
+                motivoHorasImprodutivas: true,
               },
             },
           },
@@ -106,6 +109,9 @@ export function registerPowerBiRoutes(app: FastifyInstance): void {
         OM_Numero: atividade.ordemManutencao?.numero ?? null,
         Status_OM: atividade.statusOm,
         Percentual_Concluido_OM: atividade.percentualConcluido,
+        Horas_Indisponiveis: rdo.horasIndisponiveis != null ? Number(rdo.horasIndisponiveis) : null,
+        Horas_Improdutivas: rdo.horasImprodutivas != null ? Number(rdo.horasImprodutivas) : null,
+        Motivo_Horas_Improdutivas: rdo.motivoHorasImprodutivas,
       };
     });
 

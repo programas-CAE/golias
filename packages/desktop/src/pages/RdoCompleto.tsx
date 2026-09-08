@@ -208,6 +208,9 @@ interface RdoExistente {
   horaExtraInicio: string | null;
   horaExtraFim: string | null;
   observacoesContratada: string | null;
+  horasIndisponiveis: number | null;
+  horasImprodutivas: number | null;
+  motivoHorasImprodutivas: string | null;
   blocosHorario: BlocoDraft[];
   locais: Array<{
     descricao: string;
@@ -427,6 +430,9 @@ export default function RdoCompleto(): ReactElement {
   const [totalDesvios, setTotalDesvios] = useState("");
   const [horaExtraInicio, setHoraExtraInicio] = useState("");
   const [horaExtraFim, setHoraExtraFim] = useState("");
+  const [horasIndisponiveis, setHorasIndisponiveis] = useState("");
+  const [horasImprodutivas, setHorasImprodutivas] = useState("");
+  const [motivoHorasImprodutivas, setMotivoHorasImprodutivas] = useState("");
 
   const [blocos, setBlocos] = useState<BlocoDraft[]>([{ horarioInicial: "", horarioFinal: "", descricao: "" }]);
   const [locais, setLocais] = useState<LocalDraft[]>([]);
@@ -497,6 +503,9 @@ export default function RdoCompleto(): ReactElement {
           setHoraExtraInicio(rdo.horaExtraInicio ?? "");
           setHoraExtraFim(rdo.horaExtraFim ?? "");
           setObservacoes(rdo.observacoesContratada ?? "");
+          setHorasIndisponiveis(rdo.horasIndisponiveis != null ? String(rdo.horasIndisponiveis) : "");
+          setHorasImprodutivas(rdo.horasImprodutivas != null ? String(rdo.horasImprodutivas) : "");
+          setMotivoHorasImprodutivas(rdo.motivoHorasImprodutivas ?? "");
           setBlocos(
             rdo.blocosHorario.length > 0
               ? rdo.blocosHorario.map((b) => ({ ...b }))
@@ -994,6 +1003,9 @@ export default function RdoCompleto(): ReactElement {
       horaExtraInicio: horaExtraInicio === "" ? null : horaExtraInicio,
       horaExtraFim: horaExtraFim === "" ? null : horaExtraFim,
       observacoesContratada: observacoes === "" ? null : observacoes,
+      horasIndisponiveis: horasIndisponiveis === "" ? null : Number(horasIndisponiveis),
+      horasImprodutivas: horasImprodutivas === "" ? null : Number(horasImprodutivas),
+      motivoHorasImprodutivas: motivoHorasImprodutivas === "" ? null : motivoHorasImprodutivas,
       blocosHorario: blocos
         .filter((b) => b.horarioInicial && b.horarioFinal && b.descricao)
         .map((b, ordem) => ({ ...b, ordem })),
@@ -2244,6 +2256,48 @@ export default function RdoCompleto(): ReactElement {
           </div>
         </section>
         </div>
+
+        <section className="form-section">
+          <h2 className="form-section-title">Horas indisponíveis / improdutivas</h2>
+          <div className="grid-2">
+            <div>
+              <label className="field-label">Horas indisponíveis</label>
+              <input
+                type="number"
+                min={0}
+                step="0.5"
+                className="field-input"
+                value={horasIndisponiveis}
+                onChange={(event) => setHorasIndisponiveis(event.target.value)}
+                placeholder="Ex.: chuva, sem acesso"
+              />
+            </div>
+            <div>
+              <label className="field-label">Horas improdutivas</label>
+              <input
+                type="number"
+                min={0}
+                step="0.5"
+                className="field-input"
+                value={horasImprodutivas}
+                onChange={(event) => setHorasImprodutivas(event.target.value)}
+                placeholder="Ex.: falta de material"
+              />
+            </div>
+          </div>
+          {(horasIndisponiveis !== "" || horasImprodutivas !== "") && (
+            <div>
+              <label className="field-label">Motivo</label>
+              <textarea
+                className="field-input"
+                rows={2}
+                value={motivoHorasImprodutivas}
+                onChange={(event) => setMotivoHorasImprodutivas(event.target.value)}
+                placeholder="Motivo das horas indisponíveis/improdutivas"
+              />
+            </div>
+          )}
+        </section>
 
         <section className="form-section">
           <h2 className="form-section-title">Observações da contratada</h2>

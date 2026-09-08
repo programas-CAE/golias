@@ -174,6 +174,9 @@ interface Rdo {
   horaExtraFim: string | null;
   totalDesvios: number | null;
   observacoesContratada: string | null;
+  horasIndisponiveis: number | null;
+  horasImprodutivas: number | null;
+  motivoHorasImprodutivas: string | null;
   blocosHorario: RdoBlocoSalvo[];
   locais: RdoLocalSalvo[];
   maoDeObra: RdoMaoDeObraSalva[];
@@ -424,6 +427,9 @@ export default function Campo(): ReactElement {
   const [horaExtraInicio, setHoraExtraInicio] = useState("");
   const [horaExtraFim, setHoraExtraFim] = useState("");
   const [totalDesvios, setTotalDesvios] = useState("");
+  const [horasIndisponiveis, setHorasIndisponiveis] = useState("");
+  const [horasImprodutivas, setHorasImprodutivas] = useState("");
+  const [motivoHorasImprodutivas, setMotivoHorasImprodutivas] = useState("");
   const [observacoes, setObservacoes] = useState("");
   const [blocos, setBlocos] = useState<BlocoDraft[]>([]);
   const [materiais, setMateriais] = useState<MaterialDraft[]>([]);
@@ -475,6 +481,9 @@ export default function Campo(): ReactElement {
         setHoraExtraInicio(resposta.rdo.horaExtraInicio ?? "");
         setHoraExtraFim(resposta.rdo.horaExtraFim ?? "");
         setTotalDesvios(resposta.rdo.totalDesvios != null ? String(resposta.rdo.totalDesvios) : "");
+        setHorasIndisponiveis(resposta.rdo.horasIndisponiveis != null ? String(resposta.rdo.horasIndisponiveis) : "");
+        setHorasImprodutivas(resposta.rdo.horasImprodutivas != null ? String(resposta.rdo.horasImprodutivas) : "");
+        setMotivoHorasImprodutivas(resposta.rdo.motivoHorasImprodutivas ?? "");
         setObservacoes(resposta.rdo.observacoesContratada ?? "");
         setMateriais(
           resposta.rdo.materiais.map((material) => ({
@@ -1016,6 +1025,9 @@ export default function Campo(): ReactElement {
       horaExtraFim: horaExtraFim === "" ? null : horaExtraFim,
       totalDesvios: totalDesvios === "" ? null : Number(totalDesvios),
       observacoesContratada: observacoes === "" ? null : observacoes,
+      horasIndisponiveis: horasIndisponiveis === "" ? null : Number(horasIndisponiveis),
+      horasImprodutivas: horasImprodutivas === "" ? null : Number(horasImprodutivas),
+      motivoHorasImprodutivas: motivoHorasImprodutivas === "" ? null : motivoHorasImprodutivas,
       blocosHorario: blocos
         .filter((b) => b.horarioInicial && b.horarioFinal && b.descricao)
         .map((b, ordem) => ({ ...b, ordem })),
@@ -2138,6 +2150,49 @@ export default function Campo(): ReactElement {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section className="campo-secao">
+        <h2 className="secao-titulo-com-icone">
+          <IconAlerta /> Horas indisponíveis / improdutivas
+        </h2>
+        <div className="campo-grid-2">
+          <div>
+            <label className="field-label">Horas indisponíveis</label>
+            <input
+              type="number"
+              min={0}
+              step="0.5"
+              className="field-input"
+              value={horasIndisponiveis}
+              onChange={(event) => setHorasIndisponiveis(event.target.value)}
+              placeholder="Ex.: chuva, sem acesso"
+            />
+          </div>
+          <div>
+            <label className="field-label">Horas improdutivas</label>
+            <input
+              type="number"
+              min={0}
+              step="0.5"
+              className="field-input"
+              value={horasImprodutivas}
+              onChange={(event) => setHorasImprodutivas(event.target.value)}
+              placeholder="Ex.: falta de material"
+            />
+          </div>
+        </div>
+        {(horasIndisponiveis !== "" || horasImprodutivas !== "") && (
+          <div>
+            <label className="field-label">Motivo</label>
+            <textarea
+              className="field-input campo-textarea"
+              value={motivoHorasImprodutivas}
+              onChange={(event) => setMotivoHorasImprodutivas(event.target.value)}
+              placeholder="Motivo das horas indisponíveis/improdutivas"
+            />
+          </div>
         )}
       </section>
 
