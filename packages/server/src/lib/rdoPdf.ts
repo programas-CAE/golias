@@ -12,6 +12,7 @@ export interface RdoPdfBlocoHorario {
   horarioInicial: string;
   horarioFinal: string;
   descricao: string;
+  categoria: string;
   ordem: number;
 }
 
@@ -362,7 +363,11 @@ interface LinhaUnificada {
 function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
   const linhas: LinhaUnificada[] = [];
 
+  // IMPRODUTIVA/INDISPONIVEL não entram na linha do tempo cronológica — vão
+  // resumidas em duas linhas só, no final da tabela (ver abaixo), pra não
+  // espalhar "hora perdida" no meio da narrativa do dia.
   for (const bloco of dados.blocosHorario) {
+    if (bloco.categoria === "IMPRODUTIVA" || bloco.categoria === "INDISPONIVEL") continue;
     linhas.push({
       inicial: bloco.horarioInicial,
       final: bloco.horarioFinal,
@@ -433,6 +438,30 @@ function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
         chaveOrdenacao: chaveBase,
       });
     }
+  }
+
+  for (const [categoria, rotulo] of [
+    ["IMPRODUTIVA", "HORAS IMPRODUTIVAS"],
+    ["INDISPONIVEL", "HORAS INDISPONÍVEIS"],
+  ] as const) {
+    const blocosDaCategoria = dados.blocosHorario.filter((bloco) => bloco.categoria === categoria);
+    if (blocosDaCategoria.length === 0) continue;
+    const minutosTotais = blocosDaCategoria.reduce((soma, bloco) => {
+      const diferenca = minutosDoHorario(bloco.horarioFinal) - minutosDoHorario(bloco.horarioInicial);
+      return soma + (diferenca > 0 ? diferenca : 0);
+    }, 0);
+    linhas.push({
+      inicial: "",
+      final: "",
+      atividadeTexto: rotulo,
+      qtd: formatarHoras(minutosTotais / 60),
+      unidade: "",
+      omTexto: null,
+      omCor: null,
+      mo: "",
+      observacoes: blocosDaCategoria.map((bloco) => bloco.descricao).join("; "),
+      chaveOrdenacao: Number.POSITIVE_INFINITY,
+    });
   }
 
   return linhas.sort((a, b) => a.chaveOrdenacao - b.chaveOrdenacao);
@@ -717,18 +746,6 @@ function desenharRecursos(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
 }
 
 function desenharObservacoes(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
-  if (dados.horasIndisponiveis != null || dados.horasImprodutivas != null) {
-    garantirEspaco(doc, 40);
-    const yHoras = doc.y + 10;
-    doc.moveTo(MARGEM, yHoras).lineTo(LARGURA_PAGINA - MARGEM, yHoras).lineWidth(0.75).stroke();
-    const yFimHoras = desenharLinhaCampos(doc, yHoras + 6, [
-      ["HORAS INDISPONÍVEIS", dados.horasIndisponiveis != null ? `${dados.horasIndisponiveis}h` : "—"],
-      ["HORAS IMPRODUTIVAS", dados.horasImprodutivas != null ? `${dados.horasImprodutivas}h` : "—"],
-      ["MOTIVO", dados.motivoHorasImprodutivas ?? "—"],
-    ]);
-    doc.y = yFimHoras;
-  }
-
   garantirEspaco(doc, 70);
   const y0 = doc.y + 10;
   doc.moveTo(MARGEM, y0).lineTo(LARGURA_PAGINA - MARGEM, y0).lineWidth(0.75).stroke();
