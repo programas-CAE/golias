@@ -1559,7 +1559,7 @@ export default function RdoCompleto(): ReactElement {
                     )}
 
                     {atividade.unidade === "M3" && (
-                      <div className="grid-3" style={{ marginTop: 12 }}>
+                      <div className="grid-4" style={{ marginTop: 12 }}>
                         <div>
                           <label className="field-label">Altura (m)</label>
                           <input
@@ -1572,7 +1572,7 @@ export default function RdoCompleto(): ReactElement {
                           />
                         </div>
                         <div>
-                          <label className="field-label">Largura (m)</label>
+                          <label className="field-label">Largura inicial (m)</label>
                           <input
                             type="number"
                             step="0.001"
@@ -1580,6 +1580,17 @@ export default function RdoCompleto(): ReactElement {
                             placeholder="0,00"
                             value={atividade.largura}
                             onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="field-label">Largura final (m) — opcional</label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            className="field-input"
+                            placeholder="se afunilar/alargar"
+                            value={atividade.larguraFinal}
+                            onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "larguraFinal", event.target.value)}
                           />
                         </div>
                         <div>
@@ -1818,7 +1829,7 @@ export default function RdoCompleto(): ReactElement {
                             </button>
                           </div>
                           {atividade.unidade === "M3" && (
-                            <div className="grid-3">
+                            <div className="grid-4">
                               <div>
                                 <label className="field-label">Altura (m)</label>
                                 <input
@@ -1831,7 +1842,7 @@ export default function RdoCompleto(): ReactElement {
                                 />
                               </div>
                               <div>
-                                <label className="field-label">Largura (m)</label>
+                                <label className="field-label">Largura inicial (m)</label>
                                 <input
                                   type="number"
                                   step="0.001"
@@ -1839,6 +1850,19 @@ export default function RdoCompleto(): ReactElement {
                                   placeholder="0,00"
                                   value={ponto.largura}
                                   onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "largura", event.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className="field-label">Largura final (m) — opcional</label>
+                                <input
+                                  type="number"
+                                  step="0.001"
+                                  className="field-input"
+                                  placeholder="se afunilar/alargar"
+                                  value={ponto.larguraFinal}
+                                  onChange={(event) =>
+                                    atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "larguraFinal", event.target.value)
+                                  }
                                 />
                               </div>
                               <div>

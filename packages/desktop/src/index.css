@@ -1108,6 +1108,12 @@ textarea.field-input {
   gap: 12px;
 }
 
+.grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
 .repeatable-item {
   border: 1px solid var(--border);
   border-radius: 12px;

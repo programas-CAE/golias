@@ -1450,32 +1450,44 @@ export default function Campo(): ReactElement {
                   )}
 
                   {atividade.unidade === "M3" && (
-                    <div className="campo-grid-3">
-                      <input
-                        type="number"
-                        step="0.001"
-                        className="field-input"
-                        placeholder="Altura"
-                        value={atividade.altura}
-                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "altura", event.target.value)}
-                      />
-                      <input
-                        type="number"
-                        step="0.001"
-                        className="field-input"
-                        placeholder="Largura"
-                        value={atividade.largura}
-                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
-                      />
-                      <input
-                        type="number"
-                        step="0.001"
-                        className="field-input"
-                        placeholder="Comprimento"
-                        value={atividade.comprimento}
-                        onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
-                      />
-                    </div>
+                    <>
+                      <div className="campo-grid-2">
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder="Altura"
+                          value={atividade.altura}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "altura", event.target.value)}
+                        />
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder="Largura inicial"
+                          value={atividade.largura}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "largura", event.target.value)}
+                        />
+                      </div>
+                      <div className="campo-grid-2">
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder="Largura final (se afunilar)"
+                          value={atividade.larguraFinal}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "larguraFinal", event.target.value)}
+                        />
+                        <input
+                          type="number"
+                          step="0.001"
+                          className="field-input"
+                          placeholder="Comprimento"
+                          value={atividade.comprimento}
+                          onChange={(event) => atualizarAtividade(localIndice, atividadeIndice, "comprimento", event.target.value)}
+                        />
+                      </div>
+                    </>
                   )}
                   {atividade.unidade === "M2" && (
                     <div className="campo-grid-3">
@@ -1543,34 +1555,48 @@ export default function Campo(): ReactElement {
                           </button>
                         </div>
                         {atividade.unidade === "M3" && (
-                          <div className="campo-grid-3">
-                            <input
-                              type="number"
-                              step="0.001"
-                              className="field-input"
-                              placeholder="Altura"
-                              value={ponto.altura}
-                              onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "altura", event.target.value)}
-                            />
-                            <input
-                              type="number"
-                              step="0.001"
-                              className="field-input"
-                              placeholder="Largura"
-                              value={ponto.largura}
-                              onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "largura", event.target.value)}
-                            />
-                            <input
-                              type="number"
-                              step="0.001"
-                              className="field-input"
-                              placeholder="Comprimento"
-                              value={ponto.comprimento}
-                              onChange={(event) =>
-                                atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "comprimento", event.target.value)
-                              }
-                            />
-                          </div>
+                          <>
+                            <div className="campo-grid-2">
+                              <input
+                                type="number"
+                                step="0.001"
+                                className="field-input"
+                                placeholder="Altura"
+                                value={ponto.altura}
+                                onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "altura", event.target.value)}
+                              />
+                              <input
+                                type="number"
+                                step="0.001"
+                                className="field-input"
+                                placeholder="Largura inicial"
+                                value={ponto.largura}
+                                onChange={(event) => atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "largura", event.target.value)}
+                              />
+                            </div>
+                            <div className="campo-grid-2">
+                              <input
+                                type="number"
+                                step="0.001"
+                                className="field-input"
+                                placeholder="Largura final (se afunilar)"
+                                value={ponto.larguraFinal}
+                                onChange={(event) =>
+                                  atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "larguraFinal", event.target.value)
+                                }
+                              />
+                              <input
+                                type="number"
+                                step="0.001"
+                                className="field-input"
+                                placeholder="Comprimento"
+                                value={ponto.comprimento}
+                                onChange={(event) =>
+                                  atualizarPontoExtra(localIndice, atividadeIndice, pontoIndice, "comprimento", event.target.value)
+                                }
+                              />
+                            </div>
+                          </>
                         )}
                         {atividade.unidade === "M2" && (
                           <div className="campo-grid-3">

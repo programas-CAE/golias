@@ -13,9 +13,13 @@ export interface CalcularTotalAtividadeInput {
  * dimensões (ou de um valor direto, para unidades que não usam dimensões).
  *
  * Regras (validadas contra apontamentos reais do cliente):
- *  - M3: altura × largura × comprimento
- *      ex.: 1.20 × 2.10 × 3.30 = 8.316 (armazenado com 3 casas decimais,
- *      conforme RdoAtividade.totalCalculado @db.Decimal(12,3))
+ *  - M3: altura × largura × comprimento — ou, quando `larguraFinal` é
+ *      informada (a seção afunila/alarga, ex. vala/canal de drenagem em
+ *      talude), o volume do prisma trapezoidal: altura × média(largura
+ *      inicial, largura final) × comprimento.
+ *      ex.: altura 0.8, largura 3.70, larguraFinal 6.20, comprimento 9.80
+ *      → 0.8 × (3.70+6.20)/2 × 9.80 = 38.808 (armazenado com 3 casas
+ *      decimais, conforme RdoAtividade.totalCalculado @db.Decimal(12,3))
  *  - M2: largura × comprimento — ou, quando `larguraFinal` é informada (o
  *      trecho afunila/alarga, ex. roçada em faixa irregular), a área do
  *      trapézio: média(largura inicial, largura final) × comprimento.
@@ -31,8 +35,11 @@ export function calcularTotalAtividade(
   input: CalcularTotalAtividadeInput,
 ): number {
   switch (unidade) {
-    case "M3":
-      return (input.altura ?? 0) * (input.largura ?? 0) * (input.comprimento ?? 0);
+    case "M3": {
+      const larguraInicial = input.largura ?? 0;
+      const larguraFinal = input.larguraFinal ?? larguraInicial;
+      return (input.altura ?? 0) * ((larguraInicial + larguraFinal) / 2) * (input.comprimento ?? 0);
+    }
     case "M2": {
       const larguraInicial = input.largura ?? 0;
       const larguraFinal = input.larguraFinal ?? larguraInicial;

@@ -324,6 +324,9 @@ interface DadosMemorial {
 function montarMemorialCalculo(dados: DadosMemorial): string | null {
   const { unidade, altura: a, largura: l, larguraFinal: lFim, comprimento: c, quantidade } = dados;
   if (unidade === "M3" && a != null && l != null && c != null) {
+    if (lFim != null && lFim !== l) {
+      return `${formatarNumero(a)} × média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)} = ${formatarNumero(quantidade)} m³`;
+    }
     return `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)} = ${formatarNumero(quantidade)} m³`;
   }
   if (unidade === "M2" && l != null && c != null) {

@@ -120,7 +120,16 @@ export default function CroquiAtividade({ unidade, altura, largura, larguraFinal
 
   let resultado: { formula: string; valor: number; unidadeResultado: string } | null = null;
   if (unidade === "M3" && a != null && l != null && c != null) {
-    resultado = { formula: `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)}`, valor: c * l * a, unidadeResultado: "m³" };
+    if (lFim != null && lFim !== l) {
+      const media = (l + lFim) / 2;
+      resultado = {
+        formula: `${formatarNumero(a)} × média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)}`,
+        valor: a * media * c,
+        unidadeResultado: "m³",
+      };
+    } else {
+      resultado = { formula: `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)}`, valor: c * l * a, unidadeResultado: "m³" };
+    }
   } else if (unidade === "M2" && l != null && c != null) {
     if (lFim != null && lFim !== l) {
       const media = (l + lFim) / 2;
@@ -140,7 +149,11 @@ export default function CroquiAtividade({ unidade, altura, largura, larguraFinal
     <div className="croqui-card">
       <p className="croqui-titulo">Croqui{descricaoAtividade ? ` — ${descricaoAtividade}` : ""}</p>
       {unidade === "M3" ? (
-        <CroquiCaixa altura={altura} largura={largura} comprimento={comprimento} />
+        lFim != null && lFim !== l ? (
+          <CroquiRetangulo largura={largura} larguraFinal={larguraFinal} comprimento={comprimento} />
+        ) : (
+          <CroquiCaixa altura={altura} largura={largura} comprimento={comprimento} />
+        )
       ) : unidade === "M2" ? (
         <CroquiRetangulo largura={largura} larguraFinal={larguraFinal} comprimento={comprimento} />
       ) : unidade === "M" ? (
