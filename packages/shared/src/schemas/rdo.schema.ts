@@ -87,6 +87,10 @@ export const rdoAtividadePontoInputSchema = z.object({
   altura: z.number().positive().nullable().optional(),
   largura: z.number().positive().nullable().optional(),
   larguraFinal: z.number().positive().nullable().optional(),
+  // Leituras de largura além de largura/larguraFinal — trecho medido em
+  // mais de 2 pontos, todas entram na mesma média (ver mediaLargura em
+  // @golias/shared).
+  largurasExtras: z.array(z.number().positive()).default([]),
   comprimento: z.number().positive().nullable().optional(),
   quantidadeDireta: z.number().positive().nullable().optional(),
 });
@@ -163,6 +167,7 @@ export const rdoAtividadeInputSchema = z
     altura: z.number().positive().nullable().optional(),
     largura: z.number().positive().nullable().optional(),
     larguraFinal: z.number().positive().nullable().optional(),
+    largurasExtras: z.array(z.number().positive()).default([]),
     comprimento: z.number().positive().nullable().optional(),
     quantidadeDireta: z.number().positive().nullable().optional(),
     // Início/fim desta atividade — quando ambos informados, o servidor

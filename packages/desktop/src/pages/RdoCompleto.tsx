@@ -77,12 +77,15 @@ interface PontoExtraDraft {
   altura: string;
   largura: string;
   larguraFinal: string;
+  // Leituras de largura além das duas primeiras — trecho medido em mais de
+  // 2 pontos (ex.: "LAR A/B/C" no papel), todas entrando na mesma média.
+  largurasExtras: string[];
   comprimento: string;
   quantidadeDireta: string;
 }
 
 function novoPontoExtra(): PontoExtraDraft {
-  return { altura: "", largura: "", larguraFinal: "", comprimento: "", quantidadeDireta: "" };
+  return { altura: "", largura: "", larguraFinal: "", largurasExtras: [], comprimento: "", quantidadeDireta: "" };
 }
 
 interface AtividadeDraft {
@@ -98,6 +101,7 @@ interface AtividadeDraft {
   altura: string;
   largura: string;
   larguraFinal: string;
+  largurasExtras: string[];
   comprimento: string;
   quantidadeDireta: string;
   horarioInicial: string;
@@ -232,6 +236,7 @@ interface RdoExistente {
       altura: string | null;
       largura: string | null;
       larguraFinal: string | null;
+      largurasExtras: string[];
       comprimento: string | null;
       quantidadeDireta: string | null;
       horarioInicial: string | null;
@@ -243,6 +248,7 @@ interface RdoExistente {
         altura: string | null;
         largura: string | null;
         larguraFinal: string | null;
+        largurasExtras: string[];
         comprimento: string | null;
         quantidadeDireta: string | null;
       }>;
@@ -285,6 +291,7 @@ function novaAtividade(atividadesCatalogo: AtividadeCatalogo[]): AtividadeDraft 
     altura: "",
     largura: "",
     larguraFinal: "",
+    largurasExtras: [],
     comprimento: "",
     quantidadeDireta: "",
     horarioInicial: "",
@@ -321,6 +328,7 @@ function ehAtividadeIntocada(atividade: AtividadeDraft): boolean {
     atividade.altura === "" &&
     atividade.largura === "" &&
     atividade.larguraFinal === "" &&
+    atividade.largurasExtras.length === 0 &&
     atividade.comprimento === "" &&
     atividade.quantidadeDireta === "" &&
     atividade.horarioInicial === "" &&
@@ -415,6 +423,49 @@ const TIPO_RDO_LABEL: Record<(typeof TIPOS_RDO)[number], string> = {
   TERRAPLENAGEM: "Terraplenagem",
   MOTORISTA_OPERADOR: "Motorista / Operador",
 };
+
+/**
+ * Leituras de largura além das duas primeiras (largura inicial/final) —
+ * trecho medido em mais de 2 pontos (ex.: papel com "LAR A/B/C"), todas
+ * entrando na mesma média (ver mediaLargura em @golias/shared).
+ */
+function LargurasExtrasEditor({ valores, onChange }: { valores: string[]; onChange: (novos: string[]) => void }): ReactElement {
+  return (
+    <div style={{ marginTop: 8 }}>
+      {valores.map((valor, indice) => (
+        <div key={indice} style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+          <input
+            type="number"
+            step="0.001"
+            className="field-input"
+            placeholder={`Largura extra ${indice + 1} (m)`}
+            value={valor}
+            onChange={(event) => {
+              const novos = [...valores];
+              novos[indice] = event.target.value;
+              onChange(novos);
+            }}
+          />
+          <button
+            type="button"
+            className="button button--ghost button--small"
+            onClick={() => onChange(valores.filter((_, i) => i !== indice))}
+          >
+            Remover
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="button button--secondary button--small"
+        style={{ marginTop: 4 }}
+        onClick={() => onChange([...valores, ""])}
+      >
+        + Adicionar largura
+      </button>
+    </div>
+  );
+}
 
 export default function RdoCompleto(): ReactElement {
   const navigate = useNavigate();
@@ -544,6 +595,7 @@ export default function RdoCompleto(): ReactElement {
                     altura: atividade.altura ?? "",
                     largura: atividade.largura ?? "",
                     larguraFinal: atividade.larguraFinal ?? "",
+                    largurasExtras: atividade.largurasExtras,
                     comprimento: atividade.comprimento ?? "",
                     quantidadeDireta: atividade.quantidadeDireta ?? "",
                     horarioInicial: atividade.horarioInicial ?? "",
@@ -557,6 +609,7 @@ export default function RdoCompleto(): ReactElement {
                       altura: ponto.altura ?? "",
                       largura: ponto.largura ?? "",
                       larguraFinal: ponto.larguraFinal ?? "",
+                      largurasExtras: ponto.largurasExtras,
                       comprimento: ponto.comprimento ?? "",
                       quantidadeDireta: ponto.quantidadeDireta ?? "",
                     })),
@@ -863,6 +916,44 @@ export default function RdoCompleto(): ReactElement {
     );
   }
 
+  /** Substitui a lista de leituras de largura extra (3ª leitura em diante) da própria atividade — Ponto 1. */
+  function atualizarLargurasExtrasAtividade(localIndice: number, atividadeIndice: number, largurasExtras: string[]): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) => (j === atividadeIndice ? { ...atividade, largurasExtras } : atividade)),
+        };
+      }),
+    );
+  }
+
+  /** Mesma coisa, mas para um ponto extra (Ponto 2, 3...) da atividade. */
+  function atualizarLargurasExtrasPontoExtra(
+    localIndice: number,
+    atividadeIndice: number,
+    pontoIndice: number,
+    largurasExtras: string[],
+  ): void {
+    setLocais((atual) =>
+      atual.map((local, i) => {
+        if (i !== localIndice) return local;
+        return {
+          ...local,
+          atividades: local.atividades.map((atividade, j) =>
+            j === atividadeIndice
+              ? {
+                  ...atividade,
+                  pontosExtras: atividade.pontosExtras.map((ponto, k) => (k === pontoIndice ? { ...ponto, largurasExtras } : ponto)),
+                }
+              : atividade,
+          ),
+        };
+      }),
+    );
+  }
+
   function adicionarPontoExtra(localIndice: number, atividadeIndice: number): void {
     setLocais((atual) =>
       atual.map((local, i) => {
@@ -1061,6 +1152,7 @@ export default function RdoCompleto(): ReactElement {
             altura: atividade.altura === "" ? null : Number(atividade.altura),
             largura: atividade.largura === "" ? null : Number(atividade.largura),
             larguraFinal: atividade.larguraFinal === "" ? null : Number(atividade.larguraFinal),
+            largurasExtras: atividade.largurasExtras.filter((v) => v !== "" && Number(v) > 0).map(Number),
             comprimento: atividade.comprimento === "" ? null : Number(atividade.comprimento),
             quantidadeDireta: atividade.quantidadeDireta === "" ? null : Number(atividade.quantidadeDireta),
             horarioInicial: atividade.horarioInicial || null,
@@ -1074,6 +1166,7 @@ export default function RdoCompleto(): ReactElement {
               altura: ponto.altura === "" ? null : Number(ponto.altura),
               largura: ponto.largura === "" ? null : Number(ponto.largura),
               larguraFinal: ponto.larguraFinal === "" ? null : Number(ponto.larguraFinal),
+              largurasExtras: ponto.largurasExtras.filter((v) => v !== "" && Number(v) > 0).map(Number),
               comprimento: ponto.comprimento === "" ? null : Number(ponto.comprimento),
               quantidadeDireta: ponto.quantidadeDireta === "" ? null : Number(ponto.quantidadeDireta),
             })),
@@ -1650,6 +1743,13 @@ export default function RdoCompleto(): ReactElement {
                       </div>
                     )}
 
+                    {(atividade.unidade === "M3" || atividade.unidade === "M2") && (
+                      <LargurasExtrasEditor
+                        valores={atividade.largurasExtras}
+                        onChange={(novos) => atualizarLargurasExtrasAtividade(localIndice, atividadeIndice, novos)}
+                      />
+                    )}
+
                     {atividade.unidade === "M" && (
                       <div style={{ marginTop: 12 }}>
                         <label className="field-label">Comprimento (m)</label>
@@ -1809,6 +1909,7 @@ export default function RdoCompleto(): ReactElement {
                       altura={atividade.altura}
                       largura={atividade.largura}
                       larguraFinal={atividade.larguraFinal}
+                      largurasExtras={atividade.largurasExtras}
                       comprimento={atividade.comprimento}
                       descricaoAtividade={
                         atividade.pontosExtras.length > 0
@@ -1922,6 +2023,12 @@ export default function RdoCompleto(): ReactElement {
                               </div>
                             </div>
                           )}
+                          {(atividade.unidade === "M3" || atividade.unidade === "M2") && (
+                            <LargurasExtrasEditor
+                              valores={ponto.largurasExtras}
+                              onChange={(novos) => atualizarLargurasExtrasPontoExtra(localIndice, atividadeIndice, pontoIndice, novos)}
+                            />
+                          )}
                           {atividade.unidade === "M" && (
                             <div>
                               <label className="field-label">Comprimento (m)</label>
@@ -1941,6 +2048,7 @@ export default function RdoCompleto(): ReactElement {
                           altura={ponto.altura}
                           largura={ponto.largura}
                           larguraFinal={ponto.larguraFinal}
+                          largurasExtras={ponto.largurasExtras}
                           comprimento={ponto.comprimento}
                           descricaoAtividade={`${catalogoDaAtividade?.descricao ?? ""} — Ponto ${pontoIndice + 2}`}
                         />

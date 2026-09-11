@@ -558,6 +558,10 @@ model RdoAtividade {
   altura              Decimal?                @db.Decimal(10, 3)
   largura             Decimal?                @db.Decimal(10, 3)
   larguraFinal        Decimal?                @db.Decimal(10, 3)
+  // Leituras de largura além das duas primeiras (largura/larguraFinal) —
+  // trecho medido em mais de 2 pontos (ex.: "LAR A/B/C"), todas entrando
+  // na mesma média. Vazio no caso comum de 1 ou 2 leituras.
+  largurasExtras      Decimal[]               @db.Decimal(10, 3)
   comprimento         Decimal?                @db.Decimal(10, 3)
   quantidadeDireta    Decimal?                @db.Decimal(12, 3)
   totalCalculado      Decimal                 @db.Decimal(12, 3)
@@ -601,6 +605,7 @@ model RdoAtividadePonto {
   altura           Decimal?     @db.Decimal(10, 3)
   largura          Decimal?     @db.Decimal(10, 3)
   larguraFinal     Decimal?     @db.Decimal(10, 3)
+  largurasExtras   Decimal[]    @db.Decimal(10, 3)
   comprimento      Decimal?     @db.Decimal(10, 3)
   quantidadeDireta Decimal?     @db.Decimal(12, 3)
   totalCalculado   Decimal      @db.Decimal(12, 3)

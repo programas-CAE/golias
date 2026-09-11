@@ -407,6 +407,55 @@ describe("POST /rdos/completo", () => {
     expect(Number(salva?.pontosExtras[0]?.totalCalculado)).toBe(20);
   });
 
+  it("média largurasExtras: trecho medido em mais de 2 pontos entra na mesma média de largura (Ponto 1 e ponto extra)", async () => {
+    const { frente, equipe, atividade } = await criarCenario();
+
+    const app = buildApp();
+    const response = await app.inject({
+      method: "POST",
+      url: "/rdos/completo",
+      payload: {
+        frenteId: frente.id,
+        equipeId: equipe.id,
+        data: "2026-07-21",
+        locais: [
+          {
+            descricao: "Trecho com 3 leituras de largura",
+            ordem: 0,
+            atividades: [
+              {
+                atividadeCatalogoId: atividade.id,
+                unidade: "M2",
+                largura: 3,
+                larguraFinal: 5,
+                largurasExtras: [7],
+                comprimento: 10,
+                pontosExtras: [{ ordem: 0, largura: 2, larguraFinal: 4, largurasExtras: [6], comprimento: 10 }],
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as {
+      locais: Array<{
+        atividades: Array<{
+          totalCalculado: string;
+          largurasExtras: string[];
+          pontosExtras: Array<{ totalCalculado: string; largurasExtras: string[] }>;
+        }>;
+      }>;
+    };
+    const salva = body.locais[0]?.atividades[0];
+    // Ponto 1: média(3, 5, 7) × 10 = 5 × 10 = 50. Ponto extra: média(2, 4, 6) × 10 = 4 × 10 = 40. Total = 90.
+    expect(Number(salva?.totalCalculado)).toBe(90);
+    expect(salva?.largurasExtras.map(Number)).toEqual([7]);
+    expect(Number(salva?.pontosExtras[0]?.totalCalculado)).toBe(40);
+    expect(salva?.pontosExtras[0]?.largurasExtras.map(Number)).toEqual([6]);
+  });
+
   it("retorna 400 quando um ponto extra não informa as dimensões exigidas pela unidade", async () => {
     const { frente, equipe, atividade } = await criarCenario();
 

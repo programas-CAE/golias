@@ -1,3 +1,4 @@
+import { listarLarguras, mediaLargura } from "@golias/shared";
 import type { ReactElement } from "react";
 
 interface CroquiAtividadeProps {
@@ -5,6 +6,7 @@ interface CroquiAtividadeProps {
   altura: string;
   largura: string;
   larguraFinal: string;
+  largurasExtras: string[];
   comprimento: string;
   descricaoAtividade?: string;
 }
@@ -112,34 +114,47 @@ function CroquiCaixa({ altura, largura, comprimento }: { altura: string; largura
   );
 }
 
-export default function CroquiAtividade({ unidade, altura, largura, larguraFinal, comprimento, descricaoAtividade }: CroquiAtividadeProps): ReactElement {
+export default function CroquiAtividade({
+  unidade,
+  altura,
+  largura,
+  larguraFinal,
+  largurasExtras,
+  comprimento,
+  descricaoAtividade,
+}: CroquiAtividadeProps): ReactElement {
   const a = numero(altura);
   const l = numero(largura);
   const lFim = numero(larguraFinal);
   const c = numero(comprimento);
+  const dimensoesLargura = {
+    largura: l,
+    larguraFinal: lFim,
+    largurasExtras: largurasExtras.map(numero).filter((v): v is number => v != null),
+  };
+  const leituras = listarLarguras(dimensoesLargura);
+  const media = mediaLargura(dimensoesLargura);
 
   let resultado: { formula: string; valor: number; unidadeResultado: string } | null = null;
-  if (unidade === "M3" && a != null && l != null && c != null) {
-    if (lFim != null && lFim !== l) {
-      const media = (l + lFim) / 2;
+  if (unidade === "M3" && a != null && leituras.length > 0 && c != null) {
+    if (leituras.length > 1) {
       resultado = {
-        formula: `${formatarNumero(a)} × média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)}`,
+        formula: `${formatarNumero(a)} × média(${leituras.map(formatarNumero).join(", ")}) × ${formatarNumero(c)}`,
         valor: a * media * c,
         unidadeResultado: "m³",
       };
     } else {
-      resultado = { formula: `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)}`, valor: c * l * a, unidadeResultado: "m³" };
+      resultado = { formula: `${formatarNumero(c)} × ${formatarNumero(media)} × ${formatarNumero(a)}`, valor: c * media * a, unidadeResultado: "m³" };
     }
-  } else if (unidade === "M2" && l != null && c != null) {
-    if (lFim != null && lFim !== l) {
-      const media = (l + lFim) / 2;
+  } else if (unidade === "M2" && leituras.length > 0 && c != null) {
+    if (leituras.length > 1) {
       resultado = {
-        formula: `média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)}`,
+        formula: `média(${leituras.map(formatarNumero).join(", ")}) × ${formatarNumero(c)}`,
         valor: media * c,
         unidadeResultado: "m²",
       };
     } else {
-      resultado = { formula: `${formatarNumero(c)} × ${formatarNumero(l)}`, valor: c * l, unidadeResultado: "m²" };
+      resultado = { formula: `${formatarNumero(c)} × ${formatarNumero(media)}`, valor: c * media, unidadeResultado: "m²" };
     }
   } else if (unidade === "M" && c != null) {
     resultado = { formula: `${formatarNumero(c)}`, valor: c, unidadeResultado: "m" };

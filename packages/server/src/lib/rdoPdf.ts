@@ -1,4 +1,4 @@
-import { calcularTotalAtividade, jornadaReferenciaHoras, somarMinutosSemSobreposicao } from "@golias/shared";
+import { calcularTotalAtividade, jornadaReferenciaHoras, listarLarguras, somarMinutosSemSobreposicao } from "@golias/shared";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import PDFDocument from "pdfkit";
@@ -26,6 +26,7 @@ export interface RdoPdfPontoExtra {
   altura: number | null;
   largura: number | null;
   larguraFinal: number | null;
+  largurasExtras: number[];
   comprimento: number | null;
   quantidade: number;
 }
@@ -43,6 +44,7 @@ export interface RdoPdfAtividade {
   altura: number | null;
   largura: number | null;
   larguraFinal: number | null;
+  largurasExtras: number[];
   comprimento: number | null;
   horarioInicial: string | null;
   horarioFinal: string | null;
@@ -316,24 +318,26 @@ interface DadosMemorial {
   altura: number | null;
   largura: number | null;
   larguraFinal: number | null;
+  largurasExtras: number[];
   comprimento: number | null;
   quantidade: number;
 }
 
-/** Texto do memorial de cálculo (fórmula = resultado), mesma matemática de `calcularTotalAtividade` (packages/shared) e do croqui exibido no formulário (CroquiAtividade.tsx). */
+/** Texto do memorial de cálculo (fórmula = resultado), mesma matemática de `calcularTotalAtividade`/`mediaLargura` (packages/shared) e do croqui exibido no formulário (CroquiAtividade.tsx). */
 function montarMemorialCalculo(dados: DadosMemorial): string | null {
-  const { unidade, altura: a, largura: l, larguraFinal: lFim, comprimento: c, quantidade } = dados;
-  if (unidade === "M3" && a != null && l != null && c != null) {
-    if (lFim != null && lFim !== l) {
-      return `${formatarNumero(a)} × média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)} = ${formatarNumero(quantidade)} m³`;
+  const { unidade, altura: a, comprimento: c, quantidade } = dados;
+  const leituras = listarLarguras(dados);
+  if (unidade === "M3" && a != null && leituras.length > 0 && c != null) {
+    if (leituras.length > 1) {
+      return `${formatarNumero(a)} × média(${leituras.map(formatarNumero).join(", ")}) × ${formatarNumero(c)} = ${formatarNumero(quantidade)} m³`;
     }
-    return `${formatarNumero(c)} × ${formatarNumero(l)} × ${formatarNumero(a)} = ${formatarNumero(quantidade)} m³`;
+    return `${formatarNumero(c)} × ${formatarNumero(leituras[0] ?? 0)} × ${formatarNumero(a)} = ${formatarNumero(quantidade)} m³`;
   }
-  if (unidade === "M2" && l != null && c != null) {
-    if (lFim != null && lFim !== l) {
-      return `média(${formatarNumero(l)}, ${formatarNumero(lFim)}) × ${formatarNumero(c)} = ${formatarNumero(quantidade)} m²`;
+  if (unidade === "M2" && leituras.length > 0 && c != null) {
+    if (leituras.length > 1) {
+      return `média(${leituras.map(formatarNumero).join(", ")}) × ${formatarNumero(c)} = ${formatarNumero(quantidade)} m²`;
     }
-    return `${formatarNumero(c)} × ${formatarNumero(l)} = ${formatarNumero(quantidade)} m²`;
+    return `${formatarNumero(c)} × ${formatarNumero(leituras[0] ?? 0)} = ${formatarNumero(quantidade)} m²`;
   }
   if (unidade === "M" && c != null) {
     return `${formatarNumero(c)} m`;
@@ -410,6 +414,7 @@ function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
         altura: atividade.altura,
         largura: atividade.largura,
         larguraFinal: atividade.larguraFinal,
+        largurasExtras: atividade.largurasExtras,
         comprimento: atividade.comprimento,
         quantidade: quantidadePonto1,
       });
@@ -924,6 +929,7 @@ function montarCartoesCroqui(atividade: RdoPdfAtividade): CartaoCroqui[] {
     altura: atividade.altura,
     largura: atividade.largura,
     larguraFinal: atividade.larguraFinal,
+    largurasExtras: atividade.largurasExtras,
     comprimento: atividade.comprimento,
     quantidade: calcularTotalAtividade(atividade.unidade as Parameters<typeof calcularTotalAtividade>[0], atividade),
   };
