@@ -2163,7 +2163,6 @@ export default function Campo(): ReactElement {
           <input
             type="file"
             accept="image/*"
-            capture="environment"
             disabled={enviandoFoto}
             onChange={(event) => void handleUploadFoto(event)}
           />

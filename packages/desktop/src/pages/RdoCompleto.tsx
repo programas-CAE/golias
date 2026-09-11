@@ -455,9 +455,11 @@ export default function RdoCompleto(): ReactElement {
   const [locais, setLocais] = useState<LocalDraft[]>([]);
   const [maoDeObra, setMaoDeObra] = useState<Record<string, string>>({});
   const [outrasMaoDeObra, setOutrasMaoDeObra] = useState<OutraMaoDeObraDraft[]>([]);
-  // Checklist fixa — todo item do catálogo aparece direto, só com a
-  // quantidade (padrão antigo, que o usuário pediu de volta); produção/
-  // horímetro fica escondido por item até clicar em "+ Produção/horímetro".
+  // Lista curada — só os equipamentos escolhidos aparecem (buscar +
+  // adicionar), não o catálogo inteiro. Produção/horímetro fica escondido
+  // por item até clicar em "+ Produção/horímetro".
+  const [equipamentosAtivos, setEquipamentosAtivos] = useState<string[]>([]);
+  const [novoEquipamentoId, setNovoEquipamentoId] = useState("");
   const [equipamentosQtd, setEquipamentosQtd] = useState<Record<string, string>>({});
   const [equipamentosDetalhe, setEquipamentosDetalhe] = useState<Record<string, EquipamentoDetalhe>>({});
   const [equipamentosDetalheAberto, setEquipamentosDetalheAberto] = useState<Record<string, boolean>>({});
@@ -594,6 +596,7 @@ export default function RdoCompleto(): ReactElement {
               })
               .map((mdo) => ({ funcaoId: mdo.funcaoId, colaboradorId: mdo.colaboradorId ?? "", quantidade: String(mdo.quantidade) })),
           );
+          setEquipamentosAtivos(rdo.equipamentos.map((eq) => eq.equipamentoCatalogoId));
           setEquipamentosQtd(Object.fromEntries(rdo.equipamentos.map((eq) => [eq.equipamentoCatalogoId, String(eq.quantidade)])));
           setEquipamentosDetalhe(
             Object.fromEntries(
@@ -954,6 +957,7 @@ export default function RdoCompleto(): ReactElement {
   /** Motorista/Operador: troca o equipamento selecionado em vez de acumular (só um por dia). */
   function selecionarEquipamentoMotorista(equipamentoCatalogoId: string): void {
     setMotoristaEquipamentoId(equipamentoCatalogoId);
+    setEquipamentosAtivos(equipamentoCatalogoId ? [equipamentoCatalogoId] : []);
     setEquipamentosQtd(equipamentoCatalogoId ? { [equipamentoCatalogoId]: "1" } : {});
   }
 
@@ -962,6 +966,24 @@ export default function RdoCompleto(): ReactElement {
     const criado = await api.post<EquipamentoCatalogo>("/equipamentos", { nome });
     setEquipamentosCatalogo((atual) => [...atual, criado]);
     return criado;
+  }
+
+  function adicionarEquipamentoAtivo(equipamentoCatalogoId: string): void {
+    if (!equipamentoCatalogoId || equipamentosAtivos.includes(equipamentoCatalogoId)) return;
+    setEquipamentosAtivos((atual) => [...atual, equipamentoCatalogoId]);
+  }
+
+  /** Tira da lista lançada neste RDO — não mexe no catálogo global (ver removerEquipamentoDoCatalogo, ação separada). */
+  function removerEquipamentoAtivo(equipamentoCatalogoId: string): void {
+    setEquipamentosAtivos((atual) => atual.filter((id) => id !== equipamentoCatalogoId));
+    setEquipamentosQtd((atual) => {
+      const { [equipamentoCatalogoId]: _removido, ...resto } = atual;
+      return resto;
+    });
+    setEquipamentosDetalheAberto((atual) => {
+      const { [equipamentoCatalogoId]: _removido, ...resto } = atual;
+      return resto;
+    });
   }
 
   /**
@@ -1073,8 +1095,9 @@ export default function RdoCompleto(): ReactElement {
             quantidade: Number(item.quantidade),
           })),
       ],
-      equipamentos: equipamentosCatalogo
-        .filter((item) => Number(equipamentosQtd[item.id] ?? "0") > 0)
+      equipamentos: equipamentosAtivos
+        .map((id) => equipamentosCatalogo.find((item) => item.id === id))
+        .filter((item): item is EquipamentoCatalogo => item != null && Number(equipamentosQtd[item.id] ?? "0") > 0)
         .map((item) => {
           const detalhe = equipamentosDetalhe[item.id] ?? detalheVazio();
           return {
@@ -2038,7 +2061,7 @@ export default function RdoCompleto(): ReactElement {
           <p className="form-section-subtitle">
             {tipo === "MOTORISTA_OPERADOR"
               ? "Qual equipamento ele dirige ou opera nesse dia."
-              : "Marque a quantidade de cada item usado no dia. Produção/horímetro é opcional — só abra pra equipamento que aponta por produção (ex.: terraplenagem)."}
+              : "Busque e adicione os equipamentos usados no dia, e marque a quantidade de cada um. Produção/horímetro é opcional — só abra pra equipamento que aponta por produção (ex.: terraplenagem)."}
           </p>
           {tipo === "MOTORISTA_OPERADOR" ? (
             <>
@@ -2160,10 +2183,37 @@ export default function RdoCompleto(): ReactElement {
                   );
                 })()}
             </>
-          ) : equipamentosCatalogo.length === 0 ? (
-            <p className="table-empty">Nenhum equipamento cadastrado no catálogo.</p>
           ) : (
-            equipamentosCatalogo.map((item) => {
+            <>
+              <div className="repeatable-item" style={{ marginBottom: 12 }}>
+                <Autocomplete
+                  value={novoEquipamentoId}
+                  items={equipamentosCatalogo.filter((item) => !equipamentosAtivos.includes(item.id))}
+                  getLabel={(item) => item.nome}
+                  placeholder="Buscar equipamento pra adicionar à lista…"
+                  onChange={setNovoEquipamentoId}
+                  onCriar={criarEquipamento}
+                />
+                <button
+                  type="button"
+                  className="button button--secondary button--small"
+                  style={{ marginTop: 8 }}
+                  disabled={!novoEquipamentoId}
+                  onClick={() => {
+                    adicionarEquipamentoAtivo(novoEquipamentoId);
+                    setNovoEquipamentoId("");
+                  }}
+                >
+                  + Adicionar
+                </button>
+              </div>
+              {equipamentosAtivos.length === 0 ? (
+                <p className="table-empty">Nenhum equipamento na lista ainda — adicione acima.</p>
+              ) : (
+            equipamentosAtivos
+              .map((id) => equipamentosCatalogo.find((item) => item.id === id))
+              .filter((item): item is EquipamentoCatalogo => item != null)
+              .map((item) => {
               const detalhe = equipamentosDetalhe[item.id] ?? detalheVazio();
               const aberto = equipamentosDetalheAberto[item.id] ?? false;
               return (
@@ -2187,8 +2237,7 @@ export default function RdoCompleto(): ReactElement {
                     <button
                       type="button"
                       className="button button--ghost button--small"
-                      title="Remove este item da lista de equipamentos pra todas as frentes"
-                      onClick={() => void removerEquipamentoDoCatalogo(item)}
+                      onClick={() => removerEquipamentoAtivo(item.id)}
                     >
                       Remover
                     </button>
@@ -2275,6 +2324,8 @@ export default function RdoCompleto(): ReactElement {
                 </div>
               );
             })
+              )}
+            </>
           )}
         </section>
 
