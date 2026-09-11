@@ -1,4 +1,4 @@
-import { calcularTotalAtividade, jornadaReferenciaHoras } from "@golias/shared";
+import { calcularTotalAtividade, jornadaReferenciaHoras, somarMinutosSemSobreposicao } from "@golias/shared";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import PDFDocument from "pdfkit";
@@ -366,11 +366,10 @@ interface LinhaUnificada {
 function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
   const linhas: LinhaUnificada[] = [];
 
-  // IMPRODUTIVA/INDISPONIVEL não entram na linha do tempo cronológica — vão
-  // resumidas em duas linhas só, no final da tabela (ver abaixo), pra não
-  // espalhar "hora perdida" no meio da narrativa do dia.
+  // Todo bloco entra na linha do tempo cronológica, sempre — o total por
+  // categoria (improdutiva/indisponível) só aparece resumido no rodapé da
+  // tabela (ver desenharResumoHoras), não repetido aqui como linha própria.
   for (const bloco of dados.blocosHorario) {
-    if (bloco.categoria === "IMPRODUTIVA" || bloco.categoria === "INDISPONIVEL") continue;
     linhas.push({
       inicial: bloco.horarioInicial,
       final: bloco.horarioFinal,
@@ -441,30 +440,6 @@ function montarLinhasUnificadas(dados: RdoPdfDados): LinhaUnificada[] {
         chaveOrdenacao: chaveBase,
       });
     }
-  }
-
-  for (const [categoria, rotulo] of [
-    ["IMPRODUTIVA", "HORAS IMPRODUTIVAS"],
-    ["INDISPONIVEL", "HORAS INDISPONÍVEIS"],
-  ] as const) {
-    const blocosDaCategoria = dados.blocosHorario.filter((bloco) => bloco.categoria === categoria);
-    if (blocosDaCategoria.length === 0) continue;
-    const minutosTotais = blocosDaCategoria.reduce((soma, bloco) => {
-      const diferenca = minutosDoHorario(bloco.horarioFinal) - minutosDoHorario(bloco.horarioInicial);
-      return soma + (diferenca > 0 ? diferenca : 0);
-    }, 0);
-    linhas.push({
-      inicial: "",
-      final: "",
-      atividadeTexto: rotulo,
-      qtd: formatarHoras(minutosTotais / 60),
-      unidade: "",
-      omTexto: null,
-      omCor: null,
-      mo: "",
-      observacoes: blocosDaCategoria.map((bloco) => bloco.descricao).join("; "),
-      chaveOrdenacao: Number.POSITIVE_INFINITY,
-    });
   }
 
   return linhas.sort((a, b) => a.chaveOrdenacao - b.chaveOrdenacao);
@@ -593,20 +568,18 @@ function desenharTabelaUnificada(doc: PDFKit.PDFDocument, dados: RdoPdfDados, yI
  * atividade, ou se sobrou hora sem descrição.
  */
 function calcularHorasTrabalhadas(dados: RdoPdfDados): number {
-  let minutos = 0;
+  const intervalos: Array<[number, number]> = [];
   for (const bloco of dados.blocosHorario) {
     if (!bloco.horarioInicial || !bloco.horarioFinal) continue;
-    const diferenca = minutosDoHorario(bloco.horarioFinal) - minutosDoHorario(bloco.horarioInicial);
-    if (diferenca > 0) minutos += diferenca;
+    intervalos.push([minutosDoHorario(bloco.horarioInicial), minutosDoHorario(bloco.horarioFinal)]);
   }
   for (const local of dados.locais) {
     for (const atividade of local.atividades) {
       if (!atividade.horarioInicial || !atividade.horarioFinal) continue;
-      const diferenca = minutosDoHorario(atividade.horarioFinal) - minutosDoHorario(atividade.horarioInicial);
-      if (diferenca > 0) minutos += diferenca;
+      intervalos.push([minutosDoHorario(atividade.horarioInicial), minutosDoHorario(atividade.horarioFinal)]);
     }
   }
-  return minutos / 60;
+  return somarMinutosSemSobreposicao(intervalos) / 60;
 }
 
 function formatarHoras(horas: number): string {
@@ -976,7 +949,12 @@ function desenharCroquis(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
     .flatMap((atividade) => montarCartoesCroqui(atividade));
   if (cartoes.length === 0) return;
 
-  garantirEspaco(doc, 60);
+  const alturaCartao = CROQUI_ALTURA_DESENHO + 44;
+  // Reserva espaço do título JUNTO com pelo menos 1 linha de cartões — só
+  // pro título (sem isso) ele cabia sozinho no fim da página e a primeira
+  // fileira de croquis virava página logo em seguida, deixando o título
+  // "órfão" com um vão em branco embaixo dele.
+  garantirEspaco(doc, 60 + alturaCartao);
   doc.font("Helvetica-Bold").fontSize(11).fillColor("#000000").text("CROQUIS E MEMORIAL DE CÁLCULO", MARGEM, doc.y);
   doc.moveTo(MARGEM, doc.y + 4).lineTo(LARGURA_PAGINA - MARGEM, doc.y + 4).lineWidth(0.75).stroke();
 
@@ -985,7 +963,6 @@ function desenharCroquis(doc: PDFKit.PDFDocument, dados: RdoPdfDados): void {
   const colX = [MARGEM, MARGEM + CROQUI_LARGURA + gap, MARGEM + (CROQUI_LARGURA + gap) * 2];
   let coluna = 0;
   let y = doc.y + 16;
-  const alturaCartao = CROQUI_ALTURA_DESENHO + 44;
 
   for (const cartao of cartoes) {
     if (y + alturaCartao > LIMITE_CONTEUDO) {

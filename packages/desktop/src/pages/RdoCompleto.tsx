@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactElement } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { jornadaReferenciaHorasDeString } from "@golias/shared";
+import { jornadaReferenciaHorasDeString, somarMinutosSemSobreposicao } from "@golias/shared";
 import Nav from "../components/Nav";
 import CroquiAtividade from "../components/CroquiAtividade";
 import Autocomplete from "../components/Autocomplete";
@@ -213,7 +213,6 @@ interface RdoExistente {
   data: string;
   encarregadoId: string | null;
   clima: string | null;
-  totalDesvios: number | null;
   horaExtraInicio: string | null;
   horaExtraFim: string | null;
   observacoesContratada: string | null;
@@ -366,20 +365,18 @@ function duracaoEmHoras(inicial: string, final: string): number | null {
  * sobrou hora não apontada em nenhum bloco/atividade.
  */
 function calcularHorasApontadasDia(blocos: BlocoDraft[], locais: LocalDraft[]): number {
-  let minutos = 0;
+  const intervalos: Array<[number, number]> = [];
   for (const bloco of blocos) {
     if (!bloco.horarioInicial || !bloco.horarioFinal) continue;
-    const diferenca = minutosDoHorario(bloco.horarioFinal) - minutosDoHorario(bloco.horarioInicial);
-    if (diferenca > 0) minutos += diferenca;
+    intervalos.push([minutosDoHorario(bloco.horarioInicial), minutosDoHorario(bloco.horarioFinal)]);
   }
   for (const local of locais) {
     for (const atividade of local.atividades) {
       if (!atividade.horarioInicial || !atividade.horarioFinal) continue;
-      const diferenca = minutosDoHorario(atividade.horarioFinal) - minutosDoHorario(atividade.horarioInicial);
-      if (diferenca > 0) minutos += diferenca;
+      intervalos.push([minutosDoHorario(atividade.horarioInicial), minutosDoHorario(atividade.horarioFinal)]);
     }
   }
-  return minutos / 60;
+  return somarMinutosSemSobreposicao(intervalos) / 60;
 }
 
 /** Mesma soma por categoria que o servidor faz ao salvar (ver calcularHorasBlocos em rdos.ts) — só pra pré-visualizar antes de salvar. */
@@ -449,7 +446,6 @@ export default function RdoCompleto(): ReactElement {
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [encarregadoId, setEncarregadoId] = useState("");
   const [clima, setClima] = useState("");
-  const [totalDesvios, setTotalDesvios] = useState("");
   const [horaExtraInicio, setHoraExtraInicio] = useState("");
   const [horaExtraFim, setHoraExtraFim] = useState("");
 
@@ -520,7 +516,6 @@ export default function RdoCompleto(): ReactElement {
           setData(rdo.data.slice(0, 10));
           setEncarregadoId(rdo.encarregadoId ?? "");
           setClima(rdo.clima ?? "");
-          setTotalDesvios(rdo.totalDesvios != null ? String(rdo.totalDesvios) : "");
           setHoraExtraInicio(rdo.horaExtraInicio ?? "");
           setHoraExtraFim(rdo.horaExtraFim ?? "");
           setObservacoes(rdo.observacoesContratada ?? "");
@@ -1019,7 +1014,6 @@ export default function RdoCompleto(): ReactElement {
       data,
       clima: clima === "" ? null : clima,
       encarregadoId: encarregadoId === "" ? null : encarregadoId,
-      totalDesvios: totalDesvios === "" ? null : Number(totalDesvios),
       horaExtraInicio: horaExtraInicio === "" ? null : horaExtraInicio,
       horaExtraFim: horaExtraFim === "" ? null : horaExtraFim,
       observacoesContratada: observacoes === "" ? null : observacoes,
@@ -1294,33 +1288,21 @@ export default function RdoCompleto(): ReactElement {
             </div>
           </div>
 
-          <div className="grid-3">
-            <div>
-              <label className="field-label">Total de desvios</label>
+          <div>
+            <label className="field-label">Hora extra</label>
+            <div className="grid-2">
               <input
-                type="number"
-                min={0}
+                type="time"
                 className="field-input"
-                value={totalDesvios}
-                onChange={(event) => setTotalDesvios(event.target.value)}
+                value={horaExtraInicio}
+                onChange={(event) => setHoraExtraInicio(event.target.value)}
               />
-            </div>
-            <div>
-              <label className="field-label">Hora extra</label>
-              <div className="grid-2">
-                <input
-                  type="time"
-                  className="field-input"
-                  value={horaExtraInicio}
-                  onChange={(event) => setHoraExtraInicio(event.target.value)}
-                />
-                <input
-                  type="time"
-                  className="field-input"
-                  value={horaExtraFim}
-                  onChange={(event) => setHoraExtraFim(event.target.value)}
-                />
-              </div>
+              <input
+                type="time"
+                className="field-input"
+                value={horaExtraFim}
+                onChange={(event) => setHoraExtraFim(event.target.value)}
+              />
             </div>
           </div>
         </section>

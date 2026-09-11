@@ -36,3 +36,33 @@ export function duracaoHoras(horarioInicial: string, horarioFinal: string): numb
   const minutos = minutosDoHorario(horarioFinal) - minutosDoHorario(horarioInicial);
   return minutos > 0 ? minutos / 60 : 0;
 }
+
+/**
+ * Mescla intervalos [início, fim] (em minutos) que se sobrepõem ou se
+ * encostam, somando só o tempo de calendário coberto — sem isso, duas
+ * frentes trabalhando ao mesmo tempo em locais diferentes (comum quando a
+ * equipe se divide) faziam a soma de "horas apontadas" passar do próprio
+ * tamanho do dia, contando a mesma janela de horário mais de uma vez.
+ */
+export function somarMinutosSemSobreposicao(intervalos: Array<[number, number]>): number {
+  const validos = intervalos.filter(([inicio, fim]) => fim > inicio).sort((a, b) => a[0] - b[0]);
+  let minutos = 0;
+  let inicioAtual = Number.NaN;
+  let fimAtual = Number.NaN;
+  for (const [inicio, fim] of validos) {
+    if (Number.isNaN(inicioAtual)) {
+      inicioAtual = inicio;
+      fimAtual = fim;
+      continue;
+    }
+    if (inicio <= fimAtual) {
+      fimAtual = Math.max(fimAtual, fim);
+    } else {
+      minutos += fimAtual - inicioAtual;
+      inicioAtual = inicio;
+      fimAtual = fim;
+    }
+  }
+  if (!Number.isNaN(inicioAtual)) minutos += fimAtual - inicioAtual;
+  return minutos;
+}
